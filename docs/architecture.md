@@ -122,7 +122,7 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   │   ├─ dom.ts             # h() element helper, no framework
 │   │   ├─ icons.ts           # SVG path strings
 │   │   ├─ topBar.ts, pauseOverlay.ts, rescuePanel.ts, gameOverPanel.ts, toasts.ts, tutorialBubble.ts
-│   │   └─ screens/home.ts, collection.ts, achievements.ts, stats.ts, settings.ts, howToPlay.ts, dailyResult.ts
+│   │   └─ screens/home.ts, collection.ts, achievements.ts, stats.ts, settings.ts, howToPlay.ts, dailyResult.ts, credits.ts
 │   └─ platform/
 │       ├─ storage.ts         # localStorage wrapper with try/catch + in-memory fallback
 │       ├─ saveStore.ts       # migrate on load, back up corrupt/future saves, write the save key

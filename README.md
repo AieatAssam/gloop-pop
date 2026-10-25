@@ -59,7 +59,11 @@ npm run check      # palette check, typecheck, lint, tests, build, bundle size
 npm run sim -- --runs 100   # balance simulation with the bot
 ```
 
-The stack is Vite, strict TypeScript, Canvas 2D and Vitest. Sound and music come from WebAudio synthesis, so the repo has no audio files. The production bundle is about 65 KB of gzipped JavaScript. A service worker caches the game for offline play.
+The stack is Vite, strict TypeScript, Canvas 2D and Vitest. Sound effects mix CC0 samples with WebAudio synthesis, and the music is a CC0 loop with synthesised layers. The audio files are about 0.8–1 MB, are loaded after your first tap, and are cached for offline play. The production bundle is about 65 KB of gzipped JavaScript. A service worker caches the game for offline play.
+
+## Credits
+
+Sound effects and music use free CC0 assets by Kenney, cbenci, JelloApocalypse, qubodup, Bertsz and omfgdude, from Kenney.nl, Freesound and OpenGameArt. The full list, with links, licences and the exact edits we made, is in [CREDITS.md](CREDITS.md). The game also shows it under Settings → Credits.
 
 ## Design documents
 

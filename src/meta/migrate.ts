@@ -22,7 +22,8 @@ export function sanitize(input: SaveV1): SaveV1 {
   const source = input;
   base.tutorialDone = source.tutorialDone === true;
   if (source.settings) {
-    base.settings = { ...base.settings, sfx: source.settings.sfx !== false, music: source.settings.music !== false, muted: source.settings.muted === true,
+    base.settings = { ...base.settings, sfx: source.settings.sfx !== false, music: source.settings.music !== false,
+      sfxVolume: clampVolume(source.settings.sfxVolume), musicVolume: clampVolume(source.settings.musicVolume), muted: source.settings.muted === true,
       haptics: source.settings.haptics !== false, reducedMotion: ['system', 'on', 'off'].includes(source.settings.reducedMotion) ? source.settings.reducedMotion : 'system', cbPatterns: source.settings.cbPatterns === true };
   }
   if (source.profile) base.profile = { xp: integer(source.profile.xp), level: Math.max(1, Math.min(50, integer(source.profile.level, 1))), stars: integer(source.profile.stars), coins: integer(source.profile.coins), coinsEarned: integer(source.profile.coinsEarned) };
@@ -58,5 +59,6 @@ function validGame(value: unknown): value is GameState {
 function cleanIds(values: unknown, allowed: Set<string>, defaults: string[]): string[] { return [...new Set([...defaults, ...(Array.isArray(values) ? values.filter((value): value is string => typeof value === 'string' && allowed.has(value)) : [])])]; }
 function cleanCountMap(value: unknown): Record<string, number> { if (!isRecord(value)) return {}; return Object.fromEntries(Object.entries(value).filter(([, v]) => Number.isFinite(v)).map(([key, v]) => [key, integer(v)])); }
 function integer(value: unknown, fallback = 0): number { return Number.isFinite(value) ? Math.max(0, Math.floor(Number(value))) : fallback; }
+function clampVolume(value: unknown): number { return Number.isFinite(value) ? Math.max(0, Math.min(1, Number(value))) : 1; }
 function number(value: unknown, fallback: number): number { return Number.isFinite(value) ? Number(value) : fallback; }
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null && !Array.isArray(value); }

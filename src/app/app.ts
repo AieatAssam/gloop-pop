@@ -44,7 +44,7 @@ import { buildDailyShareText } from '../core/shareText';
 import { shareText } from '../platform/share';
 import { shareImage } from '../platform/share';
 import { buildChallengeText, flavourName, parseChallenge } from '../core/shareText';
-import { initAudioOnFirstInput, playGameEvents, startMusic, setAudioPaused, setSfxEnabled, setMusicEnabled, setMasterMuted, sfx, music, onLand, onImpact, onBurst, onPopFirst, onClimax } from '../audio';
+import { initAudioOnFirstInput, playGameEvents, startMusic, setAudioPaused, setSfxEnabled, setMusicEnabled, setMasterMuted, setEffectsVolume, setMusicVolume, sfx, music, onLand, onImpact, onBurst, onPopFirst, onClimax, audioDebugLine } from '../audio';
 import { planMove } from '../audio/movePlan';
 import { shouldReduceMotion, devicePrefersReducedMotion, canStartSlowMo } from '../platform/motion';
 import { addComboTicks, hapticPattern, vibrate } from '../platform/haptics';
@@ -62,6 +62,7 @@ import { chooseBotMove } from '../core/sim';
 import { seededRng } from '../core/rng';
 import { createFeelScene } from './demoScenes';
 import { musicState } from '../audio/musicState';
+import { createCreditsScreen } from '../ui/screens/credits';
 
 export function bootApp(): void {
   const canvas = document.querySelector<HTMLCanvasElement>('#game'); const uiRoot = document.querySelector<HTMLElement>('#ui');
@@ -70,7 +71,7 @@ export function bootApp(): void {
   const skinMap: Record<string, SkinId> = { plain:'plain', googly:'googlyEyes', googlyEyes:'googlyEyes', freckles:'freckles', catears:'catEars', catEars:'catEars', glasses:'glasses', mustache:'mustache', bowtie:'bowtie', crown:'crown' };
   const syncCosmetics = (): void => setEquippedCosmetics({ theme: save.equipped.theme as keyof typeof PALETTE.theme, skin: skinMap[save.equipped.skin] ?? 'plain', popEffect: save.equipped.pop as PopEffectId });
   syncCosmetics();
-  setMasterMuted(save.settings.muted); setSfxEnabled(save.settings.sfx); setMusicEnabled(save.settings.music);
+  setMasterMuted(save.settings.muted); setSfxEnabled(save.settings.sfx); setMusicEnabled(save.settings.music); setEffectsVolume(save.settings.sfxVolume); setMusicVolume(save.settings.musicVolume);
   const beginTutorial = !savedRun && !save.tutorialDone;
   let session = createSession({ state: savedRun ?? (beginTutorial ? tutorialGame(1) : null), best: bestFor(save, savedRun?.mode ?? 'classic'), mode: 'classic' });
   canvas.setAttribute('aria-label', `${S.logo}. ${S.howToControls}`);
@@ -161,7 +162,7 @@ export function bootApp(): void {
       if (paused) { ctx.fillStyle = PALETTE.ui.scrim; ctx.fillRect(0, 0, layout.width, layout.height); }
       shownScore = drawHud(ctx, layout, session.state, session.best, frame.realNow, shownScore, comboLostAt, activeChallenge?.score, candyFlameUntil, candyFlameFlavour, reduced, scoreAnimFrom, scoreAnimStart, scoreAnimDuration, newBestAt, flameBreakAt, comboPulseAt, scoreSparkleAt, scoreAnimPoints);
       if (tutorialActive && tutorialStep < 4 && !tutorialTouched) { const target = tutorialStep === 1 ? { row: 6, col: 6, width: 2 } : tutorialStep === 2 ? { row: 6, col: 3, width: 1 } : { row: 4, col: 6, width: 2 }; const cells = tutorialStep === 2 ? [[0, 0], [1, 0]] as const : [[0, 0], [0, 1]] as const; const hand = tutorialHandPoints(layout.board, layout.tray, layout.cellSize, target.row, target.col, target.width); drawGhostHand(ctx, elapsedMs, hand.from, hand.to, layout.cellSize, cells); }
-      if (debug && query.get('overlay') !== '0') drawDebug(ctx, layout, surface.dpr, dtMs, surface, effectFrameMs);
+      if (debug && query.get('overlay') !== '0') drawDebug(ctx, layout, surface.dpr, dtMs, surface, effectFrameMs, audioDebugLine());
     }
     updateTutorial(elapsedMs);
     updateOverlay();
@@ -293,14 +294,15 @@ export function bootApp(): void {
     if (reduced) return;
     renderLoop.requestSlowMo(0.35, 40, 300, 200);
   }
-  function renderScreen(screen: 'home' | 'stats' | 'play' | 'collection' | 'achievements' | 'dailyResult' | 'settings' | 'howToPlay'): void {
+  function renderScreen(screen: 'home' | 'stats' | 'play' | 'collection' | 'achievements' | 'dailyResult' | 'settings' | 'howToPlay' | 'credits'): void {
     homeHost.replaceChildren(); ui.hide();
-    if (screen === 'home') { homeHost.append(createHomeScreen(save, { play: start, dailyResult: () => router.open('dailyResult'), stats: () => router.open('stats'), collection: () => router.open('collection'), achievements: () => router.open('achievements'), settings: () => router.open('settings'), howToPlay: () => router.open('howToPlay'), debugXp: () => { const result = grantXp(save, 5000); save = result.save; saveNow(save); for (const level of result.levels) toast.show(S.levelUp(level)); for (const item of result.unlocked) toast.show(S.unlocked(item)); renderScreen('home'); } }, debug, activeChallenge ?? undefined)); }
+    if (screen === 'home') { homeHost.append(createHomeScreen(save, { play: start, dailyResult: () => router.open('dailyResult'), stats: () => router.open('stats'), collection: () => router.open('collection'), achievements: () => router.open('achievements'), settings: () => router.open('settings'), howToPlay: () => router.open('howToPlay'), credits: () => router.open('credits'), debugXp: () => { const result = grantXp(save, 5000); save = result.save; saveNow(save); for (const level of result.levels) toast.show(S.levelUp(level)); for (const item of result.unlocked) toast.show(S.unlocked(item)); renderScreen('home'); } }, debug, activeChallenge ?? undefined)); }
     else if (screen === 'stats') { paused = false; homeHost.append(createStatsScreen(save, () => router.back())); }
     else if (screen === 'collection') { paused = false; homeHost.append(createCollectionScreen(save, () => router.back(), (next) => { save = next; syncCosmetics(); backgroundTheme = ''; saveNow(save); })); }
     else if (screen === 'achievements') { paused = false; homeHost.append(createAchievementsScreen(save, () => router.back())); }
-    else if (screen === 'settings') { paused = false; homeHost.append(createSettingsScreen(save, { change: (key, value) => { save.settings[key] = value; if (key === 'sfx') setSfxEnabled(value); else if (key === 'music') setMusicEnabled(value); else if (key === 'cbPatterns') setColourBlindPatterns(value); saveNow(save); }, reduce: (value) => { save.settings.reducedMotion = value; saveNow(save); }, replay: () => { save.tutorialDone = false; save.ui.seenTips = save.ui.seenTips.filter((tip) => tip !== 'tutorialStep4Pending' && tip !== 'tutorialTipPending'); runBest = bestFor(save, 'classic'); session = createSession({ state: tutorialGame(1), best: runBest }); runEvents = []; runRecorded = false; countedDailyThisRun = false; runStartedAt = performance.now(); gameOverAt = -1; shownStatus = ''; shownScore = 0; tutorialActive = true; tutorialStep = 1; tutorialTouched = false; tutorialBubbleText = ''; tutorialBubbleUntil = -1; save.inProgress = session.state; if (!tutorialBubble.element.isConnected) uiRoot?.append(tutorialBubble.element); saveNow(save); router.open('play'); }, reset: () => { save = defaultSave(Date.now()); saveNow(save); window.location.reload(); }, back: () => router.back() })); }
+    else if (screen === 'settings') { paused = false; homeHost.append(createSettingsScreen(save, { change: (key, value) => { save.settings[key] = value; if (key === 'sfx') setSfxEnabled(value); else if (key === 'music') setMusicEnabled(value); else if (key === 'cbPatterns') setColourBlindPatterns(value); saveNow(save); }, volume: (key, value, commit) => { save.settings[key] = value; if (key === 'sfxVolume') setEffectsVolume(value); else setMusicVolume(value); if (commit) { saveNow(save); if (key === 'sfxVolume') sfx.place({ cells: 1 }); } }, reduce: (value) => { save.settings.reducedMotion = value; saveNow(save); }, replay: () => { save.tutorialDone = false; save.ui.seenTips = save.ui.seenTips.filter((tip) => tip !== 'tutorialStep4Pending' && tip !== 'tutorialTipPending'); runBest = bestFor(save, 'classic'); session = createSession({ state: tutorialGame(1), best: runBest }); runEvents = []; runRecorded = false; countedDailyThisRun = false; runStartedAt = performance.now(); gameOverAt = -1; shownStatus = ''; shownScore = 0; tutorialActive = true; tutorialStep = 1; tutorialTouched = false; tutorialBubbleText = ''; tutorialBubbleUntil = -1; save.inProgress = session.state; if (!tutorialBubble.element.isConnected) uiRoot?.append(tutorialBubble.element); saveNow(save); router.open('play'); }, credits: () => router.open('credits'), reset: () => { save = defaultSave(Date.now()); saveNow(save); window.location.reload(); }, back: () => router.back() })); }
     else if (screen === 'howToPlay') { paused = false; homeHost.append(createHowToPlayScreen(() => router.back())); }
+    else if (screen === 'credits') { paused = false; homeHost.append(createCreditsScreen(() => router.back())); }
     else if (screen === 'dailyResult') {
       paused = false; const key = dayKeyFromMs(Date.now()); const result = dailyResult(save, key);
       if (!result) { router.open('home'); return; }
@@ -328,12 +330,12 @@ function rescueClearWithinThree(events: readonly GameEvent[]): boolean {
 }
 function bestFor(save: SaveV1, mode: ModeId): number { return mode === 'expert' ? save.best.expert : mode === 'daily' ? save.daily.best : mode === 'zen' ? 0 : save.best.classic; }
 const debugFrameBuckets = new Uint16Array(8); let debugFrameCursor = 0; let debugFrameCount = 0; let debugFrameSum = 0;
-function drawDebug(context: CanvasRenderingContext2D, layout: Layout, dpr: number, dt: number, surface: ReturnType<typeof createCanvasSurface>, effectMs: number): void {
+function drawDebug(context: CanvasRenderingContext2D, layout: Layout, dpr: number, dt: number, surface: ReturnType<typeof createCanvasSurface>, effectMs: number, audioLine: string): void {
   const buckets = debugFrameBuckets; const bin = Math.min(buckets.length - 1, Math.floor(dt / 2)); if (debugFrameCount === 120) { buckets[debugFrameCursor] = Math.max(0, buckets[debugFrameCursor]! - 1); debugFrameSum -= debugFrameLast[debugFrameCursor]!; } else debugFrameCount += 1;
   debugFrameLast[debugFrameCursor] = dt; buckets[bin] = buckets[bin]! + 1; debugFrameSum += dt; debugFrameCursor = (debugFrameCursor + 1) % 120;
   let accumulated = 0; let p95 = 16; for (let i = 0; i < buckets.length; i += 1) { accumulated += buckets[i]!; if (accumulated >= debugFrameCount * 0.95) { p95 = i * 2 + 1; break; } } const average = debugFrameSum / Math.max(1, debugFrameCount);
   // spec-note: `slow=1` feeds synthetic slow frames into the same sampler for repeatable adaptive-DPR QA.
   const forced = new URLSearchParams(window.location.search).get('slow') === '1'; if (forced) for (let i = 0; i < 120; i += 1) surface.reportFrame(25);
-  context.save(); context.fillStyle = PALETTE.light.shadowDeep; context.fillRect(8, 8, 250, 112); context.fillStyle = PALETTE.ui.textPrimary; context.font = '700 12px Nunito, sans-serif'; context.fillText(`frame ${dt.toFixed(1)} ms · avg ${average.toFixed(1)} · p95 ${p95.toFixed(1)}`, 16, 28); context.fillText(`dpr ${dpr.toFixed(2)} · ${layout.width}×${layout.height}`, 16, 47); context.fillText(`effects ${effectMs.toFixed(2)} ms`, 16, 66); context.fillText(`120f ${debugFrameCount} · ${forced ? 'slow test' : 'live'}`, 16, 85); let peak = 1; for (let i = 0; i < buckets.length; i += 1) peak = Math.max(peak, buckets[i]!); context.fillStyle = PALETTE.ui.gold; for (let i = 0; i < buckets.length; i += 1) { const height = 18 * buckets[i]! / peak; context.fillRect(16 + i * 26, 118 - height, 18, height); } context.restore();
+  context.save(); context.fillStyle = PALETTE.light.shadowDeep; context.fillRect(8, 8, 520, 146); context.fillStyle = PALETTE.ui.textPrimary; context.font = '700 12px Nunito, sans-serif'; context.fillText(`frame ${dt.toFixed(1)} ms · avg ${average.toFixed(1)} · p95 ${p95.toFixed(1)}`, 16, 28); context.fillText(`dpr ${dpr.toFixed(2)} · ${layout.width}×${layout.height}`, 16, 47); context.fillText(`effects ${effectMs.toFixed(2)} ms`, 16, 66); context.fillText(`120f ${debugFrameCount} · ${forced ? 'slow test' : 'live'}`, 16, 85); context.fillText(audioLine, 16, 104, 504); let peak = 1; for (let i = 0; i < buckets.length; i += 1) peak = Math.max(peak, buckets[i]!); context.fillStyle = PALETTE.ui.gold; for (let i = 0; i < buckets.length; i += 1) { const height = 18 * buckets[i]! / peak; context.fillRect(16 + i * 26, 150 - height, 18, height); } context.restore();
 }
 const debugFrameLast = new Float32Array(120);

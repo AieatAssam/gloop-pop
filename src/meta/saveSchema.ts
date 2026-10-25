@@ -8,7 +8,7 @@ export interface LifetimeStats {
 }
 export interface SaveV1 {
   v: 1; createdAt: number; tutorialDone: boolean;
-  settings: { sfx: boolean; music: boolean; muted: boolean; haptics: boolean; reducedMotion: 'system' | 'on' | 'off'; cbPatterns: boolean };
+  settings: { sfx: boolean; music: boolean; sfxVolume: number; musicVolume: number; muted: boolean; haptics: boolean; reducedMotion: 'system' | 'on' | 'off'; cbPatterns: boolean };
   profile: { xp: number; level: number; stars: number; coins: number; coinsEarned: number };
   owned: { themes: string[]; skins: string[]; pops: string[]; modes: ModeId[] };
   equipped: { theme: string; skin: string; pop: string };
@@ -24,7 +24,7 @@ export interface SaveV1 {
 
 export function defaultSave(createdAt = 0): SaveV1 {
   return { v: 1, createdAt, tutorialDone: false,
-    settings: { sfx: true, music: true, muted: false, haptics: true, reducedMotion: 'system', cbPatterns: false },
+    settings: { sfx: true, music: true, sfxVolume: 1, musicVolume: 1, muted: false, haptics: true, reducedMotion: 'system', cbPatterns: false },
     profile: { xp: 0, level: 1, stars: 0, coins: 0, coinsEarned: 0 },
     owned: { themes: ['midnight'], skins: ['plain'], pops: ['sparkles'], modes: ['classic', 'daily'] },
     equipped: { theme: 'midnight', skin: 'plain', pop: 'sparkles' }, best: { classic: 0, expert: 0 },

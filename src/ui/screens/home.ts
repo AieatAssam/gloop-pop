@@ -9,7 +9,7 @@ import { iconMarkup } from '../icons';
 import { WEEKLY_POOL, weekIndexFromMs } from '../../core/weekly';
 import { syncWeek, WEEKLY_TARGETS } from '../../meta/weeklyGoal';
 
-export interface HomeActions { play(mode: ModeId): void; dailyResult?(): void; stats(): void; collection(): void; achievements(): void; settings(): void; howToPlay(): void; debugXp(): void }
+export interface HomeActions { play(mode: ModeId): void; dailyResult?(): void; stats(): void; collection(): void; achievements(): void; settings(): void; howToPlay(): void; credits(): void; debugXp(): void }
 export function createHomeScreen(save: SaveV1, actions: HomeActions, debug = false, challenge?: { score: number; flavour: Flavour }): HTMLElement {
   const root = document.createElement('main'); root.className = 'screen-wrap'; const panel = document.createElement('section'); panel.className = 'panel home-panel';
   const header = document.createElement('header'); header.className = 'home-header'; const logo = createLogo(); header.append(logo, chip(S.level(save.profile.level)), chip(S.coins(save.profile.coins))); panel.append(header);
@@ -29,7 +29,7 @@ export function createHomeScreen(save: SaveV1, actions: HomeActions, debug = fal
   const strip = document.createElement('div'); strip.className = 'streak-strip'; const today = Date.now(); const weekday = new Date(today).getUTCDay(); const monday = Math.floor(today / 86_400_000) - ((weekday + 6) % 7);
   // Design §11: ✓ played, ❄️ frozen, empty circle for not yet, a dot for today; each day labelled with its initial.
   for (let i = 0; i < 7; i += 1) { const date = new Date((monday + i) * 86_400_000).toISOString().slice(0, 10); const day = document.createElement('span'); day.className = 'streak-day-wrap'; const mark = document.createElement('span'); mark.className = 'streak-day'; const played = !!save.daily.records[date]; mark.textContent = played ? '✓' : save.streak.frozenDays.includes(date) ? '❄️' : ''; if (played) mark.classList.add('is-played'); if (date === dayKey) mark.classList.add('is-today'); const initial = document.createElement('small'); initial.textContent = S.weekdayInitials[i] ?? ''; day.append(mark, initial); strip.append(day); } panel.append(strip);
-  const footer = document.createElement('nav'); footer.className = 'home-links'; footer.append(button(S.collection, 'text-button', () => actions.collection()), button(S.achievements, 'text-button', () => actions.achievements()), button(S.stats, 'text-button', () => actions.stats())); const extra = document.createElement('div'); extra.className = 'home-links'; extra.append(button(S.settings, 'text-button', () => actions.settings()), button(S.howToPlay, 'text-button', () => actions.howToPlay())); panel.append(footer, extra);
+  const footer = document.createElement('nav'); footer.className = 'home-links'; footer.append(button(S.collection, 'text-button', () => actions.collection()), button(S.achievements, 'text-button', () => actions.achievements()), button(S.stats, 'text-button', () => actions.stats())); const extra = document.createElement('div'); extra.className = 'home-links'; extra.append(button(S.settings, 'text-button', () => actions.settings()), button(S.howToPlay, 'text-button', () => actions.howToPlay()), button(S.credits, 'text-button', () => actions.credits())); panel.append(footer, extra);
   if (debug) panel.append(button(S.debugXp, 'button button--secondary', () => actions.debugXp())); root.append(panel); return root;
 }
 function createLogo(): HTMLElement {

@@ -116,6 +116,24 @@ body { color: var(--ui-text-primary); }
 .stats-list dd { margin: 0; color: var(--ui-text-primary); font-weight: 800; text-align: right; }
 .stats-chart { width: 100%; height: 120px; }
 .settings-list { display: grid; gap: 10px; }
+.volume-row { display: grid; grid-template-columns: minmax(112px, 1fr) 160px 44px; }
+.volume-row > label { line-height: 1.25; }
+.volume-row input[type="range"] { width: 160px; height: 24px; accent-color: var(--ui-toggle-on); background: transparent; }
+.volume-row input[type="range"]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg,var(--ui-toggle-on) 0%,var(--ui-toggle-on) var(--volume-fill,0%),var(--ui-track) var(--volume-fill,0%),var(--ui-track) 100%); }
+.volume-row input[type="range"]::-moz-range-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg,var(--ui-toggle-on) 0%,var(--ui-toggle-on) var(--volume-fill,0%),var(--ui-track) var(--volume-fill,0%),var(--ui-track) 100%); }
+.volume-row input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; margin-top: -8px; border: 0; border-radius: 50%; background: var(--ui-toggle-knob); box-shadow: 0 2px 5px var(--light-shadow); }
+.volume-row input[type="range"]::-moz-range-thumb { width: 24px; height: 24px; border: 0; border-radius: 50%; background: var(--ui-toggle-knob); box-shadow: 0 2px 5px var(--light-shadow); }
+.volume-row input[type="range"]:disabled { opacity: .5; }
+.volume-value { color: var(--ui-text-secondary); font: 700 13px/1 Nunito, sans-serif; font-variant-numeric: tabular-nums; text-align: right; }
+.credits-panel { overflow: hidden; }
+.credits-content { overflow-y: auto; min-height: 0; padding: 0 4px 8px; }
+.credits-intro { margin: 0 0 16px; color: var(--ui-text-primary); font: 700 16px/1.4 Nunito, sans-serif; }
+.credits-group { margin: 0 0 16px; }
+.credits-group h2 { margin: 0 0 8px; color: var(--ui-text-primary); font: 800 18px/1.25 Nunito, sans-serif; }
+.credits-line { margin: 0 0 12px; color: var(--ui-text-primary); font: 700 15px/1.4 Nunito, sans-serif; overflow-wrap: anywhere; }
+.credits-line a { min-height: 44px; display: inline-flex; align-items: center; padding: 0 2px; color: var(--ui-text-primary); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.credits-line a:focus-visible { outline: 3px solid var(--ui-focus-ring); outline-offset: 2px; border-radius: 4px; }
+.credits-note { margin: 8px 0 0; color: var(--ui-text-secondary); font: 700 12px/1.4 Nunito, sans-serif; }
 .settings-row { min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 12px; border: 2px solid var(--ui-panel-border); border-radius: 16px; background: var(--ui-panel-solid); color: var(--ui-text-primary); font: 800 15px/1.2 Nunito, sans-serif; }
 .settings-row select { max-width: 150px; min-height: 40px; padding: 0 10px; border: 2px solid var(--ui-panel-border); border-radius: 12px; color: var(--ui-text-primary); background: var(--ui-panel); font: 800 14px Nunito, sans-serif; }
 .settings-toggle { width: 52px; height: 30px; flex: 0 0 52px; position: relative; border: 0; border-radius: 16px; background: var(--ui-toggle-off); cursor: pointer; }
@@ -203,6 +221,8 @@ body { color: var(--ui-text-primary); }
 .achievement-track span { display: block; height: 100%; border-radius: inherit; background: var(--ui-gold); }
 .achievement-progress { color: var(--ui-gold)!important; }
 @media(max-width:600px){.collection-grid{grid-template-columns:1fr}.achievement-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 6px}.achievement-badge{width:68px;height:68px;border-radius:18px}.achievement-face{width:30px;height:30px}}
+@media(max-width:480px){.volume-row{grid-template-columns:minmax(48px,1fr) 160px 40px;gap:8px;padding-inline:8px}.volume-row input[type="range"]{width:160px}}
+@media(min-width:700px){.volume-row{grid-template-columns:minmax(112px,1fr) 200px 44px}.volume-row input[type="range"]{width:200px}}
 .collection-preview-pop { animation: preview-particle-turn 1800ms ease-in-out infinite alternate; }
 @keyframes preview-particle-turn { from { transform: rotate(-4deg) scale(.98); } to { transform: rotate(4deg) scale(1.02); } }
 

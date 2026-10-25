@@ -50,4 +50,17 @@ describe('first input audio initialization', () => {
     sfx.place();
     expect(started.oscillator).toBeGreaterThan(0);
   });
+
+  it('sets independent bus gains to the square of each saved volume', async () => {
+    const started = { oscillator: 0 };
+    vi.stubGlobal('AudioContext', vi.fn(function () { return fakeAudioContext(started); }));
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => undefined)));
+    const engine = await import('./engine');
+    const graph = engine.initAudioOnFirstInput()!;
+    const sfxTarget = vi.spyOn(graph.sfxBus.gain, 'setTargetAtTime');
+    const musicTarget = vi.spyOn(graph.musicBus.gain, 'setTargetAtTime');
+    engine.setEffectsVolume(0.5); engine.setMusicVolume(0.5);
+    expect(sfxTarget.mock.lastCall?.[0]).toBe(0.25);
+    expect(musicTarget.mock.lastCall?.[0]).toBeCloseTo(0.1775);
+  });
 });

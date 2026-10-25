@@ -7,12 +7,13 @@
  * - playForEvents(events, ctx) translates reducer events into audio cues. `ctx` carries the current
  *   combo tier and optional run facts when the core event list does not include that information.
  */
-import { getAudioGraph, isMasterMuted, isMusicEnabled, isSfxEnabled, setMasterMuted as setMute, setMusicEnabled as setMusic, setSfxEnabled as setSfx, toggleMasterMuted } from './engine';
+import { activeVoiceCount, getAudioGraph, isMasterMuted, isMusicEnabled, isSfxEnabled, setMasterMuted as setMute, setMusicEnabled as setMusic, setSfxEnabled as setSfx, toggleMasterMuted } from './engine';
 import { music, type MusicTier } from './music';
 import { resetPopSequence, sfx } from './sfx';
 import type { GameEvent } from '../core/types';
 import { PIECES } from '../core/pieces';
 import type { MovePlan } from './movePlan';
+import { audioLoadDebug } from './loader';
 
 export { initAudioOnFirstInput, getAudioGraph } from './engine';
 export { noteFor, PENTATONIC, resetPopSequence, sfx } from './sfx';
@@ -129,4 +130,9 @@ export function startMusic(): void { music.setGameOver(false); music.setPaused(f
 export function stopMusic(): void { music.stop(); }
 export function audioSettings(): { muted: boolean; sfx: boolean; music: boolean } {
   return { muted: isMasterMuted(), sfx: isSfxEnabled(), music: isMusicEnabled() };
+}
+export function audioDebugLine(): string {
+  const graph = getAudioGraph(); const load = audioLoadDebug();
+  const latency = graph?.context.outputLatency ?? 0;
+  return `audio ${load.format} · ${load.decoded} decoded/${load.total - load.decoded} fallback · ${(latency * 1000).toFixed(1)} ms latency · ${activeVoiceCount()} voices · music ${music.debugState()}`;
 }

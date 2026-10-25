@@ -164,6 +164,7 @@ export const music = {
   setPaused(value: boolean): void { if (state) this.update({ ...state, paused: value }); },
   setGameOver(value: boolean): void { if (state) this.update({ ...state, gameOver: value }); },
   position(): number { return position(); },
+  debugState(): string { return !wanted ? 'off' : state?.menu ? 'menu' : state?.gameOver ? 'game over' : state?.paused ? 'paused' : state?.danger ? 'danger' : state?.idle ? 'idle' : `tier ${state?.tier ?? 0}`; },
 };
 
 // spec-note: returning from a menu starts at the preceding bar boundary, which is the nearest complete musical phrase checkpoint.

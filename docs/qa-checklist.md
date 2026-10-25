@@ -60,3 +60,18 @@ Reviewed on 25 Oct 2026. Automated checks are run with `npm run check`; source a
 - [x] Offline fallback and precache behavior are present in the service worker template; a disconnected browser run was not exercised.
 - [x] Bundle size is checked by the required `npm run check` command.
 - [ ] No-console-errors browser pass not exercised; manual reviewer check remains.
+
+## Audio (M11.6)
+
+Automated audio tests and the production build are checked by `npm run check`. The following listening and loudness checks require the director's phone speaker and headphones; agents cannot listen.
+
+- [ ] needs-ear-check — SG §13.13.1: bed loop seam and pad timing.
+- [ ] needs-ear-check — SG §13.13.2: lofi character fits the candy look and remains suitable after three loops.
+- [ ] needs-ear-check — SG §13.13.3: place mix reads as jelly landing, not a mouth noise.
+- [ ] needs-ear-check — SG §13.13.4: pop1–6 read as gloops; variant and pitch rise feel right.
+- [ ] needs-ear-check — SG §13.13.5: tink and synth bar blend; folded register changes sound right.
+- [ ] needs-ear-check — SG §13.13.6: retuned Kenney jingle and chimes are in tune with the bed.
+- [ ] needs-ear-check — SG §13.13.7: all gains, duck depth, bed bus level and integrated loudness target.
+- [ ] needs-ear-check — SG §13.13.8: pad voicing and twinkle density.
+- [ ] needs-ear-check — SG §13.13.9: game-over slow-down feels settled rather than sad.
+- [ ] needs-ear-check — SG §13.13.10: coin, deal and UI sounds remain clear at low phone volume.

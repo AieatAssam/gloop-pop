@@ -11,6 +11,7 @@ const variantRandom = new VoiceRandom(() => nextFloat(cosmeticRng));
 let spritePromise: Promise<void> | null = null;
 let musicPromise: Promise<AudioBuffer | null> | null = null;
 let spriteLoadStartedAt = 0;
+let selectedFormat: AudioFormat | 'none' = 'none';
 
 export function pickFormat(canPlayType: (mime: string) => string): AudioFormat {
   return canPlayType('audio/ogg; codecs="opus"') === 'probably' ? 'ogg' : 'mp3';
@@ -40,6 +41,7 @@ export function loadSprite(context: BaseAudioContext): Promise<void> {
   spriteLoadStartedAt = typeof performance === 'undefined' ? 0 : performance.now();
   spritePromise = (async () => {
     const initial = preferredFormat();
+    selectedFormat = initial;
     try {
       const source = await fetchBytes(AUDIO_MANIFEST.files.sfx[initial]);
       const decoded = await decode(context, source);
@@ -47,6 +49,7 @@ export function loadSprite(context: BaseAudioContext): Promise<void> {
     } catch (error) {
       if (initial !== 'ogg') return;
       try {
+        selectedFormat = 'mp3';
         const fallback = await fetchBytes(AUDIO_MANIFEST.files.sfx.mp3);
         sliceSprite(await decode(context, fallback), context);
       } catch {
@@ -73,6 +76,9 @@ function sliceSprite(sprite: AudioBuffer, context: BaseAudioContext): void {
 
 export function getSegmentBuffer(id: SegmentId): AudioBuffer | null { return buffers.get(id) ?? null; }
 export function isSpriteLoaded(): boolean { return buffers.size > 0; }
+export function audioLoadDebug(): { format: AudioFormat | 'none'; decoded: number; total: number } {
+  return { format: selectedFormat, decoded: buffers.size, total: Object.keys(AUDIO_MANIFEST.segments).length };
+}
 
 /** Play a loaded sprite segment; callers retain their v1 synth recipe as the loading fallback. */
 export function playSegment(id: SegmentId, options: { at?: number; rate?: number; rateVariation?: number; gain?: number; gainDbVariation?: number; priority?: 'ui' | 'deal' | 'coin' | 'pop' | 'place' | 'ladder' | 'stinger'; group?: string; variants?: number } = {}): boolean {

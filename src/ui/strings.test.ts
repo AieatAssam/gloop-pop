@@ -35,4 +35,12 @@ describe('player-facing strings', () => {
     const achievementText = Object.values(ACHIEVEMENT_COPY).map((entry) => `${entry.name} ${entry.description}`).join(' ').toLowerCase();
     expect(achievementText).not.toContain('extra cell');
   });
+  it('matches the Settings and Credits copy from design §16.4', () => {
+    expect([S.settingSfx, S.settingSfxVolume, S.settingMusic, S.settingMusicVolume, S.settingVibration, S.settingReduceMotion, S.settingPatterns, S.showTutorial, S.credits, S.resetProgress]).toEqual([
+      'Sound effects', 'Effects volume', 'Music', 'Music volume', 'Vibration', 'Reduce motion', 'Colour-blind patterns', 'Show tutorial again', 'Credits', 'Reset all progress',
+    ]);
+    expect(S.volumeValue(70)).toBe('70%');
+    expect(S.creditsIntro).toBe('Gloop Pop uses free sounds and music made by these people. Thank you!');
+    expect(S.creditsNote).toBe('CC0 means anyone may use it for free. We credit them anyway.');
+  });
 });
