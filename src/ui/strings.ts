@@ -13,4 +13,9 @@ export const S = {
   triple: 'Triple!',
   quad: 'Quad!',
   newBest: 'New best!',
+  pause: 'Paused', resume: 'Resume', restart: 'Restart', home: 'Home', settings: 'Settings',
+  rescueUse: 'Use rescue', rescueDecline: 'No thanks', startOver: 'Start over', cancel: 'Cancel',
+  restartConfirm: 'Start over? This run will end.', noRoom: 'No room left', playAgain: 'Play again', shareScore: 'Share score',
+  rescueReady: 'Rescue ready', rescueUsed: 'Rescue used',
+  gameOverFallback: (biggestPop: number, lines: number): string => biggestPop > 0 ? `Biggest pop this run: ${new Intl.NumberFormat('en-US').format(biggestPop)} cells.` : `You cleared ${new Intl.NumberFormat('en-US').format(lines)} lines.`,
 };

@@ -15,6 +15,19 @@ html, body { width: 100%; }
 body { color: var(--ui-text-primary); }
 #game { display: block; width: 100%; height: 100%; }
 #ui { position: fixed; inset: 0; pointer-events: none; }
+.gloop-topbar { position: absolute; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; pointer-events: none; z-index: 5; }
+.gloop-icon-button { width: 44px; height: 44px; padding: 10px; border: 2px solid var(--ui-panel-border); border-radius: 50%; color: var(--ui-text-primary); background: var(--ui-panel-solid); box-shadow: inset 0 1px 0 var(--ui-panel-highlight); pointer-events: auto; cursor: pointer; }
+.gloop-icon-button svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.gloop-icon-button:focus-visible { outline: 3px solid var(--ui-focus-ring); outline-offset: 3px; }
+.gloop-overlay { position: fixed; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; padding: 20px; background: var(--ui-scrim); pointer-events: auto; }
+.gloop-overlay.is-visible { display: flex; }
+.gloop-modal { width: min(100%, 360px); display: grid; justify-items: center; gap: 18px; text-align: center; animation: modal-in 220ms cubic-bezier(.34,1.56,.64,1) both; }
+.gloop-modal h1 { margin: 0 0 4px; color: var(--ui-text-primary); font: 800 30px/1.1 "Baloo 2", ui-rounded, system-ui, sans-serif; }
+.gloop-result-score { margin: -10px 0 0; color: var(--ui-text-primary); font: 800 56px/1 "Baloo 2", ui-rounded, system-ui, sans-serif; }
+.gloop-result-best { margin: -8px 0 2px; color: var(--ui-gold); font: 800 17px/1.3 Nunito, ui-rounded, system-ui, sans-serif; }
+.gloop-result-note { margin: -8px 0 2px; color: var(--ui-text-secondary); font: 700 15px/1.35 Nunito, ui-rounded, system-ui, sans-serif; }
+.gloop-modal .button { width: 100%; }
+@keyframes modal-in { from { opacity: 0; transform: translateY(24px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 .button {
   min-height: 56px;

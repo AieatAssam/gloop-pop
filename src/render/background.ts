@@ -96,6 +96,7 @@ export function createBackground(themeId: ThemeKey = 'midnight'): Background {
       const progress = Math.min(1, Math.max(0, (elapsedMs - moonStarted) / 2400));
       const moonY = moonFrom + (moonTarget - moonFrom) * easeInOutSine(progress);
       drawMoon(context, layout.width, layout.height, elapsedMs, nextStage, moonY, selected);
+      drawShelves(context, layout.width, layout.height, selected);
       drawBokeh(context, layout.width, layout.height, elapsedMs, sprites, selected);
       drawSprinkles(context, layout.width, layout.height, elapsedMs, sprites);
     },
@@ -124,18 +125,6 @@ function drawStatic(ctx: CanvasRenderingContext2D, width: number, height: number
   }
   ctx.globalAlpha = 1;
 
-  const scale = Math.min(width, height);
-  for (const jar of jars) drawJar(ctx, jar.x * width, jar.y * height, jar.width * width, jar.height * scale, jar.lid * scale, colours, jar.y > 0.4 ? 0.85 : 1);
-  const shelfY1 = height * 0.30;
-  const shelfY2 = height * 0.48;
-  for (const y of [shelfY1, shelfY2]) {
-    ctx.fillStyle = colours.silhouette;
-    ctx.fill(roundedRect(ctx, 0, y, width, Math.max(8, height * 0.018), height * 0.009));
-    ctx.strokeStyle = withAlpha(colours.silhouetteRim, 0.95);
-    ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(0, y + 1); ctx.lineTo(width, y + 1); ctx.stroke();
-  }
-
   const counterY = board.y + board.height / 2;
   const radius = Math.min(30, height * 0.04);
   ctx.fillStyle = colours.counter;
@@ -160,6 +149,15 @@ function drawStatic(ctx: CanvasRenderingContext2D, width: number, height: number
   ctx.restore();
 }
 
+function drawShelves(ctx: CanvasRenderingContext2D, width: number, height: number, colours: ThemeColours): void {
+  const scale = Math.min(width, height);
+  for (const jar of jars) drawJar(ctx, jar.x * width, jar.y * height, jar.width * width, Math.min(jar.height * scale, height * 0.22), jar.lid * scale, colours, jar.y > 0.4 ? 0.85 : 1);
+  for (const y of [height * 0.30, height * 0.48]) {
+    ctx.fillStyle = colours.silhouette; ctx.fill(roundedRect(ctx, 0, y, width, Math.max(8, height * 0.018), height * 0.009));
+    ctx.strokeStyle = withAlpha(colours.silhouetteRim, 0.95); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, y + 1); ctx.lineTo(width, y + 1); ctx.stroke();
+  }
+}
+
 function drawJar(ctx: CanvasRenderingContext2D, cx: number, bottom: number, width: number, height: number, lid: number, colours: ThemeColours, alpha: number): void {
   const x = cx - width / 2;
   const y = bottom - height;
@@ -167,8 +165,17 @@ function drawJar(ctx: CanvasRenderingContext2D, cx: number, bottom: number, widt
   ctx.globalAlpha = alpha;
   ctx.fillStyle = colours.silhouette;
   ctx.fill(roundedRect(ctx, x, y + lid, width, height - lid, width * 0.18));
+  // Candy silhouettes and a paper label make these read as jars rather than dark blobs.
+  ctx.save(); ctx.beginPath(); ctx.roundRect(x + width * 0.08, y + lid + height * 0.28, width * 0.84, height * 0.56, width * 0.1); ctx.clip();
+  const sweets = [PALETTE.flavour.cherry.base, PALETTE.flavour.lemon.base, PALETTE.flavour.blueberry.base, PALETTE.flavour.apple.base, PALETTE.flavour.orange.base];
+  for (let i = 0; i < 7; i += 1) { ctx.globalAlpha = 0.34; ctx.fillStyle = sweets[i % sweets.length]!; ctx.beginPath(); ctx.ellipse(x + width * (0.18 + (i % 3) * 0.3), y + height * (0.4 + Math.floor(i / 3) * 0.16), width * 0.13, height * 0.09, (i % 2) * 0.4, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore(); ctx.globalAlpha = alpha;
+  ctx.fillStyle = withAlpha(colours.frameLight, 0.82); ctx.fill(roundedRect(ctx, x + width * 0.08, y + height * 0.48, width * 0.84, height * 0.2, width * 0.025));
+  ctx.fillStyle = withAlpha(colours.silhouetteRim, 0.55); ctx.fillRect(x + width * 0.28, y + height * 0.55, width * 0.44, Math.max(1, height * 0.025));
   ctx.fill(roundedRect(ctx, cx - width * 0.32, y, width * 0.64, lid * 1.35, lid * 0.25));
   ctx.fillRect(cx - width * 0.38, y + lid, width * 0.76, lid * 0.45);
+  ctx.fillStyle = withAlpha(PALETTE.light.specular, 0.16); ctx.fill(roundedRect(ctx, x + width * 0.12, y + lid + height * 0.08, width * 0.12, height * 0.26, width * 0.06));
+  ctx.strokeStyle = withAlpha(PALETTE.light.specular, 0.42); ctx.lineWidth = Math.max(1, width * 0.018); ctx.beginPath(); ctx.moveTo(x + width * 0.13, y + lid + height * 0.1); ctx.quadraticCurveTo(x + width * 0.2, y + lid + height * 0.04, x + width * 0.28, y + lid + height * 0.1); ctx.stroke();
   ctx.strokeStyle = colours.silhouetteRim;
   ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(x + width * 0.12, y + lid + 2); ctx.lineTo(x + width * 0.88, y + lid + 2); ctx.stroke();
@@ -196,7 +203,10 @@ function drawMoon(ctx: CanvasRenderingContext2D, width: number, height: number, 
   const halo = ctx.createRadialGradient(x, y, 0, x, y, radius * 3 * pulse);
   halo.addColorStop(0, withAlpha(colours.moon, 0.25)); halo.addColorStop(1, withAlpha(colours.moon, 0));
   ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(x, y, radius * 3 * pulse, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = colours.moon; ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill();
+  const moon = ctx.createRadialGradient(x - radius * 0.32, y - radius * 0.36, radius * 0.04, x, y, radius * 1.08);
+  moon.addColorStop(0, PALETTE.light.specular); moon.addColorStop(0.42, colours.moon); moon.addColorStop(1, withAlpha(colours.moon, 0.64));
+  ctx.fillStyle = moon; ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill();
+  ctx.save(); ctx.globalAlpha = 0.12; ctx.fillStyle = colours.skyBottom; ctx.beginPath(); ctx.arc(x + radius * 0.36, y + radius * 0.3, radius * 0.8, 0, Math.PI * 2); ctx.fill(); ctx.restore();
 }
 
 function drawBokeh(ctx: CanvasRenderingContext2D, width: number, height: number, elapsed: number, sprites: Map<string, HTMLCanvasElement>, colours: ThemeColours): void {
