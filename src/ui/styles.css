@@ -69,6 +69,7 @@ body { color: var(--ui-text-primary); }
 .home-header { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
 .gloop-logo { margin: 0 auto 0 0; color: var(--ui-gold); font: 800 clamp(38px, 8vw, 56px)/1 "Baloo 2", ui-rounded, system-ui, sans-serif; transform: rotate(-2deg); -webkit-text-stroke: 2px var(--face-ink); paint-order: stroke fill; filter: drop-shadow(0 3px var(--ui-primary-lip)); }
 .gloop-logo span { display: inline-block; animation: logo-bob 1800ms ease-in-out infinite; }
+.gloop-logo .logo-word-gap { width: 0.3em; }
 .gloop-logo span:nth-child(3n) { transform: rotate(-3deg); animation-delay: -180ms; }
 .gloop-logo span:nth-child(3n + 1) { transform: rotate(2deg); animation-delay: -360ms; }
 .logo-cherry { color: var(--flavour-cherry-base); }.logo-orange { color: var(--flavour-orange-base); }.logo-lemon { color: var(--flavour-lemon-base); }.logo-apple { color: var(--flavour-apple-base); }.logo-blueberry { color: var(--flavour-blueberry-base); }.logo-grape { color: var(--flavour-grape-base); }.logo-bubblegum { color: var(--flavour-bubblegum-base); }

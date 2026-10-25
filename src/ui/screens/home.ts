@@ -33,8 +33,13 @@ export function createHomeScreen(save: SaveV1, actions: HomeActions, debug = fal
   if (debug) panel.append(button(S.debugXp, 'button button--secondary', () => actions.debugXp())); root.append(panel); return root;
 }
 function createLogo(): HTMLElement {
-  const logo = document.createElement('h1'); logo.className = 'gloop-logo'; const colours = ['cherry', 'orange', 'lemon', 'apple', 'blueberry', 'grape', 'bubblegum']; let index = 0;
-  for (const character of S.logo) { const letter = document.createElement('span'); letter.textContent = character; if (character !== ' ') { letter.className = `logo-${colours[index % colours.length] ?? 'cherry'}`; index += 1; } logo.append(letter); }
+  const logo = document.createElement('h1'); logo.className = 'gloop-logo'; logo.setAttribute('aria-label', S.logo); const colours = ['cherry', 'orange', 'lemon', 'apple', 'blueberry', 'grape', 'bubblegum']; let index = 0;
+  for (const character of S.logo) {
+    const letter = document.createElement('span');
+    if (character === ' ') { letter.className = 'logo-word-gap'; letter.setAttribute('aria-hidden', 'true'); }
+    else { letter.textContent = character; letter.className = `logo-${colours[index % colours.length] ?? 'cherry'}`; index += 1; }
+    logo.append(letter);
+  }
   return logo;
 }
 function modeCard(title: string, description: string, flavour: Flavour, locked: boolean, action: () => void, extra?: string): HTMLElement {

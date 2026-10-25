@@ -107,7 +107,7 @@ function drawPlacement(ctx: CanvasRenderingContext2D, placement: { piece: Piece;
 // SG §11.3: desktop HUD and tray each sit on an opaque panel backing.
 function drawDesktopPanelBacking(ctx: CanvasRenderingContext2D, layout: Layout): void {
   const panel = (x: number, y: number, width: number, height: number): void => {
-    ctx.save(); ctx.fillStyle = PALETTE.ui.panelSolid; ctx.strokeStyle = PALETTE.ui.panelBorder; ctx.lineWidth = 2;
+    ctx.save(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = PALETTE.ui.panelSolid; ctx.strokeStyle = PALETTE.ui.panelBorder; ctx.lineWidth = 2;
     ctx.fill(roundRectPath(x, y, width, height, 24)); ctx.stroke(roundRectPath(x, y, width, height, 24));
     ctx.strokeStyle = withAlpha(PALETTE.ui.panelHighlight, 0.65); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x + 26, y + 1); ctx.lineTo(x + width - 26, y + 1); ctx.stroke(); ctx.restore();
   };

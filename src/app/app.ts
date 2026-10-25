@@ -119,7 +119,7 @@ export function bootApp(): void {
   let queuedRestart = false;
   window.addEventListener('keydown', (event) => { enableAudio(); if (['1', '2', '3'].includes(event.key)) vibrate('pick', save.settings.haptics); if (event.key.toLowerCase() === 'm') { save.settings.muted = !save.settings.muted; setMasterMuted(save.settings.muted); topBar.muteButton.setAttribute('aria-label', save.settings.muted ? S.unmute : S.mute); persist(true); } if (session.state.status === 'over' && router.current === 'play' && [' ', 'Enter', 'r', 'R'].includes(event.key)) { event.preventDefault(); if (renderLoop.isHitStopped()) queuedRestart = true; else restart(); } });
   onSaveVisibility(() => { window.clearTimeout(saveTimer); persist(true); });
-  router.subscribe((screen) => renderScreen(screen)); renderScreen('play'); persist(true);
+  router.subscribe((screen) => { if (screen !== 'play') toast.clear(); renderScreen(screen); }); renderScreen('play'); persist(true);
   const renderLoop = startRenderLoop((dtMs, elapsedMs) => {
     renderElapsed = elapsedMs;
     uiRoot.style.setProperty('--toast-play-top', `${layout.board.y + layout.board.height}px`); uiRoot.style.setProperty('--toast-play-left', `${layout.board.x + layout.board.width / 2}px`);
