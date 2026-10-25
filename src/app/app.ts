@@ -44,14 +44,14 @@ import { buildDailyShareText } from '../core/shareText';
 import { shareText } from '../platform/share';
 import { shareImage } from '../platform/share';
 import { buildChallengeText, flavourName, parseChallenge } from '../core/shareText';
-import { initAudioOnFirstInput, playGameEvents, startMusic, setAudioPaused, setSfxEnabled, setMusicEnabled, setMasterMuted, sfx, onLand, onImpact, onBurst, onPopFirst, onClimax } from '../audio';
+import { initAudioOnFirstInput, playGameEvents, startMusic, setAudioPaused, setSfxEnabled, setMusicEnabled, setMasterMuted, sfx, music, onLand, onImpact, onBurst, onPopFirst, onClimax } from '../audio';
 import { planMove } from '../audio/movePlan';
 import { shouldReduceMotion, devicePrefersReducedMotion, canStartSlowMo } from '../platform/motion';
 import { addComboTicks, hapticPattern, vibrate } from '../platform/haptics';
 import { detectFirsts } from '../meta/firsts';
 import { nearMissMessages } from '../core/nearMiss';
 import { tutorialGame } from '../core/tutorial';
-import { newGame } from '../core/game';
+import { newGame, fitsAnywhere } from '../core/game';
 import { drawGhostHand, tutorialHandPoints } from '../render/ghostHand';
 import { createTutorialBubble } from '../ui/tutorialBubble';
 import { createSettingsScreen } from '../ui/screens/settings';
@@ -61,6 +61,7 @@ import { setColourBlindPatterns } from '../render/gloopRenderer';
 import { chooseBotMove } from '../core/sim';
 import { seededRng } from '../core/rng';
 import { createFeelScene } from './demoScenes';
+import { musicState } from '../audio/musicState';
 
 export function bootApp(): void {
   const canvas = document.querySelector<HTMLCanvasElement>('#game'); const uiRoot = document.querySelector<HTMLElement>('#ui');
@@ -113,9 +114,10 @@ export function bootApp(): void {
   const controlsHint = document.createElement('div'); controlsHint.className = 'controls-hint'; controlsHint.textContent = S.controlsHint; controlsHint.hidden = save.ui.runsFinished >= 3; uiRoot.append(controlsHint);
   const tutorialBubble = createTutorialBubble(skipTutorial); if (tutorialActive) uiRoot.append(tutorialBubble.element);
   let audioStarted = false;
+  let lastAudioInputAt = performance.now(); let audioComboLostAt: number | undefined; let musicGameRef = session.state; let fittingPieces = session.state.tray.filter((piece) => piece !== null && fitsAnywhere(session.state.board, piece.defId)).length;
   const enableAudio = (): void => { initAudioOnFirstInput(); if (!audioStarted && router.current === 'play') { startMusic(); audioStarted = true; } };
   uiRoot.addEventListener('click', (event) => { const button = (event.target as Element | null)?.closest('button'); if (!button || button === topBar.muteButton) return; enableAudio(); if (button.getAttribute('role') === 'switch') { if (button.getAttribute('aria-checked') === 'true') sfx.toggleOn(); return; } sfx.uiTap(); });
-  window.addEventListener('pointerdown', enableAudio, { once: true });
+  window.addEventListener('pointerdown', () => { lastAudioInputAt = performance.now(); enableAudio(); });
   const pointer = createPointerInput(view, () => layout, () => session.state, (slot, row, col) => apply({ type: 'place', slot: slot as 0 | 1 | 2, row, col }));
   const keyboard = attachKeyboard(view, () => layout, () => session.state, (slot, row, col) => apply({ type: 'place', slot: slot as 0 | 1 | 2, row, col }), () => pointer.cancel(), () => { if (router.current === 'play') showPause(); else router.back(); }, () => sfx.snapTick());
   const resize = (): void => {
@@ -125,12 +127,12 @@ export function bootApp(): void {
     topBar.element.style.left = `${layout.column.x}px`; topBar.element.style.width = `${layout.column.width}px`; topBar.element.style.top = `${layout.topBar.y}px`; topBar.element.style.height = `${layout.topBar.height}px`;
   };
   resize(); window.addEventListener('resize', resize, { passive: true });
-  canvas.addEventListener('pointerdown', (event) => { enableAudio(); if (router.current !== 'play' || paused || session.state.status !== 'playing') return; const hadDrag = pointer.drag !== undefined; canvas.setPointerCapture(event.pointerId); pointer.pointerDown(event.offsetX, event.offsetY, event.pointerType); if (!hadDrag && pointer.drag) { sfx.pickUp(); vibrate('pick', save.settings.haptics); if (tutorialActive) { tutorialTouched = true; tutorialBubbleText = ''; tutorialBubble.setText(''); } } });
+  canvas.addEventListener('pointerdown', (event) => { lastAudioInputAt = performance.now(); enableAudio(); if (router.current !== 'play' || paused || session.state.status !== 'playing') return; const hadDrag = pointer.drag !== undefined; canvas.setPointerCapture(event.pointerId); pointer.pointerDown(event.offsetX, event.offsetY, event.pointerType); if (!hadDrag && pointer.drag) { sfx.pickUp(); vibrate('pick', save.settings.haptics); if (tutorialActive) { tutorialTouched = true; tutorialBubbleText = ''; tutorialBubble.setText(''); } } });
   canvas.addEventListener('pointermove', (event) => { if (router.current === 'play' && session.state.status === 'playing') pointer.pointerMove(event.offsetX, event.offsetY, event.pointerType); });
   canvas.addEventListener('pointerup', (event) => { if (router.current !== 'play' || paused || session.state.status !== 'playing') return; pointer.pointerUp(event.offsetX, event.offsetY, event.pointerType); if (pointer.returning) sfx.returnToTray(); });
   canvas.addEventListener('pointercancel', () => pointer.cancel());
   document.addEventListener('visibilitychange', () => { if (document.hidden && router.current === 'play' && !paused && session.state.status === 'playing') showPause(); });
-  window.addEventListener('keydown', (event) => { enableAudio(); if (['1', '2', '3'].includes(event.key)) { sfx.pickUp(); vibrate('pick', save.settings.haptics); } if (event.key.toLowerCase() === 'm') { save.settings.muted = !save.settings.muted; setMasterMuted(save.settings.muted); topBar.muteButton.setAttribute('aria-label', save.settings.muted ? S.unmute : S.mute); persist(true); } if (session.state.status === 'over' && router.current === 'play' && [' ', 'Enter', 'r', 'R'].includes(event.key)) { event.preventDefault(); restart(); } });
+  window.addEventListener('keydown', (event) => { lastAudioInputAt = performance.now(); enableAudio(); if (['1', '2', '3'].includes(event.key)) { sfx.pickUp(); vibrate('pick', save.settings.haptics); } if (event.key.toLowerCase() === 'm') { save.settings.muted = !save.settings.muted; setMasterMuted(save.settings.muted); topBar.muteButton.setAttribute('aria-label', save.settings.muted ? S.unmute : S.mute); persist(true); } if (session.state.status === 'over' && router.current === 'play' && [' ', 'Enter', 'r', 'R'].includes(event.key)) { event.preventDefault(); restart(); } });
   onSaveVisibility(() => { window.clearTimeout(saveTimer); persist(true); });
   router.subscribe((screen) => { if (screen !== 'play') toast.clear(); renderScreen(screen); }); renderScreen('play'); persist(true);
   let currentFrame: Readonly<Frame> = { realDt: 0, worldDt: 0, boardDt: 0, realNow: 0, worldNow: 0, boardNow: 0 };
@@ -147,7 +149,10 @@ export function bootApp(): void {
     const ctx = surface.context; ctx.setTransform(surface.dpr, 0, 0, surface.dpr, 0, 0); ctx.save(); background.draw(ctx, frame.worldNow, layout, session.state.stage); ctx.restore(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     const today = dayKeyFromMs(Date.now()); const pill = save.daily.records[today] ? S.dailyPillDone : save.streak.current >= 2 && new Date().getUTCHours() >= 18 ? S.dailyKeepStreak(dayNumber(today), save.streak.current) : S.daily(dayNumber(today)); if (topBar.dailyPill.textContent !== pill) topBar.dailyPill.textContent = pill;
     // Design §23.9: the Daily is offered after the tutorial and the first Classic run, never before.
-    const isPlay = router.current === 'play'; const hideHint = !isPlay || save.ui.runsFinished >= 3; if (controlsHint.hidden !== hideHint) controlsHint.hidden = hideHint; topBar.element.style.display = isPlay ? 'flex' : 'none'; topBar.element.classList.toggle('is-tutorial', tutorialActive); topBar.dailyPill.hidden = tutorialActive || save.ui.runsFinished < 1; topBar.muteButton.hidden = tutorialActive; topBar.pauseButton.hidden = tutorialActive; topBar.tutorialSkip.style.display = tutorialActive ? 'block' : 'none';
+    const isPlay = router.current === 'play';
+    if (musicGameRef !== session.state) { musicGameRef = session.state; fittingPieces = session.state.tray.filter((piece) => piece !== null && fitsAnywhere(session.state.board, piece.defId)).length; }
+    music.update(musicState({ tier: session.state.combo, filledCells: session.state.board.filter((cell) => cell > 0).length, fittingPieces, zen: session.state.mode === 'zen', idleMs: performance.now() - lastAudioInputAt, paused, screen: router.current, gameOver: session.state.status === 'over', now: performance.now() / 1000, position: music.position(), ...(audioComboLostAt === undefined ? {} : { comboLostAt: audioComboLostAt }) }));
+    const hideHint = !isPlay || save.ui.runsFinished >= 3; if (controlsHint.hidden !== hideHint) controlsHint.hidden = hideHint; topBar.element.style.display = isPlay ? 'flex' : 'none'; topBar.element.classList.toggle('is-tutorial', tutorialActive); topBar.dailyPill.hidden = tutorialActive || save.ui.runsFinished < 1; topBar.muteButton.hidden = tutorialActive; topBar.pauseButton.hidden = tutorialActive; topBar.tutorialSkip.style.display = tutorialActive ? 'block' : 'none';
     topBar.dailyPill.classList.toggle('is-at-risk', save.streak.current >= 2 && !save.daily.records[today] && new Date().getUTCHours() >= 18);
     if (isPlay && !demoBg) {
       const reduced = reducedForFrame;
@@ -184,7 +189,7 @@ export function bootApp(): void {
     if (!claimedBefore && save.weekly.claimed) toast.show(S.weeklyDone);
     for (const event of events) if (event.type === 'popped') save.achievements.bigPopCount = (save.achievements.bigPopCount ?? 0) + event.gloops.filter((gloop) => gloop.size >= 8).length;
     checkLiveAchievements();
-    for (const event of events) { if (event.type === 'comboLost' && event.combo >= 2) { comboLostAt = renderElapsed; flameBreakAt = renderElapsed; } if (event.type === 'comboUp') comboPulseAt = renderElapsed; }
+    for (const event of events) { if (event.type === 'comboLost' && event.combo >= 2) { comboLostAt = renderElapsed; flameBreakAt = renderElapsed; audioComboLostAt = performance.now() / 1000; } if (event.type === 'comboUp') comboPulseAt = renderElapsed; }
     paused = false; setAudioPaused(false); ui.hide(); persist(false);
     if (session.state.status === 'over') { if (gameOverAt < 0) gameOverAt = renderElapsed; finishRun(); }
   }

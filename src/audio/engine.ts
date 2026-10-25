@@ -9,7 +9,10 @@ export interface AudioGraph {
   sfxBus: GainNode;
   musicBus: GainNode;
   musicFilter: BiquadFilterNode;
+  bedGain: GainNode;
+  layerGain: GainNode;
   duckGain: GainNode;
+  musicStateGain: GainNode;
   limiter: DynamicsCompressorNode;
   noiseBuffer: AudioBuffer;
 }
@@ -53,7 +56,10 @@ export function initAudioOnFirstInput(): AudioGraph | null {
   const sfxBus = context.createGain();
   const musicBus = context.createGain();
   const musicFilter = context.createBiquadFilter();
+  const bedGain = context.createGain();
+  const layerGain = context.createGain();
   const duckGain = context.createGain();
+  const musicStateGain = context.createGain();
   const master = context.createGain();
   const limiter = context.createDynamicsCompressor();
   const noiseBuffer = context.createBuffer(1, context.sampleRate, context.sampleRate);
@@ -61,7 +67,9 @@ export function initAudioOnFirstInput(): AudioGraph | null {
   for (let i = 0; i < noiseData.length; i += 1) noiseData[i] = noiseSample() * 2 - 1;
 
   sfxBus.gain.value = 1;
-  musicBus.gain.value = 0.71;
+  musicBus.gain.value = 1;
+  bedGain.gain.value = 0;
+  layerGain.gain.value = 0;
   musicFilter.type = 'lowpass';
   musicFilter.frequency.value = 1200;
   master.gain.value = muted ? 0 : 1;
@@ -71,12 +79,15 @@ export function initAudioOnFirstInput(): AudioGraph | null {
   limiter.attack.value = 0.002;
   limiter.release.value = 0.15;
   sfxBus.connect(master);
-  musicBus.connect(musicFilter);
-  musicFilter.connect(duckGain);
-  duckGain.connect(master);
+  musicFilter.connect(bedGain);
+  bedGain.connect(duckGain);
+  layerGain.connect(duckGain);
+  duckGain.connect(musicStateGain);
+  musicStateGain.connect(musicBus);
+  musicBus.connect(master);
   master.connect(limiter);
   limiter.connect(context.destination);
-  graph = { context, master, sfxBus, musicBus, musicFilter, duckGain, limiter, noiseBuffer };
+  graph = { context, master, sfxBus, musicBus, musicFilter, bedGain, layerGain, duckGain, musicStateGain, limiter, noiseBuffer };
   bindVisibility();
   applyAudioSettings();
   void context.resume();
@@ -124,6 +135,7 @@ export function setMusicVolume(value: number): void { musicVolume = clampVolume(
 export function isMasterMuted(): boolean { return muted; }
 export function isSfxEnabled(): boolean { return sfxEnabled; }
 export function isMusicEnabled(): boolean { return musicEnabled; }
+export function musicBusBaseGain(): number { return musicEnabled ? 0.71 * musicVolume ** 2 : 0; }
 
 function clampVolume(value: number): number { return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1; }
 

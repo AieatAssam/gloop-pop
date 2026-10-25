@@ -39,7 +39,7 @@ export function tone(options: { frequency: number; endFrequency?: number; durati
     oscillator.connect(filter);
     filter.connect(envelope);
   } else oscillator.connect(envelope);
-  envelope.connect(options.bus === 'music' ? graph.musicBus : graph.sfxBus);
+  envelope.connect(options.bus === 'music' ? graph.layerGain : graph.sfxBus);
   if (!claimVoice(oscillator)) return;
   oscillator.start(at);
   oscillator.stop(at + options.duration + 0.01);
@@ -63,7 +63,7 @@ export function noise(options: { duration: number; peak: number; bus?: 'sfx' | '
   filter.Q.value = options.q ?? 0.7;
   source.connect(filter);
   filter.connect(envelope);
-  envelope.connect(options.bus === 'music' ? graph.musicBus : graph.sfxBus);
+  envelope.connect(options.bus === 'music' ? graph.layerGain : graph.sfxBus);
   if (!claimVoice(source)) return;
   source.start(at, noiseRandom() * Math.max(0, 1 - options.duration), options.duration);
   source.stop(at + options.duration + 0.01);

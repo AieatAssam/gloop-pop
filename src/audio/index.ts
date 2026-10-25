@@ -2,7 +2,7 @@
  * Audio API (SG §13, design R21):
  * - Call initAudioOnFirstInput() from the first pointer or keyboard input. It lazily creates WebAudio.
  * - Call sfx.<name>(params) for named synthesized cues; invalidHover is intentionally silent.
- * - music.start()/stop()/setTier()/setPaused()/setGameOver() control the generative 84 BPM loop.
+ * - music.start()/stop()/setTier()/setPaused()/setGameOver() control the sampled bed and adaptive layers (SG §13.7).
  * - setMasterMuted(), setSfxEnabled(), and setMusicEnabled() are independent settings hooks.
  * - playForEvents(events, ctx) translates reducer events into audio cues. `ctx` carries the current
  *   combo tier and optional run facts when the core event list does not include that information.
@@ -89,7 +89,7 @@ export function onLand(plan: MovePlan): void {
   }
 }
 export function onImpact(plan: MovePlan): void {
-  music.setTier(plan.tier as MusicTier);
+  music.setTier(plan.tier);
   if (plan.lines > 0) {
     resetPopSequence(); sfx.lineClear({ combo: plan.combo, lines: Math.min(5, plan.lines), tier: plan.tier });
     const lastLine = Math.min(4, plan.lines - 1);

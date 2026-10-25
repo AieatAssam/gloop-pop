@@ -109,6 +109,8 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   │   ├─ voices.ts          # cosmetic variants, rate limits and priority selection
 │   │   ├─ ladder.ts          # SG §13.3 pitch ladder and candy-bar synth
 │   │   ├─ duck.ts            # SG §13.6 pure duck schedule and WebAudio apply
+│   │   ├─ music.ts           # SG §13.7 sampled bed, adaptive pad/twinkles, rest and transport
+│   │   └─ musicState.ts      # Pure adaptive music state and bar-boundary maths
 │   │   ├─ fallback.ts       # v1 synth recipes used until a sample is decoded
 │   │   ├─ synth.ts           # osc/noise/envelope helpers
 │   │   ├─ sfx.ts             # sample routing with v1 fallback
