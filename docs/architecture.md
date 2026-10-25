@@ -102,10 +102,15 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   │   ├─ credits.ts          # source and licence metadata for the Credits screen (design §16.4)
 │   │   ├─ manifest.ts         # generated audio paths, sprite offsets, durations and source hashes (SG §13.9, §13.11)
 │   │   ├─ sprite.ts           # pure decoder-delay marker lookup (SG §13.11)
-│   │   ├─ engine.ts          # context unlock, buses, compressor, voice limiter
+│   │   ├─ engine.ts          # gesture unlock, buses, limiter, voice pool and visibility
+│   │   ├─ loader.ts          # gesture-gated sprite decode, segment slicing and format fallback
+│   │   ├─ voices.ts          # cosmetic variants, rate limits and priority selection
+│   │   ├─ ladder.ts          # SG §13.3 pitch ladder and candy-bar synth
+│   │   ├─ duck.ts            # SG §13.6 pure duck schedule and WebAudio apply
+│   │   ├─ fallback.ts       # v1 synth recipes used until a sample is decoded
 │   │   ├─ synth.ts           # osc/noise/envelope helpers
-│   │   ├─ sfx.ts             # SG §13.2 recipes
-│   │   └─ music.ts           # SG §13.3
+│   │   ├─ sfx.ts             # sample routing with v1 fallback
+│   │   └─ music.ts           # lazy sampled bed and music controls
 │   ├─ ui/
 │   │   ├─ strings.ts         # EVERY player-facing string (design §16.4–16.5, §15)
 │   │   ├─ cssVars.ts         # PALETTE → CSS custom properties on :root
@@ -354,7 +359,7 @@ interface SaveV1 {
 
 ## 11. PWA and link previews
 ### 11.1 Service worker (hand-written)
-- `src/sw/sw.template.js` (plain JS, ~80 lines): `install` precaches the app shell list; `activate` deletes caches whose name ≠ current; `fetch`: same-origin GET only; navigation requests → network-first with 3 s timeout falling back to cached `index.html`; hashed assets → cache-first.
+- `src/sw/sw.template.js` (plain JS, ~80 lines): `install` precaches the app shell list; `activate` deletes caches whose name ≠ current; `fetch`: same-origin GET only; navigation requests → network-first with 3 s timeout falling back to cached `index.html`; hashed assets → cache-first. Audio uses the persistent `gloop-pop-audio` cache, separate from the versioned app shell, and is excluded from precache.
 - A tiny Vite plugin in `vite.config.ts` (`closeBundle` hook) reads the emitted file list from the bundle, injects `const VERSION = '<hash of file list>'` and `const PRECACHE = [...]` into the template, and writes `dist/sw.js`. Base path aware.
 - Registered in `platform/sw.ts` only when `import.meta.env.PROD`, after the first frame, scope = base.
 - Update flow: new SW installs in background; on next load it activates (no "reload?" prompt; simplicity).

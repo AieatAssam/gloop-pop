@@ -40,7 +40,7 @@ export function tone(options: { frequency: number; endFrequency?: number; durati
     filter.connect(envelope);
   } else oscillator.connect(envelope);
   envelope.connect(options.bus === 'music' ? graph.musicBus : graph.sfxBus);
-  claimVoice(oscillator);
+  if (!claimVoice(oscillator)) return;
   oscillator.start(at);
   oscillator.stop(at + options.duration + 0.01);
 }
@@ -50,11 +50,8 @@ export function noise(options: { duration: number; peak: number; bus?: 'sfx' | '
   if (!graph) return;
   const { context } = graph;
   const at = safeTime(context, options.at);
-  const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * options.duration), context.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < data.length; i += 1) data[i] = noiseRandom() * 2 - 1;
   const source = context.createBufferSource();
-  source.buffer = buffer;
+  source.buffer = graph.noiseBuffer;
   const envelope = context.createGain();
   envelope.gain.setValueAtTime(0.0001, at);
   envelope.gain.linearRampToValueAtTime(options.peak, at + Math.min(options.attack ?? 0.005, options.duration * 0.95));
@@ -67,8 +64,8 @@ export function noise(options: { duration: number; peak: number; bus?: 'sfx' | '
   source.connect(filter);
   filter.connect(envelope);
   envelope.connect(options.bus === 'music' ? graph.musicBus : graph.sfxBus);
-  claimVoice(source);
-  source.start(at);
+  if (!claimVoice(source)) return;
+  source.start(at, noiseRandom() * Math.max(0, 1 - options.duration), options.duration);
   source.stop(at + options.duration + 0.01);
 }
 

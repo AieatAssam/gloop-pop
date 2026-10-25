@@ -18,6 +18,7 @@ export { noteFor, PENTATONIC, resetPopSequence, sfx } from './sfx';
 export { music } from './music';
 export type { MusicTier } from './music';
 export { setSfxEnabled as setSfxEnabledRaw, setMusicEnabled as setMusicEnabledRaw, isMasterMuted, isSfxEnabled, isMusicEnabled } from './engine';
+export { setEffectsVolume, setMusicVolume } from './engine';
 export type SfxApi = typeof sfx;
 export type AudioEvent =
   | { type: 'placed'; piece: { cells: readonly unknown[] }; cells: readonly number[] }
@@ -37,7 +38,11 @@ export function setMasterMuted(muted: boolean): void {
   try { localStorage.setItem('gloop-pop:muted', muted ? '1' : '0'); } catch { /* Storage can be unavailable. */ }
 }
 export function setSfxEnabled(enabled: boolean): void { setSfx(enabled); }
-export function setMusicEnabled(enabled: boolean): void { setMusic(enabled); }
+export function setMusicEnabled(enabled: boolean): void {
+  setMusic(enabled);
+  if (enabled) music.start();
+  else music.stop();
+}
 export function toggleMute(): boolean {
   const value = toggleMasterMuted();
   try { localStorage.setItem('gloop-pop:muted', value ? '1' : '0'); } catch { /* Storage can be unavailable. */ }

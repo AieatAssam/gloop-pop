@@ -3,6 +3,16 @@ import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import { defineConfig, type Plugin, type ResolvedConfig } from 'vite';
 
+export function precacheFilter(file: string): boolean {
+  return !file.split('\\').join('/').replace(/^\.?\//, '').startsWith('audio/');
+}
+
+export function renderServiceWorker(template: string, version: string, precache: string[], audioFiles: string[]): string {
+  return template.replace('__VERSION__', version)
+    .replace('__PRECACHE__', JSON.stringify(precache))
+    .replace('const AUDIO_FILES = __AUDIO_FILES__;', `const AUDIO_FILES = ${JSON.stringify(audioFiles)};`);
+}
+
 function serviceWorkerPlugin(): Plugin {
   let config: ResolvedConfig;
   return {
@@ -15,11 +25,13 @@ function serviceWorkerPlugin(): Plugin {
       const files = await listFiles(outputDirectory, outputDirectory);
       const base = config.base.endsWith('/') ? config.base : `${config.base}/`;
       const precache = files
-        .filter((file) => file !== 'sw.js')
+        .filter((file) => file !== 'sw.js' && precacheFilter(file))
+        .map((file) => `${base}${file.split(sep).join('/')}`);
+      const audioFiles = files.filter((file) => file.startsWith('audio/'))
         .map((file) => `${base}${file.split(sep).join('/')}`);
       const version = createHash('sha256').update(precache.join('\n')).digest('hex').slice(0, 12);
       const template = await readFile(templatePath, 'utf8');
-      const serviceWorker = template.replace('__VERSION__', version).replace('__PRECACHE__', JSON.stringify(precache));
+      const serviceWorker = renderServiceWorker(template, version, precache, audioFiles);
       await writeFile(join(outputDirectory, 'sw.js'), serviceWorker);
     },
   };

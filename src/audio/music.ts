@@ -1,4 +1,6 @@
-import { getAudioGraph, initAudioOnFirstInput } from './engine';
+import { getAudioGraph, isMusicEnabled } from './engine';
+import { loadMusic } from './loader';
+import { AUDIO_MANIFEST } from './manifest';
 import { noise, tone } from './synth';
 
 export type MusicTier = 0 | 1 | 2 | 3 | 4;
@@ -17,25 +19,37 @@ let gameOver = false;
 let tier: MusicTier = 0;
 let cursor = 0;
 let nextAt = 0;
-let hiddenListener: (() => void) | null = null;
+let bedSource: AudioBufferSourceNode | null = null;
 
 export const music = {
   start(): void {
-    const graph = initAudioOnFirstInput();
+    if (!isMusicEnabled()) return;
+    const graph = getAudioGraph();
     if (!graph || running) return;
     running = true;
     cursor = 0;
     nextAt = graph.context.currentTime + 0.05;
     timer = setInterval(schedule, 25);
-    hiddenListener = () => { if (document.hidden) music.stop(); };
-    document.addEventListener('visibilitychange', hiddenListener);
+    void loadMusic(graph.context).then((buffer) => {
+      if (!buffer || !running || !isMusicEnabled()) return;
+      if (timer !== null) clearInterval(timer);
+      timer = null;
+      const source = graph.context.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.loopStart = AUDIO_MANIFEST.music.loopStart;
+      source.loopEnd = AUDIO_MANIFEST.music.loopEnd;
+      source.connect(graph.musicBus);
+      source.start(graph.context.currentTime + 0.01, AUDIO_MANIFEST.music.loopStart);
+      bedSource = source;
+    });
   },
   stop(): void {
     if (timer !== null) clearInterval(timer);
     timer = null;
     running = false;
-    if (hiddenListener) document.removeEventListener('visibilitychange', hiddenListener);
-    hiddenListener = null;
+    if (bedSource) { try { bedSource.stop(); } catch { /* Already ended. */ } }
+    bedSource = null;
   },
   setTier(value: MusicTier): void {
     tier = Math.max(0, Math.min(4, Math.floor(value))) as MusicTier;

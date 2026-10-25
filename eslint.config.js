@@ -12,7 +12,7 @@ export default tseslint.config(
   },
   {
     files: ['src/sw/**/*.js'],
-    languageOptions: { globals: { ...globals.serviceworker, __PRECACHE__: 'readonly' } },
+    languageOptions: { globals: { ...globals.serviceworker, __PRECACHE__: 'readonly', __AUDIO_FILES__: 'readonly' } },
   },
   {
     files: ['src/**/*.ts'],
