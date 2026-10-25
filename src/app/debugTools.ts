@@ -16,6 +16,13 @@ export { chooseBotMove, createFeelScene, createGoalScene, debugSaveWritesDisable
 export const startAudioTrace = enableDebugAudioTrace;
 export const clearAudioTrace = clearDebugAudioTrace;
 
+export function debugNeedsAdventureLevels(query: URLSearchParams): boolean {
+  const demo = query.get('demo') ?? '';
+  const requestedLevel = Number(query.get('level'));
+  return ['level-card', 'adventure-play', 'adventure-win', 'adventure-lose', 'adventure-map', 'adventure-map-end'].includes(demo)
+    || Number.isInteger(requestedLevel) && requestedLevel >= 1 && requestedLevel <= 120;
+}
+
 export function veteranSaveState() { return migrate(veteranSave); }
 export function createAutoplayRng() { return seededRng('gloop-pop/debug-autoplay'); }
 export function createBotRng(seed: string) { return seededRng(seed); }

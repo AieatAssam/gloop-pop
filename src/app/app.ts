@@ -94,7 +94,8 @@ export async function bootApp(): Promise<void> {
   const defaultDemoLevel = adventureDemo === 'adventure-win' ? 1 : adventureDemo === 'adventure-lose' || adventureDemo === 'adventure-play' ? 87 : Number.NaN;
   const requestedLevel = Number(query.get('level') ?? defaultDemoLevel);
   const levelScene = ['level-card', 'adventure-play', 'adventure-win', 'adventure-lose'].includes(adventureDemo);
-  const levelTable = debug && (levelScene || Number.isInteger(requestedLevel) && requestedLevel >= 1 && requestedLevel <= 120) ? (await import('../ui/adventureBundle')).LEVELS : undefined;
+  // spec-note: Map demo saves include a paused attempt on the frontier, so their level definitions must load before the first map render.
+  const levelTable = debug && dbg?.debugNeedsAdventureLevels(query) ? (await import('../ui/adventureBundle')).LEVELS : undefined;
   let loadedAdventureLevels = levelTable;
   const debugLevelDef = levelTable?.[requestedLevel - 1];
   const adventurePlayDemo = adventureDemo === 'adventure-play' || adventureDemo === 'adventure-win' || adventureDemo === 'adventure-lose';

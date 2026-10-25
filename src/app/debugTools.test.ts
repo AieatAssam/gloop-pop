@@ -1,5 +1,33 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { defaultSave } from '../meta/saveSchema';
+import { LEVELS } from '../core/levelTable';
+import { debugAdventureSave, debugNeedsAdventureLevels } from './debugTools';
+
+describe('debug Adventure demo boot state', () => {
+  it('loads level definitions and seeds the expected map frontier before rendering', () => {
+    const mapQuery = new URLSearchParams('debug=1&demo=adventure-map');
+    expect(debugNeedsAdventureLevels(mapQuery)).toBe(true);
+    const mapSave = debugAdventureSave(defaultSave(), mapQuery, LEVELS, 0);
+    expect(mapSave.adventure.frontier).toBe(23);
+    expect(Object.values(mapSave.adventure.levels).reduce((sum, level) => sum + level.stars, 0)).toBe(43);
+    expect(mapSave.adventure.inProgress?.adventure?.level).toBe(23);
+
+    const frontierQuery = new URLSearchParams('debug=1&demo=adventure-map&frontier=41');
+    expect(debugNeedsAdventureLevels(frontierQuery)).toBe(true);
+    const frontierSave = debugAdventureSave(defaultSave(), frontierQuery, LEVELS, 0);
+    expect(frontierSave.adventure.frontier).toBe(41);
+    expect(frontierSave.adventure.inProgress?.adventure?.level).toBe(41);
+  });
+
+  it('keeps adventure demo state and every seeded debug scene on the debug path', () => {
+    for (const demo of ['adventure-map-end', 'level-card', 'adventure-play', 'adventure-win', 'adventure-lose']) {
+      expect(debugNeedsAdventureLevels(new URLSearchParams(`debug=1&demo=${demo}`))).toBe(true);
+    }
+    expect(debugNeedsAdventureLevels(new URLSearchParams('debug=1&demo=missions'))).toBe(false);
+    expect(debugNeedsAdventureLevels(new URLSearchParams('save=veteran'))).toBe(false);
+  });
+});
 
 describe('debug bundle boundary', () => {
   it('keeps debug-only dependencies out of app.ts and imports the tools only for debug URLs', () => {
