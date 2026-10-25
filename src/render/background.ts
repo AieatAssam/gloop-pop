@@ -137,7 +137,7 @@ export function createBackground(themeId: ThemeKey = 'midnight'): Background {
       drawThemeAir(context, layout.width, layout.height, elapsedMs, selected, selectedId);
       context.restore();
       if (fade >= 1) { transitionCanvas = undefined; previousSilhouette = undefined; }
-      const clearBoost = elapsedMs - lastClearAt >= 0 && elapsedMs - lastClearAt < 300 ? 0.08 : 0;
+      const clearBoost = lastClearAt >= 0 && elapsedMs - lastClearAt >= 0 && elapsedMs - lastClearAt < 300 ? 0.08 : 0;
       const pulse = !reducedMotion && reactionKind === 'combo' && reactionAge >= 0 && reactionAge < 500 ? 1 + 0.25 * Math.sin(Math.PI * reactionAge / 500) : 1;
       const speed = reactionKind === 'tier4' && reactionAge >= 0 && reactionAge < 500 ? 3 : 1;
       drawBokeh(context, layout.width, layout.height, reducedMotion ? 0 : elapsedMs, sprites, selected, clearBoost, pulse, speed);
@@ -340,6 +340,8 @@ function drawMoon(ctx: CanvasRenderingContext2D, width: number, height: number, 
 }
 
 function drawBokeh(ctx: CanvasRenderingContext2D, width: number, height: number, elapsed: number, sprites: Map<string, HTMLCanvasElement>, colours: ThemeColours, alphaBoost = 0, scale = 1, speed = 1): void {
+  // The clear boost sets globalAlpha per sprite; save/restore so it never leaks into the board, HUD and gloops drawn after the background.
+  ctx.save();
   ctx.globalAlpha = 1;
   const count = height / width >= 1.25 ? 12 : 18;
   for (let i = 0; i < count; i += 1) {
@@ -349,6 +351,7 @@ function drawBokeh(ctx: CanvasRenderingContext2D, width: number, height: number,
     const sprite = sprites.get([colours.bokehA, colours.bokehB, colours.bokehC][light.colourIndex]!);
     if (sprite) { const r = light.radius * scale; ctx.globalAlpha = 1; ctx.drawImage(sprite, x - r, y - r, r * 2, r * 2); if (alphaBoost > 0) { ctx.globalAlpha = 0.1; ctx.drawImage(sprite, x - r, y - r, r * 2, r * 2); } }
   }
+  ctx.restore();
 }
 
 function drawSprinkles(ctx: CanvasRenderingContext2D, width: number, height: number, elapsed: number, sprites: Map<string, HTMLCanvasElement>): void {

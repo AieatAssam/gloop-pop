@@ -16,7 +16,7 @@ export function tone(options: { frequency: number; endFrequency?: number; durati
   const graph = getAudioGraph();
   if (!graph) return;
   const { context } = graph;
-  const at = options.at ?? scheduleAt();
+  const at = safeTime(context, options.at);
   const oscillator = context.createOscillator();
   const envelope = context.createGain();
   oscillator.type = options.wave ?? 'sine';
@@ -45,11 +45,11 @@ export function tone(options: { frequency: number; endFrequency?: number; durati
   oscillator.stop(at + options.duration + 0.01);
 }
 
-export function noise(options: { duration: number; peak: number; bus?: 'sfx' | 'music'; at?: number; filterType?: BiquadFilterType; frequency?: number; endFrequency?: number; q?: number }): void {
+export function noise(options: { duration: number; peak: number; bus?: 'sfx' | 'music'; at?: number; attack?: number; filterType?: BiquadFilterType; frequency?: number; endFrequency?: number; q?: number }): void {
   const graph = getAudioGraph();
   if (!graph) return;
   const { context } = graph;
-  const at = options.at ?? scheduleAt();
+  const at = safeTime(context, options.at);
   const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * options.duration), context.sampleRate);
   const data = buffer.getChannelData(0);
   for (let i = 0; i < data.length; i += 1) data[i] = noiseRandom() * 2 - 1;
@@ -57,7 +57,7 @@ export function noise(options: { duration: number; peak: number; bus?: 'sfx' | '
   source.buffer = buffer;
   const envelope = context.createGain();
   envelope.gain.setValueAtTime(0.0001, at);
-  envelope.gain.linearRampToValueAtTime(options.peak, at + Math.min(0.005, options.duration / 4));
+  envelope.gain.linearRampToValueAtTime(options.peak, at + Math.min(options.attack ?? 0.005, options.duration * 0.95));
   envelope.gain.exponentialRampToValueAtTime(0.0001, at + options.duration);
   const filter = context.createBiquadFilter();
   filter.type = options.filterType ?? 'lowpass';
@@ -70,4 +70,11 @@ export function noise(options: { duration: number; peak: number; bus?: 'sfx' | '
   claimVoice(source);
   source.start(at);
   source.stop(at + options.duration + 0.01);
+}
+
+// WebAudio throws on negative or non-finite times, so every scheduled time is clamped to "now or later".
+export function safeTime(context: BaseAudioContext, at: number | undefined): number {
+  const now = context.currentTime;
+  const value = at ?? scheduleAt();
+  return Number.isFinite(value) ? Math.max(now, value) : now;
 }

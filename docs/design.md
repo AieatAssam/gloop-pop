@@ -460,7 +460,7 @@ owner.github.io/gloop-pop
 - Big score. Under it: "Best 14,210" or, if new, a gold "New best!" badge.
 - Up to **2 near-miss lines** (rules below).
 - Rewards row: "+142 XP" with the XP bar filling, "+55 coins". Level-ups show "Level 7!" inline.
-- Buttons: "Play again" (primary, large, focused; Daily counted: "Practice"), "Home", and on Daily "Share". Classic also shows a small "Share score" text button.
+- Buttons: "Play again" (primary, large, focused; Daily counted: "Practice"), "Home", and on Daily "Share". Classic also shows a small "Share score" text button. Layout: the primary button is full width; the share actions ("Challenge a friend", "Share image"; Daily: "Share") sit side by side under it as smaller secondary buttons; "Home" is a text button at the bottom, the same as on the Daily result screen.
 - The panel never blocks: "Play again" is clickable as soon as it appears, and reward animations continue in the background of the next run's first frame (they are just toasts).
 
 ### 13.4 Near-miss messages (honest, computed from real state)
@@ -642,6 +642,7 @@ HUD and play:
 - Stage toasts: "Stage 2: bigger pieces", "Stage 3: grape joins in", "Stage 4: even bigger pieces", "Stage 5: bubblegum joins in", "Stage 6: expert pieces"
 - New best during run (first time passing it): "New best!"
 - Rescue ring tooltip/aria: "Rescue: clear {k} more lines to charge" / "Rescue ready" / "Rescue used"
+- Rescue ring label (always shown next to the ring, so the ring explains itself): "Rescue {n}/10" while charging ({n} = lines cleared, max 10), then "Rescue ready" / "Rescue used"
 - Zen shake: "Shake! Two gloops popped to make room."
 Pause: title "Paused"; buttons "Resume", "Restart", "Home", "Settings"; Daily: "Give up" instead of "Restart"; Zen: "End run" instead of "Restart".
 Restart confirm (Classic with score > 0): "Start over? This run will end." buttons "Start over", "Cancel".

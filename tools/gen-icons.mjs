@@ -46,10 +46,10 @@ function drawGloop(image, cx, cy, width, height, c, flavour = 'lemon') {
   image.fillEllipse(cx - bodyWidth * .19, cy + bodyHeight * .13, bodyWidth * .09, bodyHeight * .045, c.blush);
   image.fillEllipse(cx + bodyWidth * .19, cy + bodyHeight * .13, bodyWidth * .09, bodyHeight * .045, c.blush);
   const eyeY = cy - bodyHeight * .01; const eyeRadius = bodyWidth * .065;
+  // SG §6.2 face: ink oval eyes with a catchlight, the same face the game draws.
   for (const eyeX of [cx - bodyWidth * .15, cx + bodyWidth * .15]) {
-    image.fillEllipse(eyeX, eyeY, eyeRadius * 1.12, eyeRadius * 1.35, c.white);
-    image.fillCircle(eyeX, eyeY + eyeRadius * .15, eyeRadius * .64, c.ink);
-    image.fillCircle(eyeX - eyeRadius * .2, eyeY - eyeRadius * .18, eyeRadius * .2, c.white);
+    image.fillEllipse(eyeX, eyeY, eyeRadius * .8, eyeRadius * 1.02, c.ink);
+    image.fillCircle(eyeX - eyeRadius * .26, eyeY - eyeRadius * .36, eyeRadius * .3, c.white);
   }
   image.strokeCapsule(cx - bodyWidth * .10, cy + bodyHeight * .15, cx, cy + bodyHeight * .23, width * .025, c.mouth);
   image.strokeCapsule(cx, cy + bodyHeight * .23, cx + bodyWidth * .10, cy + bodyHeight * .15, width * .025, c.mouth);
@@ -70,42 +70,42 @@ function renderOgImage(c) {
     const x = bx + col * (cell + gap); const y = by + row * (cell + gap);
     image.fillRoundRect(x, y + 3, cell, cell, 10, '#21143E'); image.fillRoundRect(x + 2, y, cell - 4, cell - 5, 9, '#51317D');
   }
-  const boardGloop = (row, col, flavour) => {
-    const colors = c[flavour]; const x = bx + col * (cell + gap); const y = by + row * (cell + gap);
-    image.fillRoundRect(x + 1, y + 1, cell - 2, cell - 5, 11, colors.outline);
-    image.fillGradientRoundRect(x + 3, y + 3, cell - 6, cell - 10, 9, [[0,colors.light],[.45,colors.base],[1,colors.dark]]);
-    image.fillEllipse(x + cell * .39, y + cell * .22, cell * .23, cell * .07, '#FFFFFFAA', -.15);
+  // Each gloop is one merged jelly body with one face (design §2.2), not a set of loose tiles.
+  const span = (n) => n * cell + (n - 1) * gap;
+  const boardGloop = (row, col, w, h, flavour) => {
+    const colors = c[flavour]; const x = bx + col * (cell + gap); const y = by + row * (cell + gap); const bw = span(w); const bh = span(h); const k = Math.min(w, h);
+    image.fillRoundRect(x, y + 4, bw, bh, 16, '#0A05187A');
+    image.fillRoundRect(x, y, bw, bh, 16, colors.outline);
+    image.fillGradientRoundRect(x + 3, y + 3, bw - 6, bh - 7, 14, [[0,colors.light],[.38,colors.base],[1,colors.dark]]);
+    for (let i = 0; i < w; i += 1) { const sx = x + i * (cell + gap); image.fillEllipse(sx + cell * .34, y + cell * .24, cell * .17, cell * .07, '#FFFFFFAA', -.3); image.fillCircle(sx + cell * .6, y + cell * .19, cell * .045, '#FFFFFFDD'); }
+    const f = .78 * k * cell; const fx = x + bw / 2; const fy = y + bh / 2 - f * .04;
+    for (const side of [-1, 1]) { image.fillEllipse(fx + side * f * .2, fy - f * .06, f * .075, f * .095, c.ink); image.fillCircle(fx + side * f * .2 - f * .025, fy - f * .095, f * .028, c.white); image.fillEllipse(fx + side * f * .31, fy + f * .1, f * .08, f * .05, c.blush); }
+    image.strokeCapsule(fx - f * .085, fy + f * .1, fx, fy + f * .16, f * .045, c.ink); image.strokeCapsule(fx, fy + f * .16, fx + f * .085, fy + f * .1, f * .045, c.ink);
   };
-  for (const [r, col] of [[0,0],[0,1],[1,0],[1,1]]) boardGloop(r,col,'cherry');
-  for (const [r, col] of [[2,5],[2,6],[3,5],[3,6]]) boardGloop(r,col,'blueberry');
-  for (let row = 3; row < 6; row += 1) for (let col = 2; col < 5; col += 1) boardGloop(row,col,'lemon');
-  const faceX = bx + 3 * (cell + gap) + cell * 1.5; const faceY = by + 4 * (cell + gap) + cell * .58;
-  image.fillEllipse(faceX - 25, faceY, 11, 15, c.white); image.fillEllipse(faceX + 25, faceY, 11, 15, c.white);
-  image.fillCircle(faceX - 23, faceY + 2, 6, c.ink); image.fillCircle(faceX + 27, faceY + 2, 6, c.ink);
-  image.strokeCapsule(faceX - 12, faceY + 26, faceX, faceY + 34, 6, c.ink); image.strokeCapsule(faceX, faceY + 34, faceX + 12, faceY + 26, 6, c.ink);
-  drawLogo(image, 600, 72, c);
+  boardGloop(0, 0, 2, 2, 'cherry'); boardGloop(2, 5, 2, 2, 'blueberry'); boardGloop(3, 2, 3, 3, 'lemon'); boardGloop(6, 5, 3, 1, 'apple'); boardGloop(7, 0, 2, 1, 'orange');
+  drawLogo(image, 880, 132, c);
   drawGloop(image, 855, 423, 325, 325, c, 'cherry');
   image.fillEllipse(855, 572, 180, 14, '#10082466');
   return image.encodePNG();
 }
 
-function drawLogo(image, x, y, c) {
-  const glyphs = [
-    { type: 'G', color: c.cherry.base }, { type: 'L', color: c.orange.base }, { type: 'O', color: c.lemon.base }, { type: 'O', color: c.apple.base }, { type: 'P', color: c.blueberry.base },
-    { type: 'P', color: c.grape.base }, { type: 'O', color: c.bubblegum.base }, { type: 'P', color: c.cherry.light },
-  ];
-  const width = 47; const height = 68; let cursor = x;
-  for (let i = 0; i < glyphs.length; i += 1) {
-    if (i === 5) cursor += 17;
-    const glyph = glyphs[i];
-    const lines = glyph.type === 'G' ? [[0,0,0,1],[0,0,1,0],[1,0,1,.44],[1,.44,.56,.44],[1,.44,1,1],[1,1,0,1]]
-      : glyph.type === 'L' ? [[0,0,0,1],[0,1,1,1]]
-        : glyph.type === 'O' ? [[0,0,1,0],[1,0,1,1],[1,1,0,1],[0,1,0,0]]
-          : [[0,1,0,0],[0,0,.74,0],[.74,0,1,.2],[1,.2,1,.42],[1,.42,.74,.58],[.74,.58,0,.58]];
-    for (const [x1,y1,x2,y2] of lines) image.strokeCapsule(cursor + x1 * width, y + y1 * height, cursor + x2 * width, y + y2 * height, 34, c.ink);
-    for (const [x1,y1,x2,y2] of lines) image.strokeCapsule(cursor + x1 * width, y + y1 * height, cursor + x2 * width, y + y2 * height, 23, glyph.color);
-    cursor += width + 10;
-  }
+// Rounded "Gloop Pop" lettering built from capsule strokes (SG §10 logo: each letter a flavour, ink outline).
+function drawLogo(image, centreX, base, c) {
+  const colours = [c.cherry.base, c.orange.base, c.lemon.base, c.apple.base, c.blueberry.base, c.grape.base, c.bubblegum.base, c.cherry.light];
+  const r = 22; const capH = 80; const gap = 16;
+  const arc = (cx, cy, radius, a0, a1) => { const segs = []; const steps = Math.max(6, Math.ceil(Math.abs(a1 - a0) / 0.16)); for (let i = 0; i < steps; i += 1) { const t0 = a0 + (a1 - a0) * i / steps; const t1 = a0 + (a1 - a0) * (i + 1) / steps; segs.push([cx + Math.cos(t0) * radius, cy + Math.sin(t0) * radius, cx + Math.cos(t1) * radius, cy + Math.sin(t1) * radius]); } return segs; };
+  const glyph = { G: (x) => { const R = 34; const cx = x + R; const cy = base - capH / 2 + 4; return { w: R * 2, segs: [...arc(cx, cy, R, -Math.PI * 0.28, Math.PI * 2 - 0.02 - Math.PI * 0.0), [cx + R, cy, cx + R * 0.3, cy]] }; },
+    l: (x) => ({ w: 0, segs: [[x, base - capH, x, base]] }),
+    o: (x) => ({ w: r * 2, segs: arc(x + r, base - r, r, 0, Math.PI * 2) }),
+    p: (x) => ({ w: r * 2, segs: [[x, base - r * 2, x, base + 26], ...arc(x + r, base - r, r, 0, Math.PI * 2)] }),
+    P: (x) => ({ w: 40, segs: [[x, base - capH, x, base], [x, base - capH, x + 18, base - capH], [x, base - 36, x + 18, base - 36], ...arc(x + 18, base - 58, 22, -Math.PI / 2, Math.PI / 2)] }) };
+  const word = ['G', 'l', 'o', 'o', 'p', ' ', 'P', 'o', 'p'];
+  const measure = word.reduce((sum, ch) => sum + (ch === ' ' ? 26 : glyph[ch](0).w + gap), -gap);
+  let x = centreX - measure / 2; let colour = 0; const drawn = [];
+  for (const ch of word) { if (ch === ' ') { x += 26; continue; } const g = glyph[ch](x); drawn.push([g.segs, colours[colour % colours.length]]); colour += 1; x += g.w + gap; }
+  for (const [segs] of drawn) for (const [x1, y1, x2, y2] of segs) image.strokeCapsule(x1, y1 + 4, x2, y2 + 4, 34, c.ink);
+  for (const [segs] of drawn) for (const [x1, y1, x2, y2] of segs) image.strokeCapsule(x1, y1, x2, y2, 32, c.ink);
+  for (const [segs, col] of drawn) for (const [x1, y1, x2, y2] of segs) image.strokeCapsule(x1, y1, x2, y2, 20, col);
 }
 
 function favicon(c) {

@@ -398,7 +398,7 @@ Under the board (portrait) or in the left panel (desktop). Text "Combo 4 ×2.5" 
 Radius 18 px, `ui.panelSolid`, 2 px border `ui.panelBorder`, padding 16 px. Mode cards have a 56 px illustration on the left: a gloop of the mode's signature flavour (Classic cherry, Daily = Flavour of the Day, Zen blueberry with sleep face, Expert grape with crown), drawn with the canvas gloop renderer into a small canvas. Locked cards: illustration greyed (draw at alpha 0.4), lock icon, text "Reach Level 8".
 
 ### 11.8 Toasts
-Top-centre, below the top bar. Pill, height 40, padding 0 18 px, `ui.panelSolid`, border 2 px in the toast's accent (coin/xp/gold/streak/freeze colour), icon left. Enter: drop from −20 px + fade, 180 ms `easeOutBack`; stay 2400 ms; exit 160 ms. Queue, max 1 visible, 600 ms between.
+Top-centre, below the top bar. Pill, height 40, padding 0 18 px, `ui.panelSolid`, border 2 px in the toast's accent (coin/xp/gold/streak/freeze colour), icon left. Enter: drop from −20 px + fade, 180 ms `easeOutBack`; stay 2400 ms; exit 160 ms. Queue, max 1 visible, 600 ms between. **Placement rule:** a toast must never cover a panel or screen title. While a modal panel (game over, rescue, pause) or a full screen (Home, Collection, Daily result …) is open, toasts sit at the bottom centre instead (16 px above the bottom safe area), and a toast that is already showing moves there when a panel opens.
 
 ### 11.9 Progress bars and toggles
 - XP bar: height 12 px, radius 6, track `ui.track`, fill gradient `ui.xpTop` → `ui.xpBottom`, 2 px gloss line at alpha 0.4 on top. Fills with 600 ms `easeOutCubic`; level-up: fills to the end, flashes white 120 ms, resets and continues.
@@ -425,7 +425,7 @@ Drawn by `src/render/shareCard.ts` into an offscreen canvas at scale 1 (no DPR).
 - y 330–530: the score: Baloo 2 800 180 px `ui.textPrimary` with 0.08em `face.ink` outline, centred.
 - y 590–890: tray grid 10 × 3 squares, each 78 px with 12 px gaps (total 888 × 258), x from 96, radius 18, colours `share.tier*` mapped like the emoji (design §10.6), each with a small top specular. Squares with 🟪 meaning get a tiny white star.
 - y 930: stats row, three chips: "Best combo 7", "Biggest pop 18", "Lines 34", Nunito 800 34 px on `ui.panelSolid` chips.
-- y 1040–1250: a row of 5 gloops (cherry, orange, lemon, apple, blueberry, 150 px each, happy faces, equipped skin) sitting on the counter; Flavour of the Day gloop in the middle, 1.3× size.
+- y 1060–1250: a row of 5 gloops sitting on the counter, drawn with the game's gloop renderer (rounded-square jelly bodies, real faces with the happy expression, toppers, equipped skin) with a soft contact shadow each. The middle one is the hero: Daily = the Flavour of the Day gloop at 1.3× size; Classic = the run's biggest gloop in its true shape (fitted in 300 × 172). The four others are the next flavours in id order, skipping the hero's flavour. Classic also prints "Can you beat it?" (Baloo 2 800 44 px, `ui.gold`) just above the counter, and shows the final board as a real candy mould (c = 34) at y 576–880.
 - y 1290: footer: the site address (same as share text) Nunito 700 30 px `ui.textSecondary`, and "🔥 5-day streak" left of it if streak ≥ 2 (drawn flame icon, not emoji, for consistency).
 
 ---

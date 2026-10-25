@@ -36,7 +36,7 @@ function createBodySprite(gloop: Gloop, cell: number, minRow: number, minCol: nu
   ctx.lineWidth = cell * 0.18; ctx.strokeStyle = withAlpha(colour.dark, 0.5); ctx.lineCap = 'round'; ctx.stroke(path); ctx.save(); ctx.beginPath(); ctx.rect(left, (top + bottom) / 2, right - left, bottom - top); ctx.clip(); ctx.translate(cell * 0.03, -cell * 0.04); ctx.lineWidth = cell * 0.06; ctx.strokeStyle = withAlpha(PALETTE.theme.midnight.rim, 0.35); ctx.stroke(path); ctx.restore(); ctx.restore();
   ctx.lineWidth = cell * 0.05; ctx.lineJoin = 'round'; ctx.strokeStyle = colour.outline; ctx.stroke(path);
   if (colourBlindPatterns) drawColourPattern(ctx, gloop, cell, minRow, minCol, path, mix(colour.dark, PALETTE.face.ink, 0.25));
-  for (const index of gloop.cells) { const row = Math.floor(index / 8); const col = index % 8; if (gloop.cells.includes(index - 8)) continue; ctx.save(); ctx.translate(col * cell, row * cell); ctx.rotate(-0.35); ctx.fillStyle = PALETTE.light.specularSoft; ctx.beginPath(); ctx.ellipse(cell * 0.32, cell * 0.26, cell * 0.15, cell * 0.085, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = withAlpha(PALETTE.light.specular, 0.9); ctx.beginPath(); ctx.arc(cell * 0.56, cell * 0.2, cell * 0.045, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+  for (const index of gloop.cells) { const row = Math.floor(index / 8); const col = index % 8; if (gloop.cells.includes(index - 8)) continue; ctx.save(); ctx.translate(col * cell, row * cell); ctx.fillStyle = PALETTE.light.specularSoft; ctx.beginPath(); ctx.ellipse(cell * 0.32, cell * 0.26, cell * 0.15, cell * 0.085, -0.35, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = withAlpha(PALETTE.light.specular, 0.9); ctx.beginPath(); ctx.arc(cell * 0.56, cell * 0.2, cell * 0.045, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
   return sprite;
 }
 
@@ -52,6 +52,17 @@ function drawColourPattern(ctx: CanvasRenderingContext2D, gloop: Gloop, cell: nu
     else if (gloop.flavour === 7) for (const [dx, dy] of [[0.3, 0.3], [0.7, 0.7]] as const) { ctx.beginPath(); ctx.moveTo(x + cell * (dx - 0.09), y + cell * dy); ctx.lineTo(x + cell * (dx + 0.09), y + cell * dy); ctx.moveTo(x + cell * dx, y + cell * (dy - 0.09)); ctx.lineTo(x + cell * dx, y + cell * (dy + 0.09)); ctx.stroke(); }
   }
   void minRow; void minCol; ctx.restore();
+}
+
+// One jelly cell drawn from the shared body cache: used for cells that are mid-pop after the board has already removed them.
+export function drawJellyCell(context: CanvasRenderingContext2D, flavour: number, cell: number, x: number, y: number, elapsed: number, expression?: string): void {
+  const gloop: Gloop = { flavour: flavour as Gloop['flavour'], cells: [0], bfs: [0], largestSquare: { row: 0, col: 0, size: 1 } };
+  const padding = cell * 0.25; const key = `${flavour}|${cell}|${colourBlindPatterns ? 1 : 0}|0`;
+  let sprite = bodySprites.get(key);
+  if (!sprite) { sprite = createBodySprite(gloop, cell, 0, 0, 0, 0, padding); if (bodySprites.size >= 96) bodySprites.delete(bodySprites.keys().next().value!); bodySprites.set(key, sprite); }
+  context.save(); context.translate(x, y); context.drawImage(sprite, -padding, -padding, sprite.width / 2, sprite.height / 2);
+  if (expression) drawFace(context, gloop, cell, elapsed, expression);
+  context.restore();
 }
 
 export function drawPiece(context: CanvasRenderingContext2D, flavour: number, cells: readonly (readonly [number, number])[], cell: number, x: number, y: number, elapsed: number, expression = 'idle', alpha = 1): void {
@@ -122,15 +133,16 @@ function drawTopper(ctx: CanvasRenderingContext2D, gloop: Gloop, cell: number, e
   const s = gloop.largestSquare; const center = s.col + Math.floor(s.size / 2); const row = Math.min(...gloop.cells.filter((i) => i % 8 === center).map((i) => Math.floor(i / 8)));
   if (!Number.isFinite(row)) return;
   const x = (center + 0.5) * cell; const y = row * cell; const t = 0.34 * cell * (1 + 0.15 * (s.size - 1));
-  ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(elapsed / 414 + (gloop.cells[0] ?? 0)) * 0.07); ctx.lineWidth = Math.max(1.5, t * 0.09); ctx.lineCap = 'round'; ctx.strokeStyle = PALETTE.topper.stem; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(t * 0.08, -t * 0.42, t * 0.12, -t * 0.75); ctx.stroke();
-  ctx.fillStyle = gloop.flavour === 7 ? PALETTE.topper.bubble : gloop.flavour === 5 ? PALETTE.flavour.blueberry.dark : PALETTE.topper.leaf;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(elapsed / 414 + (gloop.cells[0] ?? 0)) * 0.07); ctx.lineWidth = Math.max(1.5, t * 0.09); ctx.lineCap = 'round'; ctx.strokeStyle = PALETTE.topper.stem;
+  if (gloop.flavour === 7) { const breathe = 1 + 0.1 * Math.sin(elapsed / 2400 * Math.PI * 2 + (gloop.cells[0] ?? 0)); const r = t * 0.26 * breathe; ctx.fillStyle = PALETTE.topper.bubble; ctx.strokeStyle = PALETTE.flavour.bubblegum.dark; ctx.lineWidth = Math.max(1, t * 0.04); ctx.beginPath(); ctx.arc(0, -r * 0.9, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.strokeStyle = PALETTE.topper.bubbleShine; ctx.lineWidth = Math.max(1, t * 0.05); ctx.beginPath(); ctx.arc(0, -r * 0.9, r * 0.62, Math.PI * 1.1, Math.PI * 1.45); ctx.stroke(); ctx.restore(); return; }
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(t * 0.08, -t * 0.42, t * 0.12, -t * 0.75); ctx.stroke();
+  ctx.fillStyle = gloop.flavour === 5 ? PALETTE.flavour.blueberry.dark : PALETTE.topper.leaf;
   if (gloop.flavour === 5) { star(ctx, 0, -t * 0.45, t * 0.24, PALETTE.flavour.blueberry.dark); }
   else if (gloop.flavour === 3) { ctx.fillStyle = PALETTE.flavour.lemon.dark; ctx.beginPath(); ctx.moveTo(-t * 0.16, -t * 0.35); ctx.quadraticCurveTo(0, -t * 0.95, t * 0.16, -t * 0.35); ctx.quadraticCurveTo(0, -t * 0.22, -t * 0.16, -t * 0.35); ctx.fill(); ctx.fillStyle = PALETTE.flavour.lemon.light; ctx.beginPath(); ctx.arc(-t * 0.04, -t * 0.53, t * 0.04, 0, Math.PI * 2); ctx.fill(); }
   else if (gloop.flavour === 4) { ctx.beginPath(); for (const side of [-1, 1]) { ctx.save(); ctx.translate(side * t * 0.2, -t * 0.48); ctx.rotate(side * 0.7); ctx.ellipse(0, 0, t * 0.25, t * 0.1, 0, 0, Math.PI * 2); ctx.restore(); } ctx.fill(); }
   else if (gloop.flavour === 6) { ctx.strokeStyle = PALETTE.topper.leaf; ctx.lineWidth = t * 0.08; ctx.beginPath(); ctx.arc(0, -t * 0.45, t * 0.21, Math.PI * 0.15, Math.PI * 1.85); ctx.arc(0, -t * 0.45, t * 0.1, Math.PI * 0.2, Math.PI * 1.8); ctx.stroke(); ctx.beginPath(); ctx.ellipse(t * 0.28, -t * 0.52, t * 0.18, t * 0.08, -0.4, 0, Math.PI * 2); ctx.fill(); }
   else if (gloop.flavour === 1) { ctx.beginPath(); ctx.ellipse(t * 0.24, -t * 0.54, t * 0.3, t * 0.13, -0.45, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = PALETTE.topper.leafDark; ctx.lineWidth = t * 0.03; ctx.beginPath(); ctx.moveTo(t * 0.03, -t * 0.5); ctx.lineTo(t * 0.42, -t * 0.58); ctx.stroke(); }
   else { ctx.beginPath(); ctx.ellipse(t * 0.24, -t * 0.54, t * 0.3, t * 0.13, -0.45, 0, Math.PI * 2); ctx.fill(); }
-  if (gloop.flavour === 7) { ctx.fillStyle = PALETTE.topper.bubbleShine; ctx.beginPath(); ctx.ellipse(t * 0.17, -t * 0.58, t * 0.07, t * 0.035, -0.5, 0, Math.PI * 2); ctx.fill(); }
   ctx.restore();
 }
 function colourFor(flavour: number) { return PALETTE.flavour[FLAVOUR_KEYS[flavour - 1]!]; }
