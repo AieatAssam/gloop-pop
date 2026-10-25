@@ -26,6 +26,7 @@ export interface DragView { slot: number; x: number; y: number; pointerType: str
 
 export function createBoardView(): BoardView {
   let boardCache: HTMLCanvasElement | undefined; let boardCacheKey = ''; let previousTrayCount = -1; let trayDealAt = -1;
+  const slotLightGradients: (CanvasGradient | undefined)[] = []; const slotLightGeometry: { y: number; height: number }[] = [];
   let previousSeed: string | undefined; let previousBoard: number[] | undefined; let waveGroups: ReturnType<typeof components> = []; let waveAt = -1;
   let placement: { piece: Piece; cells: readonly number[]; row: number; col: number; slot: number; at: number; originX?: number; originY?: number; bodyCells?: readonly number[]; bodyAmplitude: number } | undefined;
   let entryAt = -1;
@@ -67,7 +68,7 @@ export function createBoardView(): BoardView {
         const r = slot.rect;
         // SG §8.2 tray wells: keep the specified translucent frameDark fill and add a soft interior lift for legibility.
         ctx.fillStyle = PALETTE.theme.midnight.frameDark; ctx.globalAlpha = slot.piece ? 0.42 : 0.35; ctx.fill(roundRectPath(r.x, r.y, r.width, r.height, 18));
-        const slotLight = ctx.createLinearGradient(0, r.y, 0, r.y + r.height); slotLight.addColorStop(0, withAlpha(PALETTE.theme.midnight.frameLight, 0.24)); slotLight.addColorStop(0.42, withAlpha(PALETTE.theme.midnight.frame, 0.08)); slotLight.addColorStop(1, withAlpha(PALETTE.theme.midnight.frameDark, 0));
+        let slotLight = slotLightGradients[i]; const geometry = slotLightGeometry[i]; if (!slotLight || !geometry || geometry.y !== r.y || geometry.height !== r.height) { slotLight = ctx.createLinearGradient(0, r.y, 0, r.y + r.height); slotLight.addColorStop(0, withAlpha(PALETTE.theme.midnight.frameLight, 0.24)); slotLight.addColorStop(0.42, withAlpha(PALETTE.theme.midnight.frame, 0.08)); slotLight.addColorStop(1, withAlpha(PALETTE.theme.midnight.frameDark, 0)); slotLightGradients[i] = slotLight; slotLightGeometry[i] = { y: r.y, height: r.height }; }
         ctx.globalAlpha = 0.72; ctx.fillStyle = slotLight; ctx.fill(roundRectPath(r.x + 2, r.y + 2, r.width - 4, r.height - 4, 16)); ctx.globalAlpha = 1;
         if (!slot.piece || drag?.slot === i || returning?.slot === i) return;
         const def = PIECES[slot.piece.defId]!; const pc = Math.min(slot.cell, r.width / 5.4, r.height / 5.4); const fit = hasFit(state, slot.piece); const x = r.x + (r.width - def.w * pc) / 2; const y = r.y + (r.height - def.h * pc) / 2;

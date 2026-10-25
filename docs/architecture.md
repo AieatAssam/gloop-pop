@@ -245,6 +245,7 @@ pointer/keyboard ─► input model ─► session.dispatch(action)
 
 ## 6. Rendering and performance budget (R22)
 - The render loop advances one reused frame object with real (`R`), world (`W`) and board-effects (`B`) deltas and timestamps. Input, held-piece motion and HUD read R; particles and ambient effects read W; placement and clear cues read B. Hitstop scales B only and slow motion scales W and B, so input remains immediate (§9.13.a).
+- `src/render/fx/scorePunch.ts` owns pure score tick and punch maths; `flashLimiter.ts` shares a three-start rolling-second budget across board and sky flashes (§9.13.i, §9.13.m).
 - **One main canvas** (`#game`) covering the viewport; `canvas.width = cssW × dpr`. `dpr = min(devicePixelRatio, 2)`. **Adaptive:** track a 120-frame moving average of frame time; if > 20 ms for 2 s, drop dpr to 1.5 (and to 1.25 below that); never raise it again during the session. Log in debug overlay.
 - **Layers via caches, not multiple canvases:** background cache (SG §7.1), board layer cache (SG §5.3), per-gloop caches, per-tray-slot caches, text sprite caches (pop labels), particle sprite caches (SG §9.12).
 - **Per-frame draw order:** background cache → animated background bits → board layer → animated cells → ghost/previews → faces/toppers (all gloops, live) → tray → dragged piece → particles → texts → HUD → vignette/flash overlays → ghost hand.

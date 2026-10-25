@@ -9,7 +9,9 @@ export function createParticles(seed = 0x504f5058) {
   return {
     emit(x: number, y: number, cell: number, flavour: number, count: number, effect: PopEffectId, inheritedDirection?: readonly [number, number], inheritedCount = 3): void {
       const flavourColours = PALETTE.flavour[FLAVOUR_KEYS[flavour - 1]!];
-      for (let i = 0; i < count; i += 1) {
+      const budgetScale = pool.items.length > 300 ? Math.max(0, (420 - pool.items.length) / 120) : 1;
+      const scaledCount = Math.floor(count * budgetScale);
+      for (let i = 0; i < scaledCount; i += 1) {
         const angle = inheritedDirection && i < inheritedCount ? Math.atan2(inheritedDirection[1], inheritedDirection[0]) + (random() - 0.5) * Math.PI * 0.7 : random() * Math.PI * 2; const speed = (120 + random() * 200) * (effect === 'fireworks' ? 1.5 : 1) * (inheritedDirection && i < inheritedCount ? 1.15 : 1);
         const kind = effect;
         const colour = effect === 'hearts' && random() < 0.5 ? PALETTE.fx.heart : effect === 'stars' ? PALETTE.fx.star : effect === 'bubbles' ? PALETTE.fx.bubble : effect === 'confetti' ? [PALETTE.fx.confettiA, PALETTE.fx.confettiB, PALETTE.fx.confettiC, PALETTE.fx.confettiD, PALETTE.fx.confettiE][Math.floor(random() * 5)]! : random() < 0.6 ? flavourColours.glow : PALETTE.fx.sugar;
@@ -17,10 +19,11 @@ export function createParticles(seed = 0x504f5058) {
       }
     },
     jellyDrop(x: number, y: number, cell: number, flavour: number): void {
+      if (pool.items.length >= 420 || pool.items.length > 300 && (420 - pool.items.length) / 120 < 1) return;
       const colour = PALETTE.flavour[FLAVOUR_KEYS[flavour - 1]!].base;
       pool.spawn(x, y, (random() - 0.5) * 80, -80 - random() * 80, 0, 1400, 0, (random() - 0.5) * 3, cell * 0.12, 0, 0.8, colour, 'jelly', 0, false);
     },
-    dust(x: number, y: number, count: number): void { for (let i = 0; i < count; i += 1) { const angle = random() < 0.5 ? Math.PI + (random() - 0.5) * Math.PI / 3 : (random() - 0.5) * Math.PI / 3; const speed = 40 + random() * 50; pool.spawn(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, 0, 0, random() * Math.PI * 2, (random() - 0.5) * 8, 1.5 + random() * 1.5, 0, 0.28, PALETTE.fx.sugar, 'sparkles', 0, false); } },
+    dust(x: number, y: number, count: number): void { const budgetScale = pool.items.length > 300 ? Math.max(0, (420 - pool.items.length) / 120) : 1; const scaledCount = Math.floor(count * budgetScale); for (let i = 0; i < scaledCount; i += 1) { const angle = random() < 0.5 ? Math.PI + (random() - 0.5) * Math.PI / 3 : (random() - 0.5) * Math.PI / 3; const speed = 40 + random() * 50; pool.spawn(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, 0, 0, random() * Math.PI * 2, (random() - 0.5) * 8, 1.5 + random() * 1.5, 0, 0.28, PALETTE.fx.sugar, 'sparkles', 0, false); } },
     update(dt: number): void {
       for (const p of pool.items) {
         const threshold = p.kind === 'fireworks' ? 0.7 : p.kind === 'bubbles' ? 1 : 2;

@@ -17,4 +17,10 @@ describe('M10.1 slow motion controller', () => {
     slow.step(200); expect(slow.scale).toBe(0.6);
     slow.reset(); expect(slow.step(201)).toBe(1);
   });
+
+  it('returns the game-over settle to full speed at 450 ms', () => {
+    const slow = createSlowMo(); slow.request(0.4, 60, 240, 150);
+    expect(slow.step(60)).toBe(0.4); expect(slow.step(300)).toBe(0.4); expect(slow.step(449)).toBeLessThan(1);
+    expect(slow.step(450)).toBe(1);
+  });
 });

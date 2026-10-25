@@ -3,19 +3,23 @@ import type { GameState } from '../core/types';
 import type { Layout } from './layout';
 import { PALETTE } from './palette';
 import { S } from '../ui/strings';
+import { scoreAt, scorePunchScale } from './fx/scorePunch';
 
 export function drawHud(ctx: CanvasRenderingContext2D, layout: Layout, state: GameState, best: number, elapsed: number, scoreShown: number, comboLostAt = -1, challengeScore?: number, candyFlameUntil = -1, flameFlavour = 1, reducedMotion = false, scoreFrom = scoreShown, scoreStartedAt = elapsed, scoreDuration = 600, newBestAt = -1, flameBreakAt = -1, comboPulseAt = -1, scoreSparkleAt = -1): number {
-  const duration = reducedMotion ? 150 : Math.min(600, Math.max(150, scoreDuration)); const progress = Math.min(1, Math.max(0, (elapsed - scoreStartedAt) / duration)); const eased = 1 - (1 - progress) ** 3;
-  const score = scoreFrom + (state.score - scoreFrom) * eased;
+  const duration = reducedMotion ? 150 : Math.min(600, Math.max(150, scoreDuration)); const age = elapsed - scoreStartedAt; const progress = Math.min(1, Math.max(0, age / duration));
+  const score = scoreAt(scoreFrom, state.score, age, duration, reducedMotion);
+  const tickAge = elapsed % 40; const tickPulse = !reducedMotion && progress < 1 ? 0.03 * Math.exp(-12 * Math.max(0, tickAge) / 1000) * Math.cos(2 * Math.PI * 12 * Math.max(0, tickAge) / 1000) : 0;
+  const scoreScale = reducedMotion ? 1 : scorePunchScale(age, duration, state.score - scoreFrom, false) + tickPulse;
+  const pulseAlpha = !reducedMotion && age >= duration ? Math.max(0, 1 - (age - duration) / 300) : 0;
   const tier = state.combo >= 12 ? 4 : state.combo >= 8 ? 3 : 0; const flaming = tier >= 3 || elapsed < candyFlameUntil || (flameBreakAt >= 0 && elapsed - flameBreakAt < 400);
   ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = PALETTE.ui.textPrimary;
   if (layout.portrait) {
-    ctx.font = '800 52px "Baloo 2", sans-serif'; drawScore(ctx, new Intl.NumberFormat('en-US').format(Math.round(score)), layout.width / 2, layout.score.y + layout.score.height * 0.55, elapsed, flaming, flameFlavour, reducedMotion, tier, flameBreakAt, candyFlameUntil);
+    ctx.font = '800 52px "Baloo 2", sans-serif'; drawScore(ctx, new Intl.NumberFormat('en-US').format(Math.round(score)), layout.width / 2, layout.score.y + layout.score.height * 0.55, elapsed, flaming, flameFlavour, reducedMotion, tier, flameBreakAt, candyFlameUntil, scoreScale, pulseAlpha);
     if (state.mode === 'daily') { ctx.font = '800 14px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.textSecondary; ctx.fillText(S.dailyTray(Math.min(30, state.traysDealt)), layout.width / 2, layout.score.y + layout.score.height * 0.98); if (state.daily) { ctx.font = '800 14px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.gold; ctx.fillText(S.fodDouble(S.flavourName(state.daily.flavourOfDay)), layout.width / 2, layout.score.y + layout.score.height + 10); } }
     if (state.mode !== 'zen' && best > 0) { const isNewBest = state.score > best; ctx.font = '700 15px Nunito, sans-serif'; ctx.fillStyle = isNewBest ? PALETTE.ui.gold : PALETTE.ui.textSecondary; ctx.fillText(isNewBest ? S.newBest : S.best(new Intl.NumberFormat('en-US').format(best)), layout.width / 2, layout.score.y + layout.score.height * 0.82); }
   } else {
     ctx.textAlign = 'left'; ctx.font = '700 18px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.textSecondary; ctx.fillText(S.score, layout.score.x, layout.score.y + 60);
-    ctx.font = '800 54px "Baloo 2", sans-serif'; ctx.fillStyle = PALETTE.ui.textPrimary; drawScore(ctx, new Intl.NumberFormat('en-US').format(Math.round(score)), layout.score.x, layout.score.y + 116, elapsed, flaming, flameFlavour, reducedMotion, tier, flameBreakAt, candyFlameUntil);
+    ctx.font = '800 54px "Baloo 2", sans-serif'; ctx.fillStyle = PALETTE.ui.textPrimary; drawScore(ctx, new Intl.NumberFormat('en-US').format(Math.round(score)), layout.score.x, layout.score.y + 116, elapsed, flaming, flameFlavour, reducedMotion, tier, flameBreakAt, candyFlameUntil, scoreScale, pulseAlpha);
     if (state.mode === 'daily') { ctx.font = '700 14px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.textSecondary; ctx.fillText(S.dailyTray(Math.min(30, state.traysDealt)), layout.score.x, layout.score.y + 178); if (state.daily) { ctx.font = '800 14px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.gold; ctx.fillText(S.fodDouble(S.flavourName(state.daily.flavourOfDay)), layout.score.x, layout.score.y + 206); } }
     if (state.mode !== 'zen' && best > 0) { const isNewBest = state.score > best; ctx.font = '700 16px Nunito, sans-serif'; ctx.fillStyle = isNewBest ? PALETTE.ui.gold : PALETTE.ui.textSecondary; ctx.fillText(isNewBest ? S.newBest : S.best(new Intl.NumberFormat('en-US').format(best)), layout.score.x, layout.score.y + (state.mode === 'daily' ? 150 : 148)); }
     if (state.mode === 'classic' || state.mode === 'expert') { ctx.font = '700 16px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.textDim; ctx.fillText(S.stageLabel(state.stage), layout.score.x + layout.score.width * 0.1, layout.score.y + (layout.portrait ? 280 : 192)); }
@@ -37,12 +41,15 @@ export function drawHud(ctx: CanvasRenderingContext2D, layout: Layout, state: Ga
   ctx.restore(); return score;
 }
 
-function drawScore(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, time: number, flaming: boolean, flavour: number, reduced: boolean, tier: number, flameBreakAt: number, flameUntil: number): void {
+function drawScore(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, time: number, flaming: boolean, flavour: number, reduced: boolean, tier: number, flameBreakAt: number, flameUntil: number, scale: number, pulseAlpha: number): void {
+  ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale); ctx.translate(-x, -y);
   if (flaming) { const key = (['cherry','orange','lemon','apple','blueberry','grape','bubblegum'] as const)[flavour - 1]!; const colour = PALETTE.flavour[key].base; ctx.save(); ctx.lineJoin = 'round'; ctx.lineWidth = 2.5; ctx.strokeStyle = colour; ctx.strokeText(text, x, y);
     if (!reduced) { ctx.globalCompositeOperation = 'lighter'; const count = tier >= 4 ? 16 : 12; const rate = tier >= 4 ? 34 : 22; const breakFade = flameUntil > time || flameBreakAt < 0 || time - flameBreakAt >= 400 ? 1 : Math.max(0, 1 - (time - flameBreakAt) / 400); for (let i = 0; i < count; i += 1) { const phase = (time * rate / 1000 + i * 1.618) % count; const progress = phase / count; const rise = 18 + progress * 12; const sway = Math.sin(time / 100 + i * 2.1) * 4; const fx = x + (i / (count - 1) - 0.5) * Math.min(120, text.length * 25) + sway; const fy = y - 8 - rise; const size = (1 + 4 * (1 - progress)) * (0.2 + 0.8 * (1 - progress)); const grad = ctx.createLinearGradient(fx, fy - size * 2, fx, fy + size); grad.addColorStop(0, colour); grad.addColorStop(1, PALETTE.ui.gold); ctx.fillStyle = grad; ctx.globalAlpha = breakFade; ctx.beginPath(); ctx.moveTo(fx, fy + size); ctx.bezierCurveTo(fx - size, fy, fx - size * 0.5, fy - size * 2, fx, fy - size); ctx.bezierCurveTo(fx + size * 0.5, fy - size * 2, fx + size, fy, fx, fy + size); ctx.fill(); } ctx.globalAlpha = 1; }
     ctx.restore();
   }
   ctx.fillStyle = PALETTE.ui.textPrimary; ctx.fillText(text, x, y);
+  if (pulseAlpha > 0) { const colour = tier >= 4 ? PALETTE.fx.comboTier4 : tier >= 3 ? PALETTE.fx.comboTier3 : tier >= 2 ? PALETTE.fx.comboTier2 : tier >= 1 ? PALETTE.fx.comboTier1 : PALETTE.fx.numberFill; ctx.globalAlpha = pulseAlpha; ctx.fillStyle = colour; ctx.fillText(text, x, y); }
+  ctx.restore();
 }
 
 function drawChaseBar(ctx: CanvasRenderingContext2D, layout: Layout, score: number, best: number, challengeScore: number | undefined, elapsed: number, passedAt: number): void {

@@ -4,6 +4,7 @@ import { withAlpha } from './colour';
 import { createCosmeticRng } from './cosmeticRng';
 import { easeInOutSine } from './easing';
 import type { Layout } from './layout';
+import { allowFlashStart } from './fx/flashLimiter';
 
 interface Dot { x: number; y: number; radius: number; phase: number; period: number; twinkle: boolean }
 interface Jar { x: number; y: number; width: number; height: number; lid: number; row: number }
@@ -57,6 +58,7 @@ export function createBackground(themeId: ThemeKey = 'midnight'): Background {
   let transitionCanvas: HTMLCanvasElement | undefined;
   let reactionAt = -1; let reactionKind: 'clear' | 'combo' | 'tier4' | 'big' | 'huge' | 'mega' | 'allClear' | 'gameOver' = 'clear'; let reactionColour: string = selected.horizon;
   let reducedMotion = false;
+  let showAllClearFlash = false;
   let lastClearAt = -1;
 
   const makeSprite = (colour: string, radius: number): HTMLCanvasElement => {
@@ -127,7 +129,7 @@ export function createBackground(themeId: ThemeKey = 'midnight'): Background {
       const fade = Math.min(1, Math.max(0, (elapsedMs - themeChangedAt) / 400));
       if (transitionCanvas && fade < 1) { context.save(); context.globalAlpha = 1 - fade; context.drawImage(transitionCanvas, 0, 0, layout.width, layout.height); context.restore(); }
       if (cacheWidth > 0) { context.save(); context.globalAlpha = fade; context.drawImage(cache, 0, 0, layout.width, layout.height); context.restore(); }
-      const reactionAge = elapsedMs - reactionAt; const allClearFlash = !reducedMotion && reactionKind === 'allClear' && reactionAge >= 0 && reactionAge < 300;
+      const reactionAge = elapsedMs - reactionAt; const allClearFlash = !reducedMotion && showAllClearFlash && reactionKind === 'allClear' && reactionAge >= 0 && reactionAge < 300;
       context.save(); context.globalAlpha = fade; drawStars(context, layout.width, layout.height, elapsedMs, selected, allClearFlash); context.restore();
       const progress = Math.min(1, Math.max(0, (elapsedMs - moonStarted) / 2400));
       const moonY = moonFrom + (moonTarget - moonFrom) * easeInOutSine(progress);
@@ -144,13 +146,13 @@ export function createBackground(themeId: ThemeKey = 'midnight'): Background {
       drawSprinkles(context, layout.width, layout.height, elapsedMs, sprites);
       const age = elapsedMs - reactionAt; const duration = reducedMotion ? 200 : reactionKind === 'allClear' ? 800 : reactionKind === 'combo' ? 1200 : reactionKind === 'gameOver' ? 400 : 500;
       if (reactionAt >= 0 && age < duration && ['big', 'huge', 'mega', 'gameOver', 'combo', 'tier4'].includes(reactionKind)) {
-        context.save(); const fadeAmount = Math.max(0, 1 - age / duration); const alpha = (reducedMotion ? 0.08 : reactionKind === 'big' ? 0.18 : reactionKind === 'huge' ? 0.26 : reactionKind === 'mega' ? 0.36 : reactionKind === 'gameOver' ? 0.35 : 0.25) * fadeAmount;
+        context.save(); const fadeAmount = Math.max(0, 1 - age / duration); const alpha = Math.min(0.25, (reducedMotion ? 0.08 : reactionKind === 'big' ? 0.18 : reactionKind === 'huge' ? 0.26 : reactionKind === 'mega' ? 0.36 : reactionKind === 'gameOver' ? 0.35 : 0.25) * fadeAmount);
         if (reactionKind === 'combo' || reactionKind === 'tier4') { const glow = context.createRadialGradient(layout.width * 0.5, layout.height * 0.62, 0, layout.width * 0.5, layout.height * 0.62, layout.width * 0.9); glow.addColorStop(0, withAlpha(reactionColour, alpha)); glow.addColorStop(1, withAlpha(reactionColour, 0)); context.fillStyle = glow; context.fillRect(0, layout.height * 0.36, layout.width, layout.height * 0.5); }
         else { context.globalAlpha = alpha; context.fillStyle = reactionKind === 'gameOver' ? PALETTE.ui.scrim : reactionColour; context.fillRect(0, 0, layout.width, layout.height); } context.restore();
       }
       if (!reducedMotion && selectedId === 'midnight' && ['big', 'huge', 'mega'].includes(reactionKind) && age >= 0 && age < 400) drawJarRimFlicker(context, layout.width, layout.height, age, selected);
     },
-    react(kind, elapsedMs, flavour = 0) { reactionKind = kind; reactionAt = elapsedMs; if (kind !== 'gameOver') lastClearAt = elapsedMs; if (flavour > 0) reactionColour = PALETTE.flavour[(['cherry','orange','lemon','apple','blueberry','grape','bubblegum'] as const)[flavour - 1]!].glow; },
+    react(kind, elapsedMs, flavour = 0) { reactionKind = kind; reactionAt = elapsedMs; showAllClearFlash = kind === 'allClear' && allowFlashStart(elapsedMs); if (kind !== 'gameOver') lastClearAt = elapsedMs; if (flavour > 0) reactionColour = PALETTE.flavour[(['cherry','orange','lemon','apple','blueberry','grape','bubblegum'] as const)[flavour - 1]!].glow; },
     setReducedMotion(enabled) { reducedMotion = enabled; },
   };
 }
@@ -306,7 +308,7 @@ function drawStars(ctx: CanvasRenderingContext2D, width: number, height: number,
   for (let i = 0; i < count; i += 1) {
     const star = stars[i]!;
     if (!star.twinkle && !forceTwinkle) continue;
-    ctx.globalAlpha = 0.5 + 0.5 * Math.sin(elapsed / star.period * Math.PI * 2 + star.phase);
+    ctx.globalAlpha = forceTwinkle ? 0.25 * (0.5 + 0.5 * Math.sin(elapsed / star.period * Math.PI * 2 + star.phase)) : 0.5 + 0.5 * Math.sin(elapsed / star.period * Math.PI * 2 + star.phase);
     ctx.fillStyle = colours.star;
     ctx.beginPath(); ctx.arc(star.x * width, star.y * height, star.radius, 0, Math.PI * 2); ctx.fill();
   }
