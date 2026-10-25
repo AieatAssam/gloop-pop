@@ -253,42 +253,45 @@ Stage is set by the current run score and never goes down within a run.
 |---|---|---|
 | 1 | 0 | 5: cherry, orange, lemon, apple, blueberry |
 | 2 | 1,500 | 5 |
-| 3 | 5,000 | 6: + grape |
-| 4 | 12,000 | 6 |
-| 5 | 25,000 | 7: + bubblegum |
-| 6 | 45,000 | 7 |
+| 3 | 4,000 | 6: + grape |
+| 4 | 7,000 | 6 |
+| 5 | 11,000 | 7: + bubblegum |
+| 6 | 18,000 | 7 |
 
 Family weights per stage (a family's weight is split equally across its orientations):
 
 | Family | S1 | S2 | S3 | S4 | S5 | S6 | D (Daily) |
 |---|---|---|---|---|---|---|---|
-| Dot | 6 | 4 | 3 | 2 | 2 | 2 | 3 |
-| I2 | 10 | 8 | 6 | 5 | 4 | 4 | 6 |
-| I3 | 10 | 9 | 8 | 7 | 6 | 5 | 8 |
-| I4 | 6 | 7 | 7 | 7 | 7 | 7 | 7 |
-| I5 | 3 | 4 | 5 | 6 | 7 | 8 | 5 |
-| O2 | 10 | 9 | 8 | 7 | 6 | 6 | 8 |
+| Dot | 6 | 4 | 3 | 2 | 1 | 1 | 3 |
+| I2 | 10 | 8 | 6 | 3 | 2 | 1 | 6 |
+| I3 | 10 | 9 | 8 | 5 | 3 | 2 | 8 |
+| I4 | 6 | 7 | 7 | 6 | 5 | 4 | 7 |
+| I5 | 3 | 4 | 5 | 6 | 6 | 7 | 5 |
+| O2 | 10 | 9 | 8 | 5 | 3 | 2 | 8 |
 | O3 | 2 | 3 | 4 | 5 | 6 | 7 | 4 |
-| R23 | 3 | 4 | 5 | 6 | 7 | 7 | 5 |
-| L3 | 12 | 10 | 9 | 8 | 7 | 6 | 9 |
-| L4 | 8 | 9 | 9 | 9 | 9 | 9 | 9 |
-| T4 | 6 | 7 | 8 | 8 | 8 | 8 | 8 |
-| S4 | 3 | 5 | 6 | 7 | 8 | 9 | 6 |
-| L5 | 3 | 4 | 5 | 6 | 7 | 8 | 5 |
+| R23 | 3 | 4 | 5 | 6 | 6 | 7 | 5 |
+| L3 | 12 | 10 | 9 | 5 | 3 | 2 | 9 |
+| L4 | 8 | 9 | 9 | 11 | 12 | 12 | 9 |
+| T4 | 6 | 7 | 8 | 11 | 12 | 12 | 8 |
+| S4 | 3 | 5 | 6 | 13 | 18 | 20 | 6 |
+| L5 | 3 | 4 | 5 | 7 | 8 | 9 | 5 |
 
 Flavour of each piece: uniform among the flavours in play.
 
+Why S4–S6 look like this (balance pass, 25 Oct 2026): each piece is one flavour, so a placed piece is already a gloop, and a line through any part of it pops the rest. Line clears remove whole pieces, so the board rarely fills. Big pieces barely add difficulty: a big piece is a big gloop and is gone after the next line through it. What ends runs is awkward 4-cell shapes (L4, T4, S/Z) with few small fixers (Dot, I2, L3, O2) to fill the gaps they leave. Column D (Daily) is unchanged.
+
 ### 7.3 RNG consumption order (determinism)
-All randomness in a run comes from one `sfc32` stream (architecture §4) seeded at run start. For each tray deal the generator consumes, in order: for each attempt (max 30): 3 × (1 family pick, 1 orientation pick, 1 flavour pick), then 1 value for the F2 coin flip. Cosmetic randomness (particles, blink timing, shake direction) uses a separate non-seeded RNG and never touches the run stream.
+All randomness in a run comes from one `sfc32` stream (architecture §4) seeded at run start. For each tray deal the generator consumes, in order: for each attempt (max 30): 3 × (1 family pick, 1 orientation pick, 1 flavour pick), plus 3 values for each F3 redraw (§7.4), then 1 value for the F2 coin flip. The coin flip is drawn even when `p` is 0 or 1. The fallback (§7.4) uses no randomness. Cosmetic randomness (particles, blink timing, shake direction) uses a separate non-seeded RNG and never touches the run stream.
 
 ### 7.4 Fairness rules (Classic, Zen, Expert)
 - **F1 (always):** at least one piece in a new tray fits the board at deal time.
-- **F2 (solvable tray, probabilistic):** with probability `p` the tray must be fully placeable: there is an order and positions for all 3 pieces (simulating clears and pops between them) such that all 3 fit. `p` by stage: S1 1.0, S2 1.0, S3 0.9, S4 0.75, S5 0.6, S6 0.5. Expert: 0.5 always. Zen: 1.0 always.
+- **F2 (solvable tray, probabilistic):** with probability `p` the tray must be fully placeable: there is an order and positions for all 3 pieces (simulating clears and pops between them) such that all 3 fit. `p` by stage: S1 1.0, S2 1.0, S3 0.5, S4–S6 0 (F1 only). Expert: 0.9 always. Zen: 1.0 always.
 - **F3 (shape caps):** at most one O3 per tray. In S1–S2, at most one piece of 5+ cells per tray.
 - **F4 (rescue tray):** after a rescue, the tray must satisfy F2 with `p = 1`.
-- **Procedure:** draw a candidate tray (respecting F3 by redrawing the offending slot, max 10 redraws per slot). Test the required condition (F1, or F2 if the coin flip says so). Accept the first candidate that passes, up to 30 attempts. If all 30 fail: take the last candidate and replace pieces from slot 2 down to slot 0, one at a time, with the largest piece family (by cell count, ties by lower id) that makes the condition pass; try Dot last. If even three Dots cannot satisfy F2 (fewer than 3 empty cells), require only F1.
+- **Procedure:** draw a candidate tray (respecting F3 by redrawing the offending slot, max 10 redraws per slot). Test the required condition (F1, or F2 if the coin flip says so). Accept the first candidate that passes, up to 30 attempts. If all 30 fail: take the last candidate and replace pieces from slot 2 down to slot 0, one at a time. In each slot, try every piece from the largest (by cell count, ties by lower id) down to the Dot, and stop as soon as the tray passes. If no piece makes it pass, leave a Dot in that slot and move to the next slot. If even three Dots cannot satisfy F2, require only F1 and repeat (a Dot always fits, because a full board would already have cleared).
 - **The generator never searches for pieces that do *not* fit.** It only ever helps. This is stated in How to Play: "New pieces always include at least one that fits."
 - **Solver budget:** the F2 check is a depth-first search over orders × positions with early exit, capped at 200,000 placement tests; if the cap is hit, treat the tray as passing F1-only and record it in debug stats. Target: < 4 ms per deal on a mid-range phone.
+- **Solver timing is measured on fixed probes, not on game deals.** The core has no clock, so `npm run sim` times `canPlaceAll` in Node on 12 fixed probe boards with 3 pieces each (`solverProbeCases` in `src/core/sim.ts`) and prints the slowest as "max solver time". The game itself never times the solver.
 
 ### 7.5 Daily generation
 - Daily uses weights column **D** and 6 flavours (cherry to grape) for all 30 trays, with F3 only (no board-dependent checks), so every player gets exactly the same pieces in the same order no matter how they play.
@@ -299,12 +302,25 @@ All randomness in a run comes from one `sfc32` stream (architecture §4) seeded 
 ## 8. Difficulty curve and pacing
 
 - **0–60 s (Stage 1):** small friendly pieces, 5 flavours (merges happen by accident), every tray fully placeable. Nearly every placement is safe. The player sees their first clear within 3 moves and usually their first pop within 2 minutes.
-- **1–3 min (Stage 2–3):** longer bars and big corners appear. At 5,000 points grape joins in: toast "Stage 3: grape joins in". Merges get rarer, so big gloops become a deliberate plan.
-- **3–6 min (Stage 4–5):** O3, R23 and S/Z shapes are common, and at 25,000 bubblegum arrives. 25–40% of trays are no longer guaranteed solvable. Most runs end here.
-- **6+ min (Stage 6):** expert territory. The score ceiling is unbounded.
+- **1–3 min (Stage 2–3):** longer bars and big corners appear. At 4,000 points grape joins in: toast "Stage 3: grape joins in". Half of Stage 3 trays are guaranteed solvable. Merges get rarer, so big gloops become a deliberate plan.
+- **3–6 min (Stage 4–5):** from 7,000 points L, T and S/Z shapes are common and small fixer pieces are rare. No tray is guaranteed solvable any more (F1 only). At 11,000 bubblegum arrives. Most runs end here.
+- **6+ min (Stage 6, from 18,000):** expert territory. The score ceiling is unbounded, but even very strong play ends (see the balance result below).
 - Stage toasts (exact strings in §16.4) appear for 1.6 s above the board. Each stage also changes the background: the moon rises one step per stage (SG §7.3).
 - **Session target:** Classic median 4–7 min, 90th percentile ≤ 12 min; Daily median 3–5 min (90 placements max). Verified by the balancing simulation (milestones M9.3): a greedy bot (architecture §9.3) should reach a median of 90–150 placements in Classic and a median run score of 8,000–20,000.
-- **Tuning knobs, in the order to change them:** (1) F2 probability by stage, (2) stage score thresholds, (3) weights of O3/I5/L5/S4, (4) flavour count per stage. Never touch the scoring formula to tune run length.
+- **Tuning knobs, in the order to change them:** (1) F2 probability by stage, (2) stage score thresholds, (3) family weights (since 25 Oct 2026 the strong ones are S4/T4/L4 up and Dot/I2/L3/O2 down; O3/I5/L5 mostly add score, not difficulty), (4) flavour count per stage. Never touch the scoring formula to tune run length.
+- **Balance pass result (25 Oct 2026),** `npm run sim` with the bot from architecture §9.3, 100 runs per seed:
+
+| Mode | Seed | Median placements | p10 / p90 placements | Under 25 placements | Median score | Runs at the cap |
+|---|---|---|---|---|---|---|
+| Classic | 1 | 114 | 43 / 203 | 2% | 17,073 | 0 |
+| Classic | 2 | 120 | 43 / 184 | 1% | 17,577 | 0 |
+| Classic | 3 | 116.5 | 44 / 180 | 1% | 17,244 | 0 |
+| Expert | 1 | 68 | 20 / 188 | 16% | 11,216 | 0 |
+| Expert | 2 | 110 | 19 / 262 | 12% | 20,006 | 0 |
+| Expert | 3 | 77 | 20 / 160 | 12% | 12,104 | 0 |
+| Zen | 1 (20 runs) | 10,000 (cap) | 10,000 / 10,000 | 0% | 1,436,585 | 20 of 20 (Zen has no game over) |
+
+  Expert's typical median (seeds 4 and 5: 66.5 and 72.5) is about 60% of Classic's. Before this pass Classic had a median of 9,073 placements and 21 of 50 runs hit the 10,000 cap. A bot that always plays its best move (a very strong player) now reaches a median of 446 placements in Classic (p90 951; all 40 test runs ended before 3,000).
 
 ---
 
@@ -314,7 +330,7 @@ All randomness in a run comes from one `sfc32` stream (architecture §4) seeded 
 Endless. Rules as in §3. Stages §7.2. Rescue once. The app opens into Classic (§12). The current run autosaves after every move and resumes on reload.
 
 ### 9.2 Expert (unlocks at Level 8)
-- Stage 5 weights from the start, Stage 6 weights from 15,000 points. 7 flavours always. F2 `p = 0.5`. No rescue.
+- Stage 5 weights from the start, Stage 6 weights from 15,000 points. 7 flavours always. F2 `p = 0.9`, tuned so Expert's bot median is about 60% of Classic's (§8). No rescue.
 - Separate best score. XP and coins ×1.5.
 - Mode card text: "Expert. Bigger pieces and all 7 flavours from the start. No rescue."
 
@@ -589,6 +605,7 @@ Timings are from page load. The ghost hand loop: 400 ms fade in on the tray piec
 - Tray: only the middle slot: I2h apple.
 - At 300 ms: bubble "Drag this piece into the gap." At 600 ms: ghost hand from tray to cells (6,6)(6,7).
 - On placing: row clears (+102 points). Bubble "Full rows clear!" for 1,200 ms.
+- **No All Clear in steps 1–3.** Each scripted board empties when the player places the piece, but the tutorial never awards All Clear: no +2,000, no `allClear` event, no "First All Clear!" moment (§23.2). The reducer skips All Clear while the run's mode is `tutorial`. Steps 1–3 score 102 + 452 + 922 = 1,476, so step 4 starts below 1,500 in Stage 1.
 
 **Step 2: row and column at once.**
 - New cells appear with a 250 ms pop-in (SG §9.1 spawn): column 3, rows 0–5 filled: orange (0,3)(1,3), blueberry (2,3)(3,3), cherry (4,3)(5,3); row 7 filled except (7,3): lemon (7,0)(7,1)(7,2), apple (7,4)(7,5), orange (7,6)(7,7).
@@ -604,7 +621,7 @@ Timings are from page load. The ghost hand loop: 400 ms fade in on the tray piec
 - Bubble: "Big Pop! Bigger gloops score more." 1,500 ms.
 
 **Step 4: real game.**
-- Without clearing the board, deal a normal Stage 1 tray of 3 (F2 guaranteed). Tutorial score carries over into this Classic run.
+- Without clearing the board, deal a normal Stage 1 tray of 3 (F2 guaranteed). Tutorial score (1,476) carries over into this Classic run. From step 4 the run is Classic, so All Clear works as normal.
 - Bubble: "You get 3 pieces. Place all 3 to get new ones." Disappears when the second piece is placed.
 - When the first full tray is placed: bubble "The game ends when nothing fits. Good luck!" for 2,000 ms. Set `tutorialDone = true`.
 - After the run ends for the first time, the game-over panel shows one extra line: "Tip: keep clearing to grow your combo."

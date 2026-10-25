@@ -1,6 +1,7 @@
 import { fits } from './board';
 import { nextFloat, nextInt, weightedPick } from './rng';
-import { f2Probability, flavoursForStage, weightsForStage } from './stages';
+import { MODES } from './modes';
+import { flavoursForStage, weightsForStage } from './stages';
 import { canPlaceAll } from './solver';
 import { FAMILY_IDS, PIECES } from './pieces';
 import type { Flavour, Piece, RngState } from './types';
@@ -21,7 +22,7 @@ export function dealTray(board: ArrayLike<number>, rng: RngState, stage: number,
     const passesShape = enforceF3(tray, rng, stage, daily);
     last = tray;
     const roll = nextFloat(rng);
-    const wantsF2 = options.forceSolvable || (!daily && (options.mode === 'expert' ? roll < 0.5 : options.mode === 'zen' ? true : roll < f2Probability(stage)));
+    const wantsF2 = options.forceSolvable || (!daily && roll < MODES[options.mode ?? 'classic'].f2Probability(stage));
     lastWantsF2 = wantsF2;
     const hasFit = tray.some((piece) => hasPlacement(board, piece.defId));
     if (!passesShape || !hasFit) continue;
@@ -69,27 +70,27 @@ function f3OffendingSlot(tray: readonly Piece[], stage: number, daily: boolean):
   return -1;
 }
 
+// spec-note: design §7.4 fallback. Replacement stops as soon as the tray passes, so it never swaps in more
+// pieces than needed. A slot where no single piece makes the tray pass keeps a Dot (tried last) and the next slot is tried.
 function fallbackTray(board: ArrayLike<number>, source: readonly Piece[], stage: number, daily: boolean, requireF2: boolean): Piece[] {
   const tray = source.length === 3 ? source.map((piece) => ({ ...piece })) : [{ defId: 0, flavour: 1 as Flavour }, { defId: 0, flavour: 1 as Flavour }, { defId: 0, flavour: 1 as Flavour }];
-  const candidates = [...PIECES].sort((a, b) => b.cells.length - a.cells.length || a.id - b.id);
-  for (let slot = 2; slot >= 0; slot -= 1) {
-    let replaced = false;
-    for (const candidate of candidates) {
-      tray[slot] = { defId: candidate.id, flavour: source[slot]?.flavour ?? 1 };
-      if (!respectsF3(tray, stage, daily) || !tray.some((piece) => hasPlacement(board, piece.defId))) continue;
-      if (requireF2 && canPlaceAll(board, tray) === 'no') continue;
-      replaced = true; break;
-    }
-    if (!replaced) tray[slot] = { defId: 0, flavour: source[slot]?.flavour ?? 1 };
-  }
-  if (requireF2 && canPlaceAll(board, tray) === 'no') {
+  const passes = (needF2: boolean): boolean => respectsF3(tray, stage, daily) && tray.some((piece) => hasPlacement(board, piece.defId))
+    && (!needF2 || canPlaceAll(board, tray) !== 'no');
+  for (const needF2 of requireF2 ? [true, false] : [false]) {
+    if (passes(needF2)) return tray;
     for (let slot = 2; slot >= 0; slot -= 1) {
-      tray[slot] = { defId: 0, flavour: source[slot]?.flavour ?? 1 };
-      if (canPlaceAll(board, tray) === 'yes') break;
+      const flavour = source[slot]?.flavour ?? 1;
+      for (const candidate of FALLBACK_ORDER) {
+        tray[slot] = { defId: candidate, flavour };
+        if (passes(needF2)) return tray;
+      }
+      tray[slot] = { defId: 0, flavour };
     }
   }
   return tray;
 }
+/** Piece ids by cell count, largest first, ties by lower id; the Dot (id 0) is last. */
+const FALLBACK_ORDER: readonly number[] = [...PIECES].sort((a, b) => b.cells.length - a.cells.length || a.id - b.id).map((piece) => piece.id);
 
 function hasPlacement(board: ArrayLike<number>, defId: number): boolean {
   const def = PIECES[defId]; if (!def) return false;

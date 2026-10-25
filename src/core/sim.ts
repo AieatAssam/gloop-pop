@@ -1,64 +1,85 @@
-import { cellIndex, fits, place } from './board';
-import { newGame, step } from './game';
+import { place } from './board';
+import { fitsAnywhere, newGame, step } from './game';
 import { PIECES } from './pieces';
 import { resolveBoard } from './resolve';
 import { scoreMove } from './scoring';
 import { canPlaceAll } from './solver';
-import type { Piece } from './types';
-import type { GameState, ModeId } from './types';
+import { nextInt, seededRng } from './rng';
+import type { GameState, ModeId, Piece, RngState } from './types';
 
 export interface SimGameResult { placements: number; score: number; stage: number; f2Fallbacks: number; trays: number; truncated: boolean; }
 export interface SimSummary {
   runs: number; placements: Distribution; scores: Distribution; stages: Distribution;
-  f2FallbackPercent: number; truncatedRuns: number;
+  under25Percent: number; f2FallbackPercent: number; truncatedRuns: number;
 }
 export interface Distribution { median: number; mean: number; p10: number; p90: number; }
 
-// spec-note: In this no-gravity board, a “hole” means an empty cell below a filled cell in a column; column heights define bumpiness.
-/** Greedy scoring from architecture §9.3. */
-export function chooseGreedyMove(state: GameState): { slot: 0 | 1 | 2; row: number; col: number; value: number } | null {
-  let best: { slot: 0 | 1 | 2; row: number; col: number; value: number } | null = null;
+export interface BotMove { slot: 0 | 1 | 2; row: number; col: number; value: number; }
+
+/**
+ * Architecture §9.3: every legal (piece, position) move of the current tray, ranked best first.
+ * value = movePoints + 40 × lines; ties keep the lower slot, then the lower board index.
+ * `safe` = every other piece still in the tray fits somewhere afterwards.
+ */
+export function rankMoves(state: GameState): (BotMove & { safe: boolean })[] {
+  const moves: (BotMove & { safe: boolean })[] = [];
   for (let slot = 0; slot < 3; slot += 1) {
     const piece = state.tray[slot]; if (!piece) continue;
     const def = PIECES[piece.defId]; if (!def) continue;
+    const remaining = state.tray.filter((item, index): item is Piece => index !== slot && item !== null);
     for (let row = 0; row <= 8 - def.h; row += 1) for (let col = 0; col <= 8 - def.w; col += 1) {
-      if (!fits(state.board, def, row, col)) continue;
       const placed = place(state.board, def, row, col, piece.flavour); if (!placed) continue;
       const resolved = resolveBoard(placed); const lineCount = resolved.rows.length + resolved.cols.length;
-      const scoring = scoreMove({ placedCells: def.cells.length, lines: lineCount,
+      const { points } = scoreMove({ placedCells: def.cells.length, lines: lineCount,
         popped: resolved.popped.map((gloop) => ({ flavour: gloop.flavour, size: gloop.size, extraCells: gloop.cells.filter((index) => !resolved.cells.includes(index)) })),
         combo: state.combo + (lineCount > 0 ? 1 : 0), allClear: resolved.allClear });
-      const points = scoring.points; const popCells = scoring.parts.pop / 20;
-      const remaining = state.tray.filter((item, index) => index !== slot && item !== null);
-      const noRemainingFit = remaining.length > 0 && !remaining.some((item) => item && fitsSomewhere(resolved.board, item.defId));
-      const { holes, bumpiness } = boardShape(resolved.board);
-      const value = points + 40 * lineCount + 6 * popCells - 3 * holes - 2 * bumpiness - (noRemainingFit ? 25 : 0);
-      if (!best || value > best.value) best = { slot: slot as 0 | 1 | 2, row, col, value };
+      const safe = remaining.every((item) => fitsAnywhere(resolved.board, item.defId));
+      moves.push({ slot: slot as 0 | 1 | 2, row, col, value: points + 40 * lineCount, safe });
     }
   }
-  return best;
+  // Array.prototype.sort is stable, so equal values keep slot/index order.
+  return moves.sort((a, b) => b.value - a.value);
 }
 
-export function runSimGame(seed: string, mode: ModeId = 'classic'): SimGameResult {
-  let state = newGame(mode, seed).state; let guard = 0;
-  while (state.status !== 'over' && guard < 10_000) {
-    guard += 1;
+/** The single best move (top of the ranking, preferring safe moves). Deterministic, no RNG. */
+export function chooseGreedyMove(state: GameState): BotMove | null {
+  const ranked = rankMoves(state); const best = ranked.find((move) => move.safe) ?? ranked[0];
+  return best ? { slot: best.slot, row: best.row, col: best.col, value: best.value } : null;
+}
+
+// spec-note: architecture §9.3 bot = "decent human". It places one piece at a time (no whole-tray search, no lookahead
+// past the current tray), never makes a move that leaves another tray piece with nowhere to go when it can avoid it,
+// and plays one of its 3 best-ranked moves at random (seeded) instead of always the best. Always taking the best move
+// made it near-perfect: it survived 2,000+ placements on every piece mix we tried (balance pass, 2026-10-25).
+export const BOT_TOP_MOVES = 3;
+export function chooseBotMove(state: GameState, botRng: RngState): BotMove | null {
+  const ranked = rankMoves(state); if (ranked.length === 0) return null;
+  const safe = ranked.filter((move) => move.safe); const pool = (safe.length > 0 ? safe : ranked).slice(0, BOT_TOP_MOVES);
+  const pick = pool[nextInt(botRng, pool.length)]!;
+  return { slot: pick.slot, row: pick.row, col: pick.col, value: pick.value };
+}
+
+export const SIM_PLACEMENT_CAP = 10_000;
+export function runSimGame(seed: string, mode: ModeId = 'classic', cap = SIM_PLACEMENT_CAP): SimGameResult {
+  let state = newGame(mode, seed).state; const botRng = seededRng(`${seed}/bot`);
+  while (state.status !== 'over' && state.stats.placements < cap) {
     if (state.status === 'rescueOffer') { state = step(state, { type: 'useRescue' }).state; continue; }
-    const move = chooseGreedyMove(state);
+    const move = chooseBotMove(state, botRng);
     if (!move) break;
     state = step(state, { type: 'place', slot: move.slot, row: move.row, col: move.col }).state;
   }
   return { placements: state.stats.placements, score: state.score, stage: state.stage, f2Fallbacks: state.stats.f2Fallbacks, trays: state.traysDealt, truncated: state.status !== 'over' };
 }
 
-export function runSimulation(runs = 300, mode: ModeId = 'classic', seed = '1'): SimSummary {
-  const results = Array.from({ length: runs }, (_, index) => runSimGame(`${seed}/${index}`, mode));
+export function runSimulation(runs = 300, mode: ModeId = 'classic', seed = '1', cap = SIM_PLACEMENT_CAP): SimSummary {
+  const results = Array.from({ length: runs }, (_, index) => runSimGame(`${seed}/${index}`, mode, cap));
   const trays = results.reduce((sum, result) => sum + result.trays, 0);
   const fallbackCount = results.reduce((sum, result) => sum + result.f2Fallbacks, 0);
   const truncatedRuns = results.filter((result) => result.truncated).length;
   return {
     runs, placements: distribution(results.map((result) => result.placements)), scores: distribution(results.map((result) => result.score)),
-    stages: distribution(results.map((result) => result.stage)), f2FallbackPercent: trays === 0 ? 0 : 100 * fallbackCount / trays, truncatedRuns,
+    stages: distribution(results.map((result) => result.stage)),
+    under25Percent: 100 * results.filter((result) => result.placements < 25).length / Math.max(1, runs), f2FallbackPercent: trays === 0 ? 0 : 100 * fallbackCount / trays, truncatedRuns,
   };
 }
 
@@ -76,21 +97,6 @@ export function solverProbeCases(): { board: number[]; pieces: Piece[] }[] {
 }
 export { canPlaceAll };
 
-function fitsSomewhere(board: ArrayLike<number>, defId: number): boolean {
-  const def = PIECES[defId]; if (!def) return false;
-  for (let row = 0; row <= 8 - def.h; row += 1) for (let col = 0; col <= 8 - def.w; col += 1) if (fits(board, def, row, col)) return true;
-  return false;
-}
-function boardShape(board: ArrayLike<number>): { holes: number; bumpiness: number } {
-  let holes = 0; const heights: number[] = [];
-  for (let col = 0; col < 8; col += 1) {
-    let first = 8; for (let row = 0; row < 8; row += 1) if ((board[cellIndex(row, col)] ?? 0) !== 0) { first = row; break; }
-    const height = 8 - first; heights.push(height);
-    if (first < 8) for (let row = first + 1; row < 8; row += 1) if ((board[cellIndex(row, col)] ?? 0) === 0) holes += 1;
-  }
-  let bumpiness = 0; for (let col = 0; col < 7; col += 1) bumpiness += Math.abs((heights[col] ?? 0) - (heights[col + 1] ?? 0));
-  return { holes, bumpiness };
-}
 function distribution(values: readonly number[]): Distribution {
   const sorted = [...values].sort((a, b) => a - b); const quantile = (p: number): number => sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p))] ?? 0;
   const middle = Math.floor(sorted.length / 2);

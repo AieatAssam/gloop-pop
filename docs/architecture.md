@@ -290,15 +290,15 @@ interface SaveV1 {
 | Area | File | Tests |
 |---|---|---|
 | RNG | rng.test.ts | sfc32 golden values for seed "test"; clone/serialise round trip; `nextInt` bounds over 10k draws |
-| Hash/daily | daily.test.ts | `dayNumber('2026-10-25') = 1`, `('2026-11-24') = 31`, before epoch = 1; `dayKey` from fake UTC times near midnight in UTC±14; golden starting board + first 3 trays for `2026-11-01` (snapshot); flavour of day deterministic |
+| Hash/daily | daily.test.ts | `dayNumber('2026-10-25') = 1`, `('2026-11-24') = 31`, before epoch = 1; `dayKey` from fake UTC times near midnight in UTC±14; golden starting board + first 3 trays for `2026-11-01` (snapshot); full deals for 400 days from 2026-10-25 hashed and pinned (captured before the 25 Oct 2026 balance pass, so Daily never drifts); flavour of day deterministic |
 | Board | board.test.ts | fits/out-of-bounds; full rows/cols; placement masks match cell lists for all 37 defs |
 | Gloops | gloops.test.ts | components incl. holes; largest square & tie-break |
 | Resolve | resolve.test.ts | design §3.5 cases: gloop partly in line pops; gloop entirely in line is not "popped"; two gloops; no cascade; All Clear |
 | Scoring | scoring.test.ts | both worked examples in design §5; lineBase table; mult cap ×10; daily FoD 40 pts; big pop tiers 7/8/14/15/23/24 |
 | Combo | combo.test.ts | fuse 3 → 2 → 1 → lost; reset on clear |
-| Generator | generator.test.ts | F1 on 500 random boards; F2 holds at p=1 on 500 boards; F3 caps; deterministic for same seed + same board; RNG consumption order stable (golden) |
+| Generator | generator.test.ts | F1 on 500 random boards and on empty-to-nearly-full boards for every Classic stage, Expert and Zen; F2 holds at p=1 (Stage 1, Zen, F4 rescue trays); F3 caps; fallback picks the largest piece that passes; golden deal snapshots per stage/mode on a light and a crowded board (trays, attempts, fallback, RNG state) |
 | Solver | solver.test.ts | known solvable/unsolvable boards; budget path |
-| Game | game.test.ts | full scripted game from seed reproduces the same score (golden); invalid action no-op; rescue charge at 10 lines, once per run, F4 tray; zen shake; daily ends after 30 trays |
+| Game | game.test.ts | tutorial steps 1–3 score 102 / 554 / 1,476 with no All Clear; full scripted game from seed reproduces the same score (golden); invalid action no-op; rescue charge at 10 lines, once per run, F4 tray; zen shake; daily ends after 30 trays |
 | Near miss | nearMiss.test.ts | 1-cell-short detection; line-1-from-full |
 | Share text | shareText.test.ts | exact design §10.6 example string; omissions (combo < 2, streak < 2); ⬛ for unreached; 🟪 override |
 | Save | migrate.test.ts | default save valid; v0 → v1; corrupt JSON → default + backup; future version; sanitize drops bad inProgress |
@@ -315,10 +315,11 @@ interface SaveV1 {
 `src/core` and `src/meta` ≥ 90% lines (`vitest --coverage` optional; not part of `check`).
 
 ### 9.3 Simulation / balancing (`src/core/sim.ts`, `npm run sim`)
-- Greedy bot: for the current tray, evaluate every (piece, position) pair; score = `movePoints + 40 × lines + 6 × poppedCells − 3 × holes − 2 × bumpiness − 25 × (no piece of the remaining tray fits)`; choose the best (ties: lowest slot, lowest index). Deterministic.
-- `npm run sim -- --mode classic --runs 300 --seed 1` prints: median/mean/p10/p90 of placements, score, stage reached, % trays where F2 fallback was used, max solver time.
+- Bot ("decent human", balance pass 25 Oct 2026): one piece at a time, no search over the whole tray. `rankMoves` scores every legal (piece, position) move of the current tray as `movePoints + 40 × lines` and marks a move **safe** when every other piece still in the tray fits somewhere afterwards. `chooseBotMove` plays one of the 3 best-ranked safe moves (all moves if none is safe), picked uniformly with a separate seeded stream (`seededRng(seed + '/bot')`), so a sim run is deterministic from its seed. Ties keep the lower slot, then the lower board index. `chooseGreedyMove` is the same ranking without the random pick (always the best safe move) and stands in for a very strong player.
+- Why not always the best move: on this board line clears pop whole pieces, and the always-best bot survived 2,000+ placements on every piece mix tried, including all-big-piece trays. It models near-perfect play, not a decent human.
+- `npm run sim -- --mode classic --runs 300 --seed 1 [--cap 10000]` prints: median/mean/p10/p90 of placements, score, stage reached, % of runs under 25 placements, % trays where F2 fallback was used, max solver time (on fixed probe boards, design §7.4), and runs that reached the placement cap (default 10,000; Zen always does).
 - Implementation: `tools/sim.mjs` imports the compiled core via Vite's SSR build (`vite build --ssr src/core/sim.ts --outDir .sim`) then runs it in Node. Script: `"sim": "vite build --ssr src/core/sim.ts --outDir .sim --emptyOutDir && node tools/sim.mjs"`. `.sim/` is git-ignored.
-- A Vitest test runs 20 bot games in Classic and asserts median placements ≥ 40 (sanity, fast) — full targets are checked by hand in M9.3.
+- `sim.test.ts` pins one golden bot game, checks the bot only plays top-3 safe moves, and runs 20 Classic games asserting a median of 40–300 placements with no run at the cap (sanity, fast). Full targets are checked by hand (M9.3); the results table is in design §8.
 
 ## 10. Build and deploy
 - `vite.config.ts`: `base: '/gloop-pop/'`, `build.target: 'es2020'`, `build.assetsInlineLimit: 0` for fonts, `build.sourcemap: false`.
