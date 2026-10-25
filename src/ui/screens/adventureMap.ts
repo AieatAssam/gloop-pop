@@ -6,6 +6,7 @@ import { mapGeometry, type MapGeometry } from './mapGeometry';
 import { S, formatNumber } from '../strings';
 import { readSafeAreaInsets } from '../safeArea';
 import { el } from '../dom';
+import { iconMarkup } from '../icons';
 
 const FLAVOURS = [1, 3, 4, 5, 6, 7] as const;
 export function createAdventureMap(save: SaveV2, actions: { back(): void; openLevel(level: number): void }): HTMLElement {
@@ -16,7 +17,7 @@ export function createAdventureMap(save: SaveV2, actions: { back(): void; openLe
   const back = button('‹', 'adventure-back', () => actions.back()); back.setAttribute('aria-label', S.back);
   const title = document.createElement('h1'); title.textContent = S.adventure;
   const stars = Object.values(save.adventure.levels).reduce((sum, item) => sum + item.stars, 0);
-  const chips = document.createElement('div'); chips.className = 'adventure-chips'; chips.append(chip(S.adventureStars(stars)), chip(S.coins(save.profile.coins)));
+  const chips = document.createElement('div'); chips.className = 'adventure-chips'; chips.append(chip(S.adventureStars(stars)), coinChip(save.profile.coins));
   header.append(back, title, chips);
   const scroll = document.createElement('div'); scroll.className = 'adventure-scroll';
   const column = document.createElement('div'); column.className = 'adventure-map-column'; column.style.width = `${geometry.colW}px`;
@@ -48,7 +49,7 @@ export function createAdventureMap(save: SaveV2, actions: { back(): void; openLe
   const footerBar = document.createElement('footer'); footerBar.className = 'adventure-footer-bar';
   footerBar.style.width = `${geometry.colW}px`; footerBar.style.height = `calc(${geometry.barHeight}px + var(--safe-area-bottom))`;
   if (save.adventure.frontier > 120) { const done = document.createElement('p'); done.className = 'adventure-all-won'; done.textContent = S.allLevelsWon; footerBar.append(done); }
-  else { const play = button(S.playLevel(target), 'button button--primary adventure-footer', () => actions.openLevel(target)); footerBar.append(play); }
+  else { const play = button(pausedLevel === target ? S.continueLevel(target) : S.playLevel(target), 'button button--primary adventure-footer', () => actions.openLevel(target)); footerBar.append(play); }
   root.append(header, scroll, footerBar);
   requestAnimationFrame(() => { scroll.scrollTop = geometry.scrollTopFor(target); });
   return root;
@@ -65,6 +66,7 @@ function chapterCard(save: SaveV2, chapter: number, pos: MapGeometry['cards'][nu
   copy.append(heading, progress, rewards, starReward); card.append(art, copy); return card;
 }
 function chip(text: string): HTMLElement { return el('span', 'adventure-chip', text); }
+function coinChip(amount: number): HTMLElement { const node = chip(''); node.classList.add('coin-chip'); node.setAttribute('aria-label', S.coinsAria(amount)); node.innerHTML = `${iconMarkup('coin')}<span>${S.coins(amount)}</span>`; return node; }
 function button(text: string, cls: string, action: () => void): HTMLButtonElement { const item = el('button', cls, text); item.addEventListener('click', action); return item; }
 function mapPath(frontier: number, geometry: MapGeometry): SVGSVGElement {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.classList.add('adventure-map-path'); svg.setAttribute('viewBox', `0 0 ${geometry.colW} ${geometry.contentHeight}`); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('aria-hidden', 'true');

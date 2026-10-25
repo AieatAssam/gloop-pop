@@ -20,4 +20,14 @@ describe('settings volume sliders', () => {
     expect(screen.querySelector<HTMLInputElement>('[data-volume="sfxVolume"]')!.disabled).toBe(true);
     expect([...screen.querySelectorAll('button')].some((button) => button.textContent === 'Credits')).toBe(true);
   });
+  it('hides Vibration when unsupported and keeps the saved setting untouched', () => {
+    const saved = defaultSave(); saved.settings.haptics = false; vi.stubGlobal('navigator', {});
+    const change = vi.fn(); const screen = createSettingsScreen(saved, { change, volume: vi.fn(), reduce: vi.fn(), replay: vi.fn(), credits: vi.fn(), reset: vi.fn(), back: vi.fn() });
+    expect(screen.textContent).not.toContain('Vibration'); expect(saved.settings.haptics).toBe(false); expect(change).not.toHaveBeenCalled();
+  });
+  it('shows Vibration when supported', () => {
+    vi.stubGlobal('navigator', { vibrate: vi.fn() });
+    const screen = createSettingsScreen(defaultSave(), { change: vi.fn(), volume: vi.fn(), reduce: vi.fn(), replay: vi.fn(), credits: vi.fn(), reset: vi.fn(), back: vi.fn() });
+    expect(screen.textContent).toContain('Vibration');
+  });
 });

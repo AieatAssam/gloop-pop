@@ -73,4 +73,8 @@ describe('player-facing strings', () => {
     expect(S.miniText('flavour12', 4)).toBe('Clear or pop 12 apple cells');
     expect(S.targetCrossed(5000, 5)).toBe('5,000 ✓ +5 coins');
   });
+  it('matches the M14.4 coin and paused-level labels exactly', () => {
+    expect(S.coins(1240)).toBe('1,240'); expect(S.coinsAria(1240)).toBe('1,240 coins');
+    expect(S.continueLevel(23)).toBe('Continue level 23'); expect(S.reachLevel(2)).toBe('Reach Level 2');
+  });
 });

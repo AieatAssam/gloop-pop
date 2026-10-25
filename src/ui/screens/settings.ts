@@ -19,7 +19,7 @@ export function createSettingsScreen(save: SaveV2, actions: SettingsActions): HT
   const musicToggle = toggleRow(S.settingMusic, save.settings.music, (value) => actions.change('music', value));
   list.append(sfxToggle, volumeRow(S.settingSfxVolume, save.settings.sfxVolume, !save.settings.sfx, 'sfxVolume', (key, value, commit) => actions.volume(key, value, commit)), musicToggle,
     volumeRow(S.settingMusicVolume, save.settings.musicVolume, !save.settings.music, 'musicVolume', (key, value, commit) => actions.volume(key, value, commit)),
-    toggleRow(S.settingVibration, save.settings.haptics, (value) => actions.change('haptics', value)),
+    ...(typeof navigator.vibrate === 'function' ? [toggleRow(S.settingVibration, save.settings.haptics, (value) => actions.change('haptics', value))] : []),
     selectRow(S.settingReduceMotion, [[S.settingMatchDevice, 'system'], [S.settingOn, 'on'], [S.settingOff, 'off']], save.settings.reducedMotion, (value) => actions.reduce(value as 'system' | 'on' | 'off')),
     toggleRow(S.settingPatterns, save.settings.cbPatterns, (value) => actions.change('cbPatterns', value)));
   // Keep the native slider enabled state in sync immediately when its toggle changes.

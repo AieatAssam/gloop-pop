@@ -5,6 +5,7 @@ import { PALETTE } from './palette';
 import { S } from '../ui/strings';
 import { easeOutBack } from './easing';
 import { ladderValue, nextTarget } from '../core/goals';
+import { drawCube } from './cubes';
 
 const textSprites = new Map<string, HTMLCanvasElement>();
 export function drawGoalStrip(ctx: CanvasRenderingContext2D, layout: Layout, state: GameState, shownScore: number, elapsed: number, crossing?: { target: number; coins: number; at: number; worldAt: number; hold: boolean }, miniDoneAt = -1, miniDoneWorldAt = -1, worldNow = elapsed, reducedMotion = false): void {
@@ -18,7 +19,7 @@ export function drawGoalStrip(ctx: CanvasRenderingContext2D, layout: Layout, sta
   const target = nextTarget(shownScore, state.goals.floor, state.goals.best);
   const targetIndex = ladderIndex(target); const firstVisibleIndex = ladderIndexAtFloor(state.goals.floor); const previous = targetIndex === firstVisibleIndex ? 0 : ladderValue(targetIndex - 1);
   const fraction = Math.max(0, Math.min(1, (shownScore - previous) / Math.max(1, target - previous)));
-  const crossingVisible = crossing && crossing.at >= 0 && elapsed - crossing.at < 1200 || crossing?.hold === true;
+  const crossingVisible = Boolean(crossing && crossing.target > 0 && crossing.coins > 0 && (crossing.at >= 0 && elapsed - crossing.at < 1200 || crossing.hold));
   const crossingAge = crossing?.at === undefined ? -1 : elapsed - crossing.at;
   const crossingFxAge = crossing?.worldAt === undefined ? -1 : worldNow - crossing.worldAt;
   pill(ctx, { x: left, y: top, width, height: pillHeight }, crossingVisible && crossing ? S.targetCrossed(crossing.target, crossing.coins) : S.nextTarget(target), crossingVisible ? 1 : fraction, PALETTE.ui.gold, false, crossingAge, crossingFxAge, reducedMotion);
@@ -47,6 +48,7 @@ function drawAdventureGoalIcon(ctx: CanvasRenderingContext2D, x: number, y: numb
     else if (kind === 'S') { for (let i = 0; i < 10; i += 1) { const angle = -Math.PI / 2 + i * Math.PI / 5; const radius = i % 2 ? 3 : 7; const px = Math.cos(angle) * radius; const py = Math.sin(angle) * radius; if (!i) ctx.moveTo(px, py); else ctx.lineTo(px, py); } ctx.closePath(); ctx.fill(); }
     else if (kind === 'B') { ctx.arc(-3, -2, 3, 0, Math.PI * 2); ctx.arc(3, -2, 3, 0, Math.PI * 2); ctx.arc(0, 3, 3, 0, Math.PI * 2); ctx.fill(); }
     else if (kind === 'M') { ctx.moveTo(-6, -4); ctx.lineTo(6, 4); ctx.moveTo(6, -4); ctx.lineTo(-6, 4); ctx.stroke(); }
+    else if (kind === 'C') { drawCube(ctx, 8, 18, -9, -9); }
     else { ctx.roundRect(-5, -5, 10, 10, 2); ctx.stroke(); }
   }
   ctx.restore();

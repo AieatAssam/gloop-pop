@@ -14,7 +14,7 @@ import { createMissionsCard } from '../missionsCard';
 export interface HomeActions { play(mode: ModeId): void; adventure?(): void; dailyResult?(): void; stats(): void; collection(): void; achievements(): void; settings(): void; howToPlay(): void; credits(): void; debugXp(): void; claimMission?(slot: number, anchor: HTMLElement): void; changeMission?(slot: number): void }
 export function createHomeScreen(save: SaveV2, actions: HomeActions, debug = false, challenge?: { score: number; flavour: Flavour }): HTMLElement {
   const root = document.createElement('main'); root.className = 'screen-wrap'; const panel = document.createElement('section'); panel.className = 'panel home-panel';
-  const header = document.createElement('header'); header.className = 'home-header'; const logo = createLogo(); header.append(logo, chip(S.level(save.profile.level)), chip(S.coins(save.profile.coins))); panel.append(header);
+  const header = document.createElement('header'); header.className = 'home-header'; const logo = createLogo(); header.append(logo, chip(S.level(save.profile.level)), coinChip(save.profile.coins)); panel.append(header);
   if (challenge) { const rival = button(S.rivalCard(['🍒','🍊','🍋','🍏','🫐','🍇','🍬'][challenge.flavour - 1] ?? '🍒', formatNumber(challenge.score)), 'button button--secondary rival-card', () => actions.play('classic')); panel.append(rival); }
   panel.append(button(S.play, 'button button--primary home-play', () => actions.play('classic')));
   const grid = document.createElement('div'); grid.className = 'mode-grid';
@@ -22,7 +22,7 @@ export function createHomeScreen(save: SaveV2, actions: HomeActions, debug = fal
   const adventureOpen = save.owned.modes.includes('adventure');
   const totalAdventureStars = Object.values(save.adventure.levels).reduce((sum, level) => sum + level.stars, 0);
   const adventureStatus = adventureOpen ? save.adventure.frontier > 120 ? S.adventureAllWonStatus(totalAdventureStars) : S.adventureStatus(save.adventure.frontier, totalAdventureStars) : S.reachLevel(2);
-  grid.append(modeCard(S.adventure, adventureOpen ? adventureStatus : S.adventureDescription, 3, !adventureOpen, () => actions.adventure?.()));
+  grid.append(modeCard(S.adventure, adventureStatus, 3, !adventureOpen, () => actions.adventure?.()));
   const dayKey = dayKeyFromMs(Date.now()); const dailyFlavour = flavourForDay(dayKey);
   const dailyRecord = save.daily.records[dayKey];
   const dailyStatus = dailyRecord ? S.dailyDone(dayNumber(dayKey), formatNumber(dailyRecord.score), countdown(Date.now())) : S.dailyDescription;
@@ -55,6 +55,7 @@ function modeCard(title: string, description: string, flavour: Flavour, locked: 
   const text = document.createElement('span'); text.className = 'mode-card-copy'; const heading = document.createElement('strong'); heading.textContent = title; const body = document.createElement('small'); body.textContent = description; text.append(heading, body); if (extra) { const note = document.createElement('small'); note.className = 'mode-card-note'; note.textContent = extra; text.append(note); } card.append(text); if (locked) { const lock = document.createElement('span'); lock.className = 'mode-lock'; lock.innerHTML = iconMarkup('lock'); card.append(lock); } card.addEventListener('click', action); return card;
 }
 function chip(label: string): HTMLElement { return el('span', 'home-chip', label); }
+function coinChip(amount: number): HTMLElement { const node = chip(''); node.classList.add('coin-chip'); node.setAttribute('aria-label', S.coinsAria(amount)); node.innerHTML = `${iconMarkup('coin')}<span>${S.coins(amount)}</span>`; return node; }
 function button(label: string, classes: string, action: () => void): HTMLButtonElement { const value = el('button', classes, label); value.addEventListener('click', action); return value; }
 function countdown(ms: number): string { const seconds = Math.floor(((Math.floor(ms / 86_400_000) + 1) * 86_400_000 - ms) / 1000); return `${String(Math.floor(seconds / 3600)).padStart(2, '0')}:${String(Math.floor(seconds / 60) % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`; }
 function weekMs(ms: number): number { return 604_800_000 - ((((Math.floor(ms / 86_400_000) + 3) % 7 + 7) % 7) * 86_400_000 + (ms % 86_400_000)); }

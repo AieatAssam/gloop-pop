@@ -104,6 +104,8 @@ export const S = {
   dailyGiveUpConfirm: "End today's run? It will count as your daily.",
   rescueReady: 'Rescue ready', rescueUsed: 'Rescue used',
   logo: 'Gloop Pop', level: (n: number): string => `Lv ${number(n)}`, coins: (n: number): string => number(n), play: 'Play',
+  // M14.4: the visual coin carries the chip meaning; assistive tech gets it in words.
+  coinsAria: (n: number): string => `${number(n)} coins`, continueLevel: (n: number): string => `Continue level ${number(n)}`,
   classic: 'Classic', classicDescription: 'Endless. How long can you last?', daily: (n: number): string => `Daily #${number(n)}`, dailyDescription: 'Same board for everyone today.',
   zen: 'Zen', zenDescription: 'No game over. Relax and pop.', expert: 'Expert', expertDescription: 'Bigger pieces, all 7 flavours, no rescue.',
   reachLevel: (n: number): string => `Reach Level ${number(n)}`, weeklyTitle, weeklyProgress: '87 / 150', weeklyResets: 'Resets in 3 days', weeklyReward: 'Reward: 200 coins, 150 XP, 1 freeze',
