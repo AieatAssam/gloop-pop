@@ -66,7 +66,7 @@ function chapterCard(save: SaveV2, chapter: number, pos: MapGeometry['cards'][nu
   copy.append(heading, progress, rewards, starReward); card.append(art, copy); return card;
 }
 function chip(text: string): HTMLElement { return el('span', 'adventure-chip', text); }
-function coinChip(amount: number): HTMLElement { const node = chip(''); node.classList.add('coin-chip'); node.setAttribute('aria-label', S.coinsAria(amount)); node.innerHTML = `${iconMarkup('coin')}<span>${S.coins(amount)}</span>`; return node; }
+function coinChip(amount: number): HTMLElement { const node = chip(''); node.classList.add('coin-chip'); node.setAttribute('role', 'img'); node.setAttribute('aria-label', S.coinsAria(amount)); node.innerHTML = `${iconMarkup('coin')}<span>${S.coins(amount)}</span>`; return node; }
 function button(text: string, cls: string, action: () => void): HTMLButtonElement { const item = el('button', cls, text); item.addEventListener('click', action); return item; }
 function mapPath(frontier: number, geometry: MapGeometry): SVGSVGElement {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.classList.add('adventure-map-path'); svg.setAttribute('viewBox', `0 0 ${geometry.colW} ${geometry.contentHeight}`); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('aria-hidden', 'true');

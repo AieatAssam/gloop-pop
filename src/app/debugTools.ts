@@ -85,7 +85,7 @@ export function debugAdventureState(state: GameState, query: URLSearchParams): G
     const stars = Number(query.get('stars') ?? 3); const value = Math.max(1, Math.min(3, stars)) as 1 | 2 | 3;
     state.adventure.goals.forEach((goal) => { goal.progress = goal.target; }); state.adventure.movesLeft = 6; state.adventure.result = { won: true, reason: 'goals', movesLeft: 6, stars: value }; state.status = 'over';
   } else if (demo === 'adventure-lose') {
-    const reason = query.get('reason') === 'stuck' ? 'stuck' : 'moves'; state.adventure.goals = [{ kind: 'F', flavour: 6, target: 30, progress: 26 }];
+    const reason = query.get('reason') === 'stuck' ? 'stuck' : 'moves';
     state.adventure.movesLeft = reason === 'moves' ? 0 : 3; state.adventure.result = { won: false, reason, movesLeft: state.adventure.movesLeft, stars: 0 }; state.status = 'over';
   } else return undefined;
   return state;

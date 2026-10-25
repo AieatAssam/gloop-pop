@@ -26,7 +26,7 @@ describe('Adventure map DOM positions (SG §20.2)', () => {
     geo.cards.forEach((cardGeo, index) => { expect(cards[index]?.style.left).toBe(`${cardGeo.x}px`); expect(cards[index]?.style.top).toBe(`${cardGeo.y}px`); expect(cards[index]?.style.width).toBe(`${cardGeo.w}px`); });
     const footer = root.querySelector<HTMLElement>('.adventure-footer-bar')!; const button = footer.querySelector('button')!;
     expect(button.textContent).toBe('Play level 23'); button.click(); expect(open).toHaveBeenCalledWith(23);
-    const coins = root.querySelector<HTMLElement>('.adventure-chips .coin-chip')!; expect(coins.getAttribute('aria-label')).toBe('0 coins'); expect(coins.querySelector('svg')).not.toBeNull();
+    const coins = root.querySelector<HTMLElement>('.adventure-chips .coin-chip')!; expect(coins.getAttribute('aria-label')).toBe('0 coins'); expect(coins.getAttribute('role')).toBe('img'); expect(coins.querySelector('svg')).not.toBeNull();
     expect(root.querySelector('.adventure-node')?.getAttribute('aria-label')).toBe('Level 1, 2 stars');
     expect(root.querySelector('.adventure-chapter-card')?.textContent).toContain('All 20 levels: 200 coins, 100 XP ✓');
     expect(root.querySelector('.adventure-chapter-card')?.textContent).toContain('All 60 stars: 300 coins ✓');

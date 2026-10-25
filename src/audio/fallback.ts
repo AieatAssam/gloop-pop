@@ -32,7 +32,7 @@ export const sfx = {
   deal(): void { for (let i = 0; i < 3; i += 1) tone({ frequency: 1320, duration: 0.025, peak: 0.07, at: scheduleAt() + i * 0.06 }); },
   lineClear(params: { combo: number; lines?: number; tier?: number; mega?: boolean }): void {
     const count = Math.min(5, params.lines ?? 1); const start = Math.min(Math.max(Math.floor(params.combo) - 1, 0), 10);
-    const trim = params.mega ? 10 ** (-4 / 20) : 1;
+    const trim = params.mega ? 10 ** (-2 / 20) : 1;
     for (let i = 0; i < count; i += 1) {
       const at = scheduleAt() + i * 0.045;
       const freq = PENTATONIC[Math.min(10, start + i)] ?? PENTATONIC[10];
@@ -43,11 +43,11 @@ export const sfx = {
   },
   comboHarmony(params: { combo: number; lineIndex?: number; delayMs?: number; mega?: boolean }): void {
     const lastRung = Math.min(10, Math.max(0, Math.floor(params.combo) - 1) + (params.lineIndex ?? 0));
-    tone({ frequency: PENTATONIC[Math.min(10, lastRung + 2)]!, duration: 0.2, peak: 10 ** ((params.mega ? -24 : -20) / 20), at: scheduleAt() + (params.delayMs ?? 0) / 1000 });
+    tone({ frequency: PENTATONIC[Math.min(10, lastRung + 2)]!, duration: 0.2, peak: 10 ** ((params.mega ? -22 : -20) / 20), at: scheduleAt() + (params.delayMs ?? 0) / 1000 });
   },
   sparkle(params: { combo: number; lineIndex?: number; delayMs?: number; mega?: boolean }): void {
     const start = Math.min(10, Math.max(0, Math.floor(params.combo) - 1) + (params.lineIndex ?? 0)); const at = scheduleAt() + (params.delayMs ?? 0) / 1000;
-    for (let ping = 0; ping < 4; ping += 1) tone({ frequency: PENTATONIC[Math.min(10, start + ping)]!, duration: 0.04, peak: 10 ** ((params.mega ? -26 : -22) / 20), at: at + ping * 0.03 });
+    for (let ping = 0; ping < 4; ping += 1) tone({ frequency: PENTATONIC[Math.min(10, start + ping)]!, duration: 0.04, peak: 10 ** ((params.mega ? -24 : -22) / 20), at: at + ping * 0.03 });
   },
   gloopPop(params: { index?: number; base?: number; at?: number; gainDb?: number } = {}): void {
     const graph = getAudioGraph(); if (!graph) return;

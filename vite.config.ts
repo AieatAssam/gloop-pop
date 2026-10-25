@@ -50,7 +50,7 @@ async function listFiles(root: string, directory: string): Promise<string[]> {
 export default defineConfig({
   base: '/gloop-pop/',
   build: {
-    target: 'es2020',
+    target: 'es2022',
     assetsInlineLimit: 0,
     sourcemap: false,
     modulePreload: { polyfill: false },

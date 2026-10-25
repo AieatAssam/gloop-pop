@@ -36,6 +36,7 @@ export function createLevelCard(def: LevelDef, actions: { play(selection?: Boost
   }
   if ((context.lossRun ?? 0) >= 3) {
     const row = document.createElement('div'); row.className = 'adventure-assist-row'; const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'settings-toggle'; toggle.setAttribute('role', 'switch'); toggle.setAttribute('aria-checked', 'false'); toggle.setAttribute('aria-label', S.assist); toggle.addEventListener('click', () => { assist = !assist; toggle.setAttribute('aria-checked', String(assist)); updateMoves(); });
+    row.addEventListener('click', (event) => { if (!(event.target as Element).closest('button')) toggle.click(); });
     const copy = document.createElement('span'); const name = document.createElement('strong'); name.textContent = S.assist; const caption = document.createElement('small'); caption.textContent = S.assistCaption; copy.append(name, caption); row.append(toggle, copy); body.append(row);
   }
   const balance = document.createElement('div'); balance.className = 'adventure-coin-balance'; balance.textContent = S.coinBalance(save.profile.coins); body.append(balance);

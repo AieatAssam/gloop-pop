@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { defaultSave } from '../meta/saveSchema';
 import { LEVELS } from '../core/levelTable';
-import { debugAdventureSave, debugNeedsAdventureLevels } from './debugTools';
+import { debugAdventureSave, debugAdventureState, debugNeedsAdventureLevels } from './debugTools';
+import { newAdventureGame } from '../core/adventure';
 
 describe('debug Adventure demo boot state', () => {
   it('loads level definitions and seeds the expected map frontier before rendering', () => {
@@ -26,6 +27,11 @@ describe('debug Adventure demo boot state', () => {
     }
     expect(debugNeedsAdventureLevels(new URLSearchParams('debug=1&demo=missions'))).toBe(false);
     expect(debugNeedsAdventureLevels(new URLSearchParams('save=veteran'))).toBe(false);
+  });
+  it('keeps the Level 87 lose fixture goals from the Level 87 definition', () => {
+    const state = newAdventureGame(LEVELS[86]!, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state;
+    const fixture = debugAdventureState(state, new URLSearchParams('debug=1&demo=adventure-lose'))!;
+    expect(fixture.adventure?.goals).toEqual(LEVELS[86]!.goals.map((goal) => ({ ...goal, progress: 0 })));
   });
 });
 

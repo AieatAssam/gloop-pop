@@ -10,6 +10,7 @@ interface Dot { x: number; y: number; radius: number; phase: number; period: num
 interface Jar { x: number; y: number; width: number; height: number; lid: number; row: number }
 interface FloatLight { x: number; y: number; radius: number; speed: number; phase: number; colourIndex: number }
 interface Sprinkle { x: number; y: number; speed: number; phase: number; colour: string }
+const DRAW_LAYERS = { starCount: 110, shelfRows: 2, bokehCount: 18, sprinkleCount: 8, twinkleMin: 1500, twinkleRange: 2500 } as const;
 
 export interface Background {
   setTheme(theme: ThemeKey, elapsedMs: number): void;
@@ -26,8 +27,8 @@ const sprinkles: Sprinkle[] = [];
 const random = createCosmeticRng(0x47504f50);
 const sprinkleColours = [PALETTE.flavour.cherry.base, PALETTE.flavour.lemon.base, PALETTE.flavour.blueberry.base, PALETTE.flavour.apple.base];
 
-for (let i = 0; i < 110; i += 1) stars.push({ x: random(), y: random() * 0.55, radius: 0.6 + random(), phase: random() * Math.PI * 2, period: 1500 + random() * 2500, twinkle: random() < 0.2 });
-for (let row = 0; row < 2; row += 1) {
+for (let i = 0; i < DRAW_LAYERS.starCount; i += 1) stars.push({ x: random(), y: random() * 0.55, radius: 0.6 + random(), phase: random() * Math.PI * 2, period: DRAW_LAYERS.twinkleMin + random() * DRAW_LAYERS.twinkleRange, twinkle: random() < 0.2 });
+for (let row = 0; row < DRAW_LAYERS.shelfRows; row += 1) {
   const count = 7 + Math.floor(random() * 3);
   const width = 1 / count;
   for (let i = 0; i < count; i += 1) {
@@ -35,8 +36,8 @@ for (let row = 0; row < 2; row += 1) {
     jars.push({ x: (i + 0.5 + (random() - 0.5) * 0.28) * width, y: row === 0 ? 0.3 : 0.48, width: jarWidth, height: 0.12 + random() * 0.1, lid: 0.018 + random() * 0.012, row });
   }
 }
-for (let i = 0; i < 18; i += 1) bokeh.push({ x: random(), y: 0.22 + random() * 0.78, radius: 18 + random() * 46, speed: 4 + random() * 6, phase: random() * Math.PI * 2, colourIndex: i % 3 });
-for (let i = 0; i < 8; i += 1) sprinkles.push({ x: i % 2 === 0 ? random() * 0.12 : 0.88 + random() * 0.12, y: 0.45 + random() * 0.52, speed: 3 + random() * 3, phase: random() * Math.PI * 2, colour: sprinkleColours[i % sprinkleColours.length]! });
+for (let i = 0; i < DRAW_LAYERS.bokehCount; i += 1) bokeh.push({ x: random(), y: 0.22 + random() * 0.78, radius: 18 + random() * 46, speed: 4 + random() * 6, phase: random() * Math.PI * 2, colourIndex: i % 3 });
+for (let i = 0; i < DRAW_LAYERS.sprinkleCount; i += 1) sprinkles.push({ x: i % 2 === 0 ? random() * 0.12 : 0.88 + random() * 0.12, y: 0.45 + random() * 0.52, speed: 3 + random() * 3, phase: random() * Math.PI * 2, colour: sprinkleColours[i % sprinkleColours.length]! });
 
 export function createBackground(themeId: ThemeKey = 'midnight'): Background {
   let selectedId = themeId;

@@ -40,6 +40,8 @@ describe('Adventure level start card', () => {
     const save = defaultSave(); const card = createLevelCard(LEVELS[24]!, { play: vi.fn(), back: vi.fn() }, { save, lossRun: 3 });
     const assist = card.querySelector<HTMLButtonElement>('.adventure-assist-row [role="switch"]'); expect(assist).not.toBeNull(); expect(assist?.getAttribute('aria-checked')).toBe('false');
     assist!.click(); expect(assist!.getAttribute('aria-checked')).toBe('true'); expect(card.querySelector('.adventure-moves-row strong')?.textContent).toBe('16 +5');
+    card.querySelector<HTMLElement>('.adventure-assist-row strong')!.click(); expect(assist!.getAttribute('aria-checked')).toBe('false');
+    card.querySelector<HTMLElement>('.adventure-assist-row strong')!.click(); expect(assist!.getAttribute('aria-checked')).toBe('true');
     const clean = createLevelCard(LEVELS[24]!, { play: vi.fn(), back: vi.fn() }, { save, lossRun: 2 });
     expect(clean.querySelector('.adventure-assist-row')).toBeNull();
   });

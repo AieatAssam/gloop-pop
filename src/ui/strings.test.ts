@@ -10,7 +10,7 @@ describe('player-facing strings', () => {
     for (const word of bannedWordsSample) expect(allStrings).not.toContain(word);
   });
   it('keeps weekly goal copy in the UI string table with the design wording', () => {
-    expect(['lines', 'pops', 'score', 'combo6', 'bigpops', 'dailies', 'allclear', 'multi'].map((id) => S.weeklyTitle(id))).toEqual([
+    expect(['lines', 'pops', 'score', 'combo6', 'bigpops', 'dailies', 'allclear', 'multi'].map((id) => S.weeklyTitle[id])).toEqual([
       'This week: Clear 150 lines', 'This week: Pop 300 popped cells', 'This week: Score 60,000 points in total',
       'This week: Reach combo 6 in 5 different runs', 'This week: Make 10 Big Pops (8+ cells)',
       'This week: Finish 4 daily challenges', 'This week: Empty the board 2 times',
@@ -55,8 +55,10 @@ describe('player-facing strings', () => {
   it('uses singular Adventure copy and the stated bonus-move wording', () => {
     expect(S.wonMoves(1)).toBe('Won with 1 move left.'); expect(S.wonMoves(2)).toBe('Won with 2 moves left.');
     expect(S.winNextStar(1, 2)).toBe('Win with 1 move left for 2 stars.');
+    expect(S.starsTwo(1)).toBe('2 stars: win with 1 move left'); expect(S.starsThree(2)).toBe('3 stars: win with 2 moves left');
     expect(S.nothingFit(1)).toBe('Nothing fit with 1 move left.'); expect(S.nothingFit(2)).toBe('Nothing fit with 2 moves left.');
     expect(S.winStreakBonus(1)).toBe('Win streak 1: +1 move');
+    expect(S.achievementUnit('big_pop_pro')).toBe('Big Pops'); expect(S.achievementUnit('adv_all')).toBe('levels'); expect(S.achievementUnit('unknown')).toBe('goals');
     expect(S.adventureGoalText('C', 3)).toBe('Clear 3 sugar cubes');
     expect(S.adventureGoalText('C', 1)).toBe('Clear 1 sugar cube');
     expect(S.cubesGoal(3)).toBe('Clear 3 sugar cubes');

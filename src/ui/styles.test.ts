@@ -31,5 +31,6 @@ describe('M14.4 clarity styles', () => {
   it('moves toasts to the bottom over Adventure result and start cards', () => {
     expect(styles).toMatch(/#ui:has\([^)]*adventure-result-shade[^)]*\) \.gloop-toast/);
     expect(styles).toMatch(/#ui:has\([^)]*adventure-modal-shade[^)]*\) \.gloop-toast/);
+    expect(styles).toContain('#ui:has(.gloop-toast):has(.adventure-result-shade) .adventure-result-panel { padding-bottom: 72px; }');
   });
 });

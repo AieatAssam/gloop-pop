@@ -107,11 +107,11 @@ export function onImpact(plan: MovePlan): void {
   if (plan.stinger === 'newBest') playStinger('newBest', plan.combo);
 }
 export function onBurst(plan: MovePlan, order: number, gloopTier: string, isLastOfGloop: boolean): void {
-  if (order % 2 === 0 && order / 2 < 14) sfx.gloopPop({ index: order, base: plan.largestPop >= 24 ? -4 : plan.largestPop >= 15 ? -2 : plan.largestPop >= 8 ? 0 : 2, gainDb: plan.largestPop >= 24 ? -16 : -12 });
+  if (order % 2 === 0 && order / 2 < 14) sfx.gloopPop({ index: order, base: plan.largestPop >= 24 ? -4 : plan.largestPop >= 15 ? -2 : plan.largestPop >= 8 ? 0 : 2, gainDb: plan.largestPop >= 24 ? -14 : -12 });
   if (isLastOfGloop && gloopTier === 'big') sfx.bigPop({ combo: plan.combo });
 }
 export function onPopFirst(plan: MovePlan, tier: 'big' | 'huge' | 'mega'): void {
-  sfx.gooPop({ gainDb: tier === 'mega' ? -12 : tier === 'huge' ? -9 : -12, subGainDb: tier === 'mega' ? -16 : undefined, rate: tier === 'mega' ? 0.891 : tier === 'huge' ? 0.944 : 1, delay: tier === 'mega' ? 0.025 : 0, sub: tier === 'mega' });
+  sfx.gooPop({ gainDb: tier === 'mega' ? -10 : tier === 'huge' ? -9 : -12, subGainDb: tier === 'mega' ? -14 : undefined, rate: tier === 'mega' ? 0.891 : tier === 'huge' ? 0.944 : 1, delay: tier === 'mega' ? 0.025 : 0, sub: tier === 'mega' });
 }
 export function onClimax(plan: MovePlan, kind: 'huge' | 'mega' | 'allClear'): void {
   if (kind === 'allClear' && plan.stinger === 'allClear') playStinger('allClear', plan.combo);

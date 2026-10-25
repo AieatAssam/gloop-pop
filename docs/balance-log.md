@@ -282,3 +282,7 @@ Every C level after M14 (cubes = sugar + hard on the start board; targets C firs
 | 6 | hard | 4.25 (4–5) | 2.00 | 0 |
 
 C target histogram: **3 ×4, 4 ×19, 5 ×16, 6 ×3, 7 ×1, 8 ×1**. All validation checks use the frozen M13 bot and the real Adventure reducer.
+
+## M14 Mega loudness
+
+The 3b capture used to size the extra Mega-only cuts was taken before 3c and included the 14 stacked achievement chimes. Its master capture measured −13.4 LUFS-I, peak −0.7 dBFS; the loudest 100 ms impact windows were unchanged. Those numbers were superseded by the director's revised Mega gain table in style guide §13.6. The 3b trims were fighting the achievement stack rather than the Mega layers.

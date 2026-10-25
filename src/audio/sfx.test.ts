@@ -5,18 +5,19 @@ const fixture = vi.hoisted(() => ({
   playSegment: vi.fn((id: string, options?: { at?: number; variants?: number; group?: string; gain?: number }) => { void id; void options; return true; }),
   playCandyBar: vi.fn((rung: number, at: number, rate: number, body: number, tink: number, priority?: string) => { void rung; void at; void rate; void body; void tink; void priority; }),
   tone: vi.fn((options: { peak: number }) => { void options; }),
+  noise: vi.fn((options: { peak: number }) => { void options; }),
 }));
 vi.mock('./engine', () => ({ getAudioGraph: () => fixture.audioGraph, scheduleAt: () => 0.005 }));
 vi.mock('./loader', () => ({ playSegment: fixture.playSegment, getSegmentBuffer: () => null }));
 vi.mock('./ladder', () => ({ playCandyBar: fixture.playCandyBar, rungFor: () => 0, rungRate: () => 1, voicedLineCount: (n: number) => n }));
-vi.mock('./synth', () => ({ tone: fixture.tone, noise: vi.fn() }));
+vi.mock('./synth', () => ({ tone: fixture.tone, noise: fixture.noise }));
 
 import { noteFor, popVoiceDue, sfx } from './sfx';
 
 afterEach(() => {
   fixture.audioGraph = null;
   fixture.playSegment.mockClear();
-  fixture.playCandyBar.mockClear(); fixture.tone.mockClear();
+  fixture.playCandyBar.mockClear(); fixture.tone.mockClear(); fixture.noise.mockClear();
   vi.resetModules();
 });
 
@@ -65,11 +66,11 @@ describe('sample event mapping', () => {
   });
 
   it('uses the Mega Pop mix gains while preserving Huge Pop levels', () => {
-    sfx.gooPop({ gainDb: -12, sub: true, subGainDb: -16 });
-    expect(fixture.playSegment).toHaveBeenNthCalledWith(1, 'sub', expect.objectContaining({ gain: 10 ** (-16 / 20) }));
-    expect(fixture.playSegment).toHaveBeenNthCalledWith(2, 'goo', expect.objectContaining({ gain: 10 ** (-12 / 20) }));
-    sfx.gloopPop({ gainDb: -16 });
-    expect(fixture.playSegment).toHaveBeenNthCalledWith(3, 'pop1', expect.objectContaining({ gain: 10 ** (-16 / 20) }));
+    sfx.gooPop({ gainDb: -10, sub: true, subGainDb: -14 });
+    expect(fixture.playSegment).toHaveBeenNthCalledWith(1, 'sub', expect.objectContaining({ gain: 10 ** (-14 / 20) }));
+    expect(fixture.playSegment).toHaveBeenNthCalledWith(2, 'goo', expect.objectContaining({ gain: 10 ** (-10 / 20) }));
+    sfx.gloopPop({ gainDb: -14 });
+    expect(fixture.playSegment).toHaveBeenNthCalledWith(3, 'pop1', expect.objectContaining({ gain: 10 ** (-14 / 20) }));
     sfx.gooPop({ gainDb: -9 }); sfx.gloopPop({ gainDb: -12 });
     expect(fixture.playSegment).toHaveBeenNthCalledWith(4, 'goo', expect.objectContaining({ gain: 10 ** (-9 / 20) }));
     expect(fixture.playSegment).toHaveBeenNthCalledWith(5, 'pop1', expect.objectContaining({ gain: 10 ** (-12 / 20) }));
@@ -78,8 +79,8 @@ describe('sample event mapping', () => {
   it('sets the Mega stinger bodies, held note and bloom to the follow-up levels', () => {
     sfx.megaStinger({ combo: 1 });
     expect(fixture.playCandyBar).toHaveBeenCalledTimes(6);
-    for (const call of fixture.playCandyBar.mock.calls) expect(call.slice(3, 5)).toEqual([-16, -20]);
-    expect(fixture.tone.mock.calls.map(([options]) => options.peak)).toEqual([10 ** (-16 / 20), 10 ** (-22 / 20), 10 ** (-22 / 20)]);
+    for (const call of fixture.playCandyBar.mock.calls) expect(call.slice(3, 5)).toEqual([-13, -17]);
+    expect(fixture.tone.mock.calls.map(([options]) => options.peak)).toEqual([10 ** (-13 / 20), 10 ** (-19 / 20), 10 ** (-19 / 20)]);
   });
 
   it('trims Mega impact layers while leaving normal line clears unchanged', () => {
@@ -88,6 +89,14 @@ describe('sample event mapping', () => {
     expect(fixture.playCandyBar.mock.calls.map((call) => call.slice(3, 5))).toEqual([[-10, -14], [-10, -14]]);
     fixture.playCandyBar.mockClear();
     sfx.lineClear({ combo: 12, lines: 2, mega: true });
-    expect(fixture.playCandyBar.mock.calls.map((call) => call.slice(3, 5))).toEqual([[-14, -18], [-14, -18]]);
+    expect(fixture.playCandyBar.mock.calls.map((call) => call.slice(3, 5))).toEqual([[-12, -16], [-12, -16]]);
+    sfx.comboHarmony({ combo: 12, mega: true });
+    expect(fixture.tone.mock.calls[fixture.tone.mock.calls.length - 1]?.[0].peak).toBe(10 ** (-22 / 20));
+    fixture.playSegment.mockClear(); sfx.sparkle({ combo: 12, mega: true });
+    expect(fixture.playSegment.mock.calls.map(([, options]) => options?.gain)).toEqual(Array(4).fill(10 ** (-24 / 20)));
+    fixture.audioGraph = null; fixture.tone.mockClear(); fixture.noise.mockClear();
+    sfx.lineClear({ combo: 12, lines: 1, mega: true });
+    expect(fixture.tone.mock.calls.map(([options]) => options.peak)).toEqual([0.3 * 10 ** (-2 / 20), 0.08 * 10 ** (-2 / 20)]);
+    expect(fixture.noise.mock.calls[0]?.[0].peak).toBe(0.063 * 10 ** (-2 / 20));
   });
 });

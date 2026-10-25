@@ -61,14 +61,14 @@ export const sfx = {
     if (!graph) { fallbackSfx.lineClear(params); return; }
     const count = voicedLineCount(params.lines ?? 1); const at = scheduleAt();
     // spec-note: The Mega feel capture peaked in the untouched multi-line impact stack, so trim only this move's line and combo layers.
-    const trim = params.mega ? 4 : 0;
+    const trim = params.mega ? 2 : 0;
     for (let i = 0; i < count; i += 1) playCandyBar(rungFor(params.combo, i), at + i * 0.045, 1, -10 - trim, -14 - trim);
     if (count) noise({ duration: 0.12, peak: 10 ** ((-24 - trim) / 20), filterType: 'bandpass', frequency: 3000, q: 0.7, at, priority: 'ladder' });
   },
   comboHarmony(params: { combo: number; lineIndex?: number; delayMs?: number; mega?: boolean }): void { fallbackSfx.comboHarmony(params); },
   sparkle(params: { combo: number; lineIndex?: number; delayMs?: number; mega?: boolean }): void {
     const first = rungFor(params.combo, params.lineIndex ?? 0); const at = scheduleAt() + (params.delayMs ?? 0) / 1000;
-    const gain = 10 ** ((params.mega ? -26 : -22) / 20);
+    const gain = 10 ** ((params.mega ? -24 : -22) / 20);
     for (let i = 0; i < 4; i += 1) {
       const rung = Math.min(10, first + i); const when = at + i * 0.03;
       if (!playSegment('tink', { at: when, group: 'sparkle', priority: 'ladder', gain, rate: rungRate(rung), rateVariation: 2 ** (3 / 1200) - 1 })) tone({ frequency: PENTATONIC[rung]!, duration: 0.04, peak: gain, at: when, priority: 'ladder' });
@@ -92,10 +92,10 @@ export const sfx = {
   levelBest(): void { if (!playSegment('best', { group: 'stinger', priority: 'stinger', gain: 10 ** (-10 / 20) })) fallbackSfx.newBest(); },
   megaStinger(params: { combo: number }): void {
     const start = Math.min(Math.max(Math.floor(params.combo) - 1, 0), 5); const at = scheduleAt();
-    for (let i = 0; i < 6; i += 1) playCandyBar(Math.min(10, start + i), at + i * 0.045, 1, -16, -20, 'stinger');
-    tone({ frequency: PENTATONIC[Math.min(10, start + 5)]!, duration: 0.6, peak: 10 ** (-16 / 20), at: at + 0.225, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
-    tone({ frequency: PENTATONIC[Math.min(10, start + 5)]!, duration: 0.6, peak: 10 ** (-22 / 20), at: at + 0.27, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
-    tone({ frequency: PENTATONIC[Math.min(10, start + 3)]!, duration: 0.6, peak: 10 ** (-22 / 20), at: at + 0.27, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
+    for (let i = 0; i < 6; i += 1) playCandyBar(Math.min(10, start + i), at + i * 0.045, 1, -13, -17, 'stinger');
+    tone({ frequency: PENTATONIC[Math.min(10, start + 5)]!, duration: 0.6, peak: 10 ** (-13 / 20), at: at + 0.225, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
+    tone({ frequency: PENTATONIC[Math.min(10, start + 5)]!, duration: 0.6, peak: 10 ** (-19 / 20), at: at + 0.27, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
+    tone({ frequency: PENTATONIC[Math.min(10, start + 3)]!, duration: 0.6, peak: 10 ** (-19 / 20), at: at + 0.27, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
   },
   allClearStinger(): void {
     const at = scheduleAt(); for (let rung = 0; rung <= 10; rung += 1) playCandyBar(rung, at + rung * 0.03, 1, -10, -14, 'stinger');

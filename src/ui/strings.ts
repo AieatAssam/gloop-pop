@@ -1,17 +1,5 @@
 // Player-facing strings are copied from design §16.4.
-function weeklyTitle(id: string): string {
-  switch (id) {
-    case 'lines': return 'This week: Clear 150 lines';
-    case 'pops': return 'This week: Pop 300 popped cells';
-    case 'score': return 'This week: Score 60,000 points in total';
-    case 'combo6': return 'This week: Reach combo 6 in 5 different runs';
-    case 'bigpops': return 'This week: Make 10 Big Pops (8+ cells)';
-    case 'dailies': return 'This week: Finish 4 daily challenges';
-    case 'allclear': return 'This week: Empty the board 2 times';
-    case 'multi': return 'This week: Clear 2+ lines with one piece 25 times';
-    default: return 'This week: Clear 150 lines';
-  }
-}
+const WEEKLY_TITLES: Readonly<Record<string, string>> = { lines: 'This week: Clear 150 lines', pops: 'This week: Pop 300 popped cells', score: 'This week: Score 60,000 points in total', combo6: 'This week: Reach combo 6 in 5 different runs', bigpops: 'This week: Make 10 Big Pops (8+ cells)', dailies: 'This week: Finish 4 daily challenges', allclear: 'This week: Empty the board 2 times', multi: 'This week: Clear 2+ lines with one piece 25 times' };
 const numberFormat = new Intl.NumberFormat('en-US');
 export const formatNumber = (value: number): string => numberFormat.format(value);
 const number = formatNumber;
@@ -33,7 +21,7 @@ export const S = {
   hard: 'Hard', continue: 'Continue', playLevel: (n: number): string => `Play level ${number(n)}`,
   allLevelsWon: 'You won every level. Replay any level to get more stars.',
   levelTitle: (n: number): string => `Level ${number(n)}`, chapterNumber: (n: number): string => `Chapter ${number(n)}`, hardLevel: 'Hard level',
-  moves: 'Moves', starsTwo: (s2: number): string => `2 stars: win with ${number(s2)} moves left`, starsThree: (s3: number): string => `3 stars: win with ${number(s3)} moves left`, starsThreshold: (s2: number, s3: number): string => `2 stars: win with ${number(s2)} moves left · 3 stars: win with ${number(s3)} moves left`,
+  moves: 'Moves', starsTwo: (s2: number): string => `2 stars: win with ${number(s2)} ${s2 === 1 ? 'move' : 'moves'} left`, starsThree: (s3: number): string => `3 stars: win with ${number(s3)} ${s3 === 1 ? 'move' : 'moves'} left`, starsThreshold: (s2: number, s3: number): string => `2 stars: win with ${number(s2)} ${s2 === 1 ? 'move' : 'moves'} left · 3 stars: win with ${number(s3)} ${s3 === 1 ? 'move' : 'moves'} left`,
   clearLines: (t: number): string => `Clear ${number(t)} lines`, scoreGoal: (t: number): string => `Score ${number(t)} points`,
   flavourGoal: (t: number, flavour: string): string => `Clear or pop ${number(t)} ${flavour} cells`,
   bigPopGoal: (t: number): string => t === 1 ? 'Make a Big Pop (8+ cells)' : `Make ${number(t)} Big Pops (8+ cells)`,
@@ -93,7 +81,7 @@ export const S = {
   nearXp: (x: number, level: number): string => `${number(x)} XP to Level ${number(level)}.`, nearWeekly: (k: number): string => `${number(k)} more to finish your weekly goal.`, nearAchievement: (k: number, unit: string, name: string): string => `${number(k)} more ${unit} for "${name}".`,
   pointsPop: (points: number): string => `+${number(points)}`, coinBonus: (coins: number): string => `+${number(coins)} coins`,
   shapeName: (shape: string): string => ({ dot: 'dot', bar2: '2-bar', bar3: '3-bar', bar4: '4-bar', bar5: '5-bar', squareSmall: 'small square', squareBig: 'big square', rectangle: 'rectangle', cornerSmall: 'small corner', cornerL: 'L', tee: 'T', zigzag: 'S', cornerBig: 'big corner' }[shape] ?? 'piece'),
-  achievementUnit: (id: string): string => ({ big_pop_pro: 'Big Pops', long_gloop: 'cells', lines100: 'lines', lines1000: 'lines', lines5000: 'lines', pops500: 'popped cells', pops5000: 'popped cells', clean_freak: 'empty boards', level10: 'levels', level50: 'levels', collector: 'items', runs10: 'runs', runs100: 'runs', daily1: 'daily challenges', daily30: 'daily challenges', streak7: 'days', streak30: 'days', combo20: 'combo', score5k: 'points', score20k: 'points', score50k: 'points', score100k: 'points', expert25k: 'points', adv_20: 'levels', adv_all: 'levels', three_stars10: 'levels with 3 stars', all_stars: 'stars', win_streak5: 'wins in a row', missions10: 'missions', missions100: 'missions' }[id] ?? 'goals'),
+  achievementUnit: (id: string): string => ACHIEVEMENT_COPY[id]?.unit ?? 'goals',
   dailyRunDone: (day: number): string => `Daily #${number(day)} done`, allTraysPlaced: 'All 30 trays placed!',
   nearFallback: (pop: number, lines: number): string => pop > 0 ? `Biggest pop this run: ${number(pop)} cells.` : `You cleared ${number(lines)} lines.`,
   targetShort: (distance: number, target: number): string => `${number(distance)} points short of the ${number(target)} target.`,
@@ -108,7 +96,7 @@ export const S = {
   coinsAria: (n: number): string => `${number(n)} coins`, continueLevel: (n: number): string => `Continue level ${number(n)}`,
   classic: 'Classic', classicDescription: 'Endless. How long can you last?', daily: (n: number): string => `Daily #${number(n)}`, dailyDescription: 'Same board for everyone today.',
   zen: 'Zen', zenDescription: 'No game over. Relax and pop.', expert: 'Expert', expertDescription: 'Bigger pieces, all 7 flavours, no rescue.',
-  reachLevel: (n: number): string => `Reach Level ${number(n)}`, weeklyTitle, weeklyProgress: '87 / 150', weeklyResets: 'Resets in 3 days', weeklyReward: 'Reward: 200 coins, 150 XP, 1 freeze',
+  reachLevel: (n: number): string => `Reach Level ${number(n)}`, weeklyTitle: WEEKLY_TITLES, weeklyProgress: '87 / 150', weeklyResets: 'Resets in 3 days', weeklyReward: 'Reward: 200 coins, 150 XP, 1 freeze',
   streak: (n: number): string => `🔥 ${number(n)}-day streak`, freeze: (n: number): string => `❄️ ${number(n)} freeze`, streakStart: "Play today's daily to start a streak.",
   collection: 'Collection', achievements: 'Achievements', stats: 'Stats', howToPlay: 'How to play', back: 'Back', statsTitle: 'Stats',
   missionsTitle: 'Daily missions', missionReward: (coins: number, xp: number): string => `${number(coins)} coins · ${number(xp)} XP`, missionProgress: (progress: number, target: number): string => `${number(progress)} / ${number(target)}`, missionClaim: 'Claim', missionDone: 'Done', missionChangeAria: 'Change this mission', missionChangeReady: '1 free change per day', missionChangeUsed: 'Free change used. Next one tomorrow.', missionSet: 'Finish all 3: +50 coins, +50 XP', missionSetDone: 'All 3 done. New missions tomorrow.', missionDoneToast: (text: string): string => `Mission done: ${text}`, missionRewardToast: (coins: number, xp: number): string => `Mission reward: +${number(coins)} coins, +${number(xp)} XP`, missionSetToast: 'All 3 missions done! +50 coins, +50 XP', missionsReady: (count: number): string => `${number(count)} missions ready to claim`, oneMissionReady: '1 mission ready to claim', missionNear: (count: number, text: string): string => `${number(count)} more to finish "${text}".`,
@@ -183,11 +171,53 @@ export const S = {
   gameOverFallback: (biggestPop: number, lines: number): string => biggestPop > 0 ? `Biggest pop this run: ${number(biggestPop)} cells.` : `You cleared ${number(lines)} lines.`,
 };
 
-export const ACHIEVEMENT_COPY: Readonly<Record<string, { name: string; description: string }>> = {
- first_clear:{name:'First Clear',description:'Clear a line.'}, double:{name:'Double',description:'Clear 2 lines with one piece.'}, triple:{name:'Triple',description:'Clear 3 lines with one piece.'}, quad:{name:'Four at Once',description:'Clear 4 lines with one piece.'}, crossroads:{name:'Crossroads',description:'Clear a row and a column with one piece.'},
- first_pop:{name:'Pop!',description:'Pop a gloop by clearing a line through it.'}, big_pop:{name:'Big Pop',description:'Pop a gloop of 8 or more cells.'}, huge_pop:{name:'Huge Pop',description:'Pop a gloop of 15 or more cells.'}, mega_pop:{name:'Mega Pop',description:'Pop a gloop of 24 or more cells. Unlocks Crowns.'}, big_pop_pro:{name:'Big Pop Pro',description:'Make 50 Big Pops in total.'}, long_gloop:{name:'Long Gloop',description:'Grow a gloop to 12 cells.'},
- one_flavour:{name:'One Flavour',description:'Clear a line where all 8 cells are the same flavour.'}, spotless:{name:'Spotless',description:'Empty the whole board.'}, clean_freak:{name:'Clean Freak',description:'Empty the whole board 10 times.'}, combo5:{name:'On a Roll',description:'Reach combo 5.'}, combo10:{name:'Ten in a Row',description:'Reach combo 10.'}, combo20:{name:'Twenty in a Row',description:'Reach combo 20.'},
- score5k:{name:'5,000 Club',description:'Score 5,000 in one Classic run.'}, score20k:{name:'20,000 Club',description:'Score 20,000 in one Classic run.'}, score50k:{name:'50,000 Club',description:'Score 50,000 in one Classic run.'}, score100k:{name:'100,000 Club',description:'Score 100,000 in one Classic run.'}, expert25k:{name:'Expert 25,000',description:'Score 25,000 in one Expert run.'}, close_call:{name:'Close Call',description:'Clear a line when 52 or more cells are filled.'}, no_help:{name:'No Help Needed',description:'Score 20,000 in Classic without using the rescue.'}, saved:{name:'Saved!',description:'Use a rescue, then clear a line with the next 3 pieces.'},
- lines100:{name:'Line Worker',description:'Clear 100 lines in total.'}, lines1000:{name:'Line Boss',description:'Clear 1,000 lines in total.'}, lines5000:{name:'Line Legend',description:'Clear 5,000 lines in total.'}, pops500:{name:'Popper',description:'Pop 500 popped cells in total.'}, pops5000:{name:'Pop Star',description:'Pop 5,000 popped cells in total.'}, runs10:{name:'Regular',description:'Finish 10 runs.'}, runs100:{name:'Hundred Runs',description:'Finish 100 runs.'},
- daily1:{name:'Daily Player',description:'Finish a daily challenge.'}, daily30:{name:'Daily Regular',description:'Finish 30 daily challenges.'}, streak7:{name:'One Week',description:'Reach a 7-day streak.'}, streak30:{name:'One Month',description:'Reach a 30-day streak.'}, weekly1:{name:'Weekly Winner',description:'Finish a weekly goal.'}, level10:{name:'Level 10',description:'Reach Level 10.'}, level50:{name:'Level 50',description:'Reach Level 50.'}, collector:{name:'Collector',description:'Own every theme, skin and pop effect.'}, rivals:{name:'Rivals',description:"Beat a friend's challenge score."}, adv_first:{name:'First Level',description:'Win an Adventure level.'}, adv_20:{name:'Twenty Levels',description:'Win 20 Adventure levels.'}, adv_all:{name:'Every Level',description:'Win all 120 Adventure levels.'}, three_stars10:{name:'Three Stars',description:'Get 3 stars on 10 Adventure levels.'}, all_stars:{name:'Every Star',description:'Get all 360 Adventure stars.'}, win_streak5:{name:'Five Wins',description:'Win 5 new Adventure levels in a row.'}, missions10:{name:'Ten Missions',description:'Finish 10 daily missions.'}, missions100:{name:'Hundred Missions',description:'Finish 100 daily missions.'},
-};
+export const ACHIEVEMENT_COPY = Object.fromEntries([
+  ['first_clear', 'First Clear', 'Clear a line.'],
+  ['double', 'Double', 'Clear 2 lines with one piece.'],
+  ['triple', 'Triple', 'Clear 3 lines with one piece.'],
+  ['quad', 'Four at Once', 'Clear 4 lines with one piece.'],
+  ['crossroads', 'Crossroads', 'Clear a row and a column with one piece.'],
+  ['first_pop', 'Pop!', 'Pop a gloop by clearing a line through it.'],
+  ['big_pop', 'Big Pop', 'Pop a gloop of 8 or more cells.'],
+  ['huge_pop', 'Huge Pop', 'Pop a gloop of 15 or more cells.'],
+  ['mega_pop', 'Mega Pop', 'Pop a gloop of 24 or more cells. Unlocks Crowns.'],
+  ['big_pop_pro', 'Big Pop Pro', 'Make 50 Big Pops in total.', 'Big Pops'],
+  ['long_gloop', 'Long Gloop', 'Grow a gloop to 12 cells.', 'cells'],
+  ['one_flavour', 'One Flavour', 'Clear a line where all 8 cells are the same flavour.'],
+  ['spotless', 'Spotless', 'Empty the whole board.'],
+  ['clean_freak', 'Clean Freak', 'Empty the whole board 10 times.', 'empty boards'],
+  ['combo5', 'On a Roll', 'Reach combo 5.'],
+  ['combo10', 'Ten in a Row', 'Reach combo 10.'],
+  ['combo20', 'Twenty in a Row', 'Reach combo 20.', 'combo'],
+  ['score5k', '5,000 Club', 'Score 5,000 in one Classic run.', 'points'],
+  ['score20k', '20,000 Club', 'Score 20,000 in one Classic run.', 'points'],
+  ['score50k', '50,000 Club', 'Score 50,000 in one Classic run.', 'points'],
+  ['score100k', '100,000 Club', 'Score 100,000 in one Classic run.', 'points'],
+  ['expert25k', 'Expert 25,000', 'Score 25,000 in one Expert run.', 'points'],
+  ['close_call', 'Close Call', 'Clear a line when 52 or more cells are filled.'],
+  ['no_help', 'No Help Needed', 'Score 20,000 in Classic without using the rescue.'],
+  ['saved', 'Saved!', 'Use a rescue, then clear a line with the next 3 pieces.'],
+  ['lines100', 'Line Worker', 'Clear 100 lines in total.', 'lines'],
+  ['lines1000', 'Line Boss', 'Clear 1,000 lines in total.', 'lines'],
+  ['lines5000', 'Line Legend', 'Clear 5,000 lines in total.', 'lines'],
+  ['pops500', 'Popper', 'Pop 500 popped cells in total.', 'popped cells'],
+  ['pops5000', 'Pop Star', 'Pop 5,000 popped cells in total.', 'popped cells'],
+  ['runs10', 'Regular', 'Finish 10 runs.', 'runs'],
+  ['runs100', 'Hundred Runs', 'Finish 100 runs.', 'runs'],
+  ['daily1', 'Daily Player', 'Finish a daily challenge.', 'daily challenges'],
+  ['daily30', 'Daily Regular', 'Finish 30 daily challenges.', 'daily challenges'],
+  ['streak7', 'One Week', 'Reach a 7-day streak.', 'days'],
+  ['streak30', 'One Month', 'Reach a 30-day streak.', 'days'],
+  ['weekly1', 'Weekly Winner', 'Finish a weekly goal.'],
+  ['level10', 'Level 10', 'Reach Level 10.', 'levels'],
+  ['level50', 'Level 50', 'Reach Level 50.', 'levels'],
+  ['collector', 'Collector', 'Own every theme, skin and pop effect.', 'items'],
+  ['adv_first', 'First Level', 'Win an Adventure level.'],
+  ['adv_20', 'Twenty Levels', 'Win 20 Adventure levels.', 'levels'],
+  ['adv_all', 'Every Level', 'Win all 120 Adventure levels.', 'levels'],
+  ['three_stars10', 'Three Stars', 'Get 3 stars on 10 Adventure levels.', 'levels with 3 stars'],
+  ['all_stars', 'Every Star', 'Get all 360 Adventure stars.', 'stars'],
+  ['win_streak5', 'Five Wins', 'Win 5 new Adventure levels in a row.', 'wins in a row'],
+  ['missions10', 'Ten Missions', 'Finish 10 daily missions.', 'missions'],
+  ['missions100', 'Hundred Missions', 'Finish 100 daily missions.', 'missions']
+].map(([id, name, description, unit]) => [id, { name, description, ...(unit ? { unit } : {}) }])) as Readonly<Record<string, { name: string; description: string; unit?: string }>>;
