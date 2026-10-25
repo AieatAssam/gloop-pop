@@ -77,8 +77,8 @@ export const sfx = {
   bigPop(params: { combo: number }): void { playLadderRun(params.combo, 2, 90, -14, -18); },
   hugePop(params: { combo: number }): void { playLadderRun(params.combo, 3, 70, -12, -16); },
   stageUp(): void { if (!playSegment('stage', { group: 'ladder', priority: 'ladder', gain: 10 ** (-12 / 20) })) fallbackSfx.stageUp(); },
-  levelUp(): void { if (!playSegment('level', { group: 'ladder', priority: 'ladder', gain: 10 ** (-8 / 20) })) fallbackSfx.levelUp(); },
-  achievement(): void { if (!playSegment('ach', { group: 'ladder', priority: 'ladder', gain: 10 ** (-10 / 20) })) fallbackSfx.achievement(); },
+  levelUp(): void { if (!rewardCueDue('level')) return; if (!playSegment('level', { group: 'ladder', priority: 'ladder', gain: 10 ** (-8 / 20) })) fallbackSfx.levelUp(); },
+  achievement(): void { if (!rewardCueDue('achievement')) return; if (!playSegment('ach', { group: 'ladder', priority: 'ladder', gain: 10 ** (-10 / 20) })) fallbackSfx.achievement(); },
   rescueReady(): void { if (!playSegment('chime', { group: 'ladder', priority: 'ladder', gain: 10 ** (-18 / 20) })) tone({ frequency: 2093, duration: 0.28, peak: 10 ** (-18 / 20), priority: 'ladder' }); },
   chime(params: { gainDb?: number } = {}): void { const gain = 10 ** ((params.gainDb ?? -14) / 20); if (!playSegment('chime', { group: 'ladder', priority: 'ladder', gain })) tone({ frequency: 2093, duration: 0.28, peak: gain, priority: 'ladder' }); },
   rescue(): void {
@@ -116,6 +116,13 @@ export const sfx = {
 };
 
 let lastPopVoiceAt = -Infinity;
+const rewardCueLastAt: Record<'level' | 'achievement', number> = { level: -Infinity, achievement: -Infinity };
+function rewardCueDue(kind: keyof typeof rewardCueLastAt): boolean {
+  const now = performance.now() / 1000;
+  if (now - rewardCueLastAt[kind] < 1.5) return false;
+  rewardCueLastAt[kind] = now;
+  return true;
+}
 const snapLimiter: RateLimiter = { lastAt: -Infinity, interval: 0.12 };
 const uiLimiter: RateLimiter = { lastAt: -Infinity, interval: 0.05 };
 const placeLimiter: RateLimiter = { lastAt: -Infinity, interval: 0.04 };

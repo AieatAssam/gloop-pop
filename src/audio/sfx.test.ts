@@ -30,15 +30,23 @@ describe('sample event mapping', () => {
     expect(popVoiceDue(2, 2.025)).toBe(true);
   });
 
-  it('plays the level and achievement samples at their specified gains', () => {
+  it('coalesces simultaneous achievement unlocks to one segment and rate limits reward cues', () => {
+    vi.useFakeTimers();
     sfx.levelUp();
-    sfx.achievement();
+    for (let unlock = 0; unlock < 14; unlock += 1) sfx.achievement();
     expect(fixture.playSegment).toHaveBeenNthCalledWith(1, 'level', {
       group: 'ladder', priority: 'ladder', gain: 10 ** (-8 / 20),
     });
     expect(fixture.playSegment).toHaveBeenNthCalledWith(2, 'ach', {
       group: 'ladder', priority: 'ladder', gain: 10 ** (-10 / 20),
     });
+    expect(fixture.playSegment.mock.calls.filter(([id]) => id === 'ach')).toHaveLength(1);
+    vi.advanceTimersByTime(1499);
+    sfx.achievement();
+    expect(fixture.playSegment.mock.calls.filter(([id]) => id === 'ach')).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    sfx.achievement();
+    expect(fixture.playSegment.mock.calls.filter(([id]) => id === 'ach')).toHaveLength(2);
   });
   it('plays target and mini-goal cues at their specified gains', () => {
     sfx.coinTick({ gainDb: -6 }); sfx.chime({ gainDb: -14 });

@@ -362,10 +362,12 @@ export async function bootApp(): Promise<void> {
     save.stats.timePlayedMs += Math.max(0, Math.floor(performance.now() - runStartedAt));
     if (outcome.won && outcome.stars === 3) sfx.levelBest();
     for (const level of result.levels) toast.show(S.levelUp(level));
+    if (result.levels.length) sfx.levelUp();
     for (const item of result.unlocked) { toast.show(S.unlocked(item)); if (item === 'Adventure') toast.show(S.adventureGift); }
     if (result.firstWin && save.profile.level >= 2) { const before = save.owned.modes.includes('adventure'); save = unlockAdventure(save); if (!before) { toast.show(S.unlocked(S.adventure)); toast.show(S.adventureGift); } }
     const adventureAchievements = grantAchievements(save); save = adventureAchievements.save;
-    for (const achievement of adventureAchievements.unlocked) { toast.show(S.achievementUnlock(S.achievementName(achievement.id), achievement.coins)); sfx.achievement(); }
+    for (const achievement of adventureAchievements.unlocked) toast.show(S.achievementUnlock(S.achievementName(achievement.id), achievement.coins));
+    if (adventureAchievements.unlocked.length) sfx.achievement();
     saveNow(save);
   }
   function restart(): void { renderLoop.resetEffects(); director.reset(); if (challengeBeaten) { activeChallenge = null; challengeBeaten = false; } runBest = bestFor(save, session.state.mode); session = createSession({ best: runBest, mode: session.state.mode, goals: save.tutorialDone || debug }); updateCanvasAria(); resize(); runStartedAt = performance.now(); runEvents = []; closeCall = false; pauseStartedAt = 0; shownScore = 0; scoreAnimFrom = 0; scoreAnimStart = renderElapsed; scoreAnimDuration = 600; newBestAt = -1; flameBreakAt = -1; comboPulseAt = -1; scoreSparkleAt = -1; shownStatus = ''; runRecorded = false; comboLostAt = -1; gameOverAt = -1; newBestShown = false; discoveryCoins = 0; paused = false; ui.hide(); pointer.cancel(); persist(false); }
@@ -389,7 +391,8 @@ export async function bootApp(): Promise<void> {
     const result = grantAchievements(projected, { mode: session.state.mode, score: session.state.score, rescueUsed: session.state.rescue.used, closeCall, rescuedLine: session.state.mode !== 'adventure' && rescueClearWithinThree(runEvents), events: runEvents, friendBeaten: challengeBeaten });
     if (!result.unlocked.length) return;
     save.achievements = result.save.achievements; save.profile.coins = result.save.profile.coins; save.profile.coinsEarned = result.save.profile.coinsEarned; saveNow(save);
-    for (const achievement of result.unlocked) { toast.show(S.achievementUnlock(S.achievementName(achievement.id), achievement.coins)); sfx.achievement(); }
+    for (const achievement of result.unlocked) toast.show(S.achievementUnlock(S.achievementName(achievement.id), achievement.coins));
+    if (result.unlocked.length) sfx.achievement();
   }
   function finishRun(): void {
     if (runRecorded) return; runRecorded = true;
@@ -413,7 +416,8 @@ export async function bootApp(): Promise<void> {
     saveNow(save);
     if (lastLevel) { toast.show(S.levelUp(lastLevel)); sfx.levelUp(); }
       for (const item of reward.unlocked) { toast.show(S.unlocked(item)); if (item === 'Adventure') toast.show(S.adventureGift); }
-    for (const achievement of achievementResult.unlocked) { toast.show(S.achievementUnlock(S.achievementName(achievement.id), achievement.coins)); sfx.achievement(); }
+    for (const achievement of achievementResult.unlocked) toast.show(S.achievementUnlock(S.achievementName(achievement.id), achievement.coins));
+    if (achievementResult.unlocked.length) sfx.achievement();
     if (runReward.coins > 0) sfx.coinTick({ count: Math.min(12, runReward.coins) });
   }
   function updateOverlay(): void {
