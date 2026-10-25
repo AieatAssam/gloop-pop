@@ -1,6 +1,12 @@
 // SG §9.7: cached canvas text sprites for the short-lived score labels.
 import { PALETTE } from '../palette';
 export interface TextSprite { canvas: HTMLCanvasElement; x: number; y: number; at: number; duration: number; rise: number; wobble: boolean }
+export function chooseStackLabel(eventLabel: string, firstTimeLabel: string): string { return firstTimeLabel || eventLabel; }
+export function stackTop(centerY: number, height: number, gridTop: number, gridBottom: number, cell: number): number {
+  const min = gridTop + 2 * cell; const max = gridBottom - cell - height;
+  if (max < min) return (gridTop + gridBottom - height) / 2;
+  return Math.max(min, Math.min(max, centerY - height / 2));
+}
 export function createTextSprites() {
   const cache = new Map<string, HTMLCanvasElement>(); const active: TextSprite[] = [];
   const sprite = (text: string, size: number, colour: string): HTMLCanvasElement => {

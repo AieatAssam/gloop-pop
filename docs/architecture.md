@@ -253,6 +253,7 @@ pointer/keyboard ─► input model ─► session.dispatch(action)
 - **Text:** HUD digits from cached glyph sprites (one per digit per size per colour).
 - **Debug overlay:** `?debug=1` shows fps, frame ms, dpr, particle count, cache count, last deal solver stats.
 - DOM UI: fixed elements positioned with `transform` only; no layout thrash during play (no reading layout in the loop).
+- M10 tactile rendering helpers: `render/fx/camera.ts` owns deterministic trauma noise, camera roll and kick; `render/fx/placementLayer.ts` filters cells removed by the same placement and defines the placement layer lifetime.
 
 ## 7. Bundle budget
 - JS (all chunks) gzipped < 150 KB, target < 90 KB. Fonts and PNGs are not counted but: total first-load transfer < 400 KB.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { easeInOutSine, easeOutBack } from './easing';
+import { easeInOutSine, easeInQuad, easeOutBack } from './easing';
 
 describe('easing', () => {
   it('has stable endpoints and midpoint', () => {
@@ -13,5 +13,11 @@ describe('easing', () => {
   it('clamps input time', () => {
     expect(easeInOutSine(-1)).toBe(0);
     expect(easeInOutSine(2)).toBeCloseTo(1);
+  });
+
+  it('easeInQuad accelerates into the target', () => {
+    expect(easeInQuad(0)).toBe(0);
+    expect(easeInQuad(0.5)).toBe(0.25);
+    expect(easeInQuad(1)).toBe(1);
   });
 });

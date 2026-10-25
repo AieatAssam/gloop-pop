@@ -6,7 +6,7 @@ import type { BoardView, DragView, ReturnView } from '../render/boardView';
 import type { Layout } from '../render/layout';
 import { createHeldPiece, resetHeldPiece, updateHeldPiece, type HeldPieceState } from '../render/heldPiece';
 
-export interface PointerInput { drag: DragView | undefined; returning: ReturnView | undefined; snapChanged: boolean; pointerMove(x: number, y: number, pointerType: string): void; pointerDown(x: number, y: number, pointerType: string): void; pointerUp(x: number, y: number, pointerType: string): void; advance(realDtMs: number, reduced: boolean): void; cancel(): void }
+export interface PointerInput { drag: DragView | undefined; returning: ReturnView | undefined; snapChanged: boolean; placementOrigin: { x: number; y: number } | undefined; pointerMove(x: number, y: number, pointerType: string): void; pointerDown(x: number, y: number, pointerType: string): void; pointerUp(x: number, y: number, pointerType: string): void; advance(realDtMs: number, reduced: boolean): void; cancel(): void }
 export function fingerBoardOrigin(x: number, y: number, pointerType: string, width: number, height: number, cellSize: number): { x: number; y: number } {
   return { x: x - width * cellSize / 2, y: pointerType === 'touch' ? y - height * cellSize - cellSize * 1.1 : y - height * cellSize / 2 };
 }
@@ -16,7 +16,9 @@ export function createPointerInput(view: BoardView, getLayout: () => Layout, get
   let drag: DragModel | undefined; let clickSelected = -1;
   let returning: (ReturnView & { startX: number; startY: number; targetX: number; targetY: number; elapsed: number; startScale: number; endScale: number; cell: number }) | undefined;
   let snapChanged = false;
+  let placementOrigin: { x: number; y: number } | undefined;
   return {
+    get placementOrigin() { return placementOrigin; }, set placementOrigin(value) { placementOrigin = value; },
     get drag() { return drag; },
     get returning() { return returning; },
     get snapChanged() { return snapChanged; },
@@ -35,7 +37,7 @@ export function createPointerInput(view: BoardView, getLayout: () => Layout, get
       const origin = fingerBoardOrigin(x, y, type, def.w, def.h, c); const px = origin.x; const py = origin.y;
       const col = Math.round((px - gx) / c); const row = Math.round((py - gy) / c);
       const best = nearestSnap(state, slot, px, py, gx, gy, c, row, col); let placed = false;
-      if (best) { placed = tryPlace(slot, best.row, best.col); clickSelected = -1; }
+      if (best) { pointerOrigin(released, def.w, def.h, c); placed = tryPlace(slot, best.row, best.col); clickSelected = -1; }
       else if (selected && view.cellAt(x, y, layout)) { const cell = view.cellAt(x, y, layout)!; placed = tryPlace(slot, cell.row, cell.col); }
       else clickSelected = selected ? slot : -1;
       if (!placed && !selected) startReturn(released, layout, state);
@@ -75,6 +77,7 @@ export function createPointerInput(view: BoardView, getLayout: () => Layout, get
     drag.row = undefined; drag.col = undefined; drag.ghostRow = undefined; drag.ghostCol = undefined;
     drag.drawX = originX; drag.drawY = originY; drag.pickupScale = 0.6; drag.lift = 0; drag.grabSx = 1.12; drag.grabSy = 1 / 1.12; drag.ghostAlpha = 0; drag.ghostTargetAlpha = 0; drag.ghostFadeLeft = 0; drag.ghostValid = false; drag.ghostScale = 1;
   }
+  function pointerOrigin(released: DragModel, width: number, height: number, cell: number): void { const origin = fingerBoardOrigin(released.x, released.y, released.pointerType, width, height, cell); placementOrigin = { x: released.drawX ?? origin.x, y: released.drawY ?? origin.y }; }
   function nearestSnap(state: GameState, slot: number, px: number, py: number, gx: number, gy: number, c: number, row: number, col: number): { row: number; col: number; d: number } | undefined {
     let best: { row: number; col: number; d: number } | undefined;
     for (let dr = -1; dr <= 1; dr += 1) for (let dc = -1; dc <= 1; dc += 1) {

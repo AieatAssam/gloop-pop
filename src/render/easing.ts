@@ -5,6 +5,8 @@ export function easeOutBack(t: number): number {
 }
 
 export function easeInBack(t: number): number { const x = clamp01(t); return 2.70158 * x * x * x - 1.70158 * x * x; }
+// SG §9.13.e: the final 40 ms of the placement slam accelerates into the target.
+export function easeInQuad(t: number): number { const x = clamp01(t); return x * x; }
 
 export function easeOutQuad(t: number): number { const x = clamp01(t); return 1 - (1 - x) * (1 - x); }
 export function easeOutCubic(t: number): number { const x = clamp01(t); return 1 - (1 - x) ** 3; }

@@ -14,4 +14,10 @@ describe('particle pool', () => {
     const pool = createParticlePool(); pool.add(particle(0)); pool.update(0.5);
     expect(pool.items[0]?.x).toBe(0.5); pool.update(0.5); expect(pool.items).toHaveLength(0);
   });
+  it('reuses the same preallocated particle slot after warm-up', () => {
+    const pool = createParticlePool(); pool.spawn(1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0.1, 'white', 'sparkles', 0, false);
+    const allocated = pool.items[0]; pool.update(0.1);
+    pool.spawn(2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0.1, 'white', 'sparkles', 0, false);
+    expect(pool.items[0]).toBe(allocated);
+  });
 });
