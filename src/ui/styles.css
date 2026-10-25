@@ -1,4 +1,6 @@
 :root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   color-scheme: dark;
   font-family: "Nunito", ui-rounded, system-ui, -apple-system, "Segoe UI", sans-serif;
   font-synthesis: none;
