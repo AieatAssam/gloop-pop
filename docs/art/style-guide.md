@@ -466,26 +466,31 @@ On pointerdown in a slot (frame 0):
     - The `theme.cell` backing patch is also not drawn at removed indices.
     - The layer's lifetime is L + 24 + 300 ms at most. It never outlives its cells.
 
-### 9.13.f Line clear (B clock; F = L + 16 = t 76 is the peak frame)
+### 9.13.f Line clear (B clock; F = L = t 60 is the peak frame)
+
+*Revised 25 Oct after the M10 review (`after-line-sheet.png`, `after-pop-sheet.png`): the first version put the impact at F + T + 30 (156 ms for 1 line, 256 ms at the 150 ms cap), past S12's 200 ms "sluggish" line for the biggest events. Now the contact, the freeze and the impact are the same frame F = L, and the caps are lower. Release → impact is 60 ms for every event, and release → first burst is ≤ 210 ms.*
 1. **Hitstop length** (S4 shape: floor + linear + cap; inside S5's 50/100/150 ladder):
    - n = unique cells removed by the move (cleared ∪ popped, ≤ 64).
    - **T = min(cap, floor + 2·n)** ms:
 
 | Biggest event of the move | floor | cap | Examples |
 |---|---|---|---|
-| Lines only, or pops under 8 cells | 34 | 100 | 1 line, n 8 → **50** (S5 small, about 3 frames); 2 lines, n 16 → 66; 3 lines → 82; 4 lines → 98 |
-| Big Pop (≥ 8) | 50 | 120 | 1 line + 8-cell pop, n 16 → 82 |
-| Huge Pop (≥ 15) | 60 | 130 | 1 line + 15, n 23 → 106 |
-| Mega Pop (≥ 24), All Clear | 70 | **150** | 1 line + 24, n 32 → 134; 1 line + 28 + extra lines → capped at 150 |
+| Lines only, or pops under 8 cells | 34 | 80 | 1 line, n 8 → **50** (S5 small, about 3 frames); 2 lines, n 16 → 66; 3 lines → 80; 4 lines → 80 |
+| Big Pop (≥ 8) | 50 | 100 | 1 line + 8-cell pop, n 16 → 82 |
+| Huge Pop (≥ 15) | 60 | 110 | 1 line + 15, n 23 → 106 |
+| Mega Pop (≥ 24), All Clear | 70 | **120** | 1 line + 24, n 32 → 120 (capped) |
+
+   - T is **real** time and lives only in the hitstop controller. Cue times on B never add T: B simply stops, so anything scheduled at F + x on B happens at real F + T + x. (Adding T to B timestamps counts the freeze twice.)
+   - The 150 ms ceiling of §9.13.a/m still holds for overlapping freezes.
 
    - No hitstop for a placement that removes nothing (frequent events stay light, S1, S18).
    - First-time moments add no extra freeze. They use their event's T.
    - Combo scaling: §9.13.h.
    - Reduced motion: no hitstop (design §23.4, kept).
-2. **Anticipation swell** (S13), from release t 0 to F (76 ms), `easeOutQuad`:
+2. **Anticipation swell** (S13), from release t 0 to F (60 ms), `easeOutQuad`:
    - Cleared-line cells scale uniformly 1 → 1.12, with the popping face.
    - Gloops that will pop swell as one body to 1.06.
-   - The swell peaks at F, the same frame the landed piece is at full squash. Both sides are at the point of contact (S3).
+   - The swell peaks at F = L, the same frame the landed piece is at full squash. Both sides are at the point of contact (S3). The freeze holds both at their peak.
 3. **Freeze on the peak** (S17): `hitStop.schedule(F, T)`. During the freeze:
    - The frozen cells jitter (§9.13.a).
    - **White flash** over the cleared-line cells: additive `light.flash`, alpha 0.85 → 0, linear over **50 ms** on R, starting at F (S7: 52 ms). This replaces §9.4.1's 160 ms.
@@ -502,21 +507,21 @@ On pointerdown in a slot (frame 0):
    - 3 of the 5 take the inherited direction: the unit vector of 0.6·(sweep direction) + 0.4·(away from the placed piece's centroid), ±35° random, speed × 1.15.
    - The other 2 keep §9.3's random direction.
    - Gravity, life and colours stay as §9.3. *(mix tuning)*
-7. **Impact frame** = the first burst frame of the move. On it, fire together:
+7. **Impact frame** = F (the freeze's first frame, t 60). On it, fire together:
    - trauma (§9.13.g),
    - camera kick 0.05c straight down (spring as §9.13.e),
    - the line haptic (§9.13.k),
    - the lineClear sound, via a director `onImpact` callback, not at input time (S18: keep haptic, audio and visual in sync).
    
-   The score count-up starts here too (§9.13.i).
-8. **Typical 1-line timeline:** release 0 → land 60 → peak and freeze 76 → freeze ends 126 → first burst 156 → full row done by about 156 + 7·28 + 90 = 442 ms. Input stays live throughout.
+   The score count-up and the centre label stack (§9.13.g.7) start here too (§9.13.i). Trauma runs on W, so the frozen board shakes during the freeze (S4: the victim vibrates).
+8. **Typical 1-line timeline:** release 0 → land, peak, freeze and impact (flash, sound, haptic, shake, score) 60 → freeze ends 110 → first cell squashes 110–140 and bursts 140–230 → full row done by about 60 + 50 + 7·28 + 120 = 426 ms. Mega Pop at the 120 ms cap: impact 60 → freeze ends 180 → first burst 210. Input stays live throughout.
 
 ### 9.13.g Gloop pops, trauma shake, slow-mo, one label at a time
 1. **Hitstop:** the bigger tiers in §9.13.f.1.
 2. **Wave through the gloop** (replaces §9.4.4's fixed 38 ms per step):
    - D = the gloop's largest BFS distance from its entry cells.
    - **Step = min(38, 330 / D) ms** (B). The last cell starts its burst ≤ 330 ms after the first, so a 28-cell Mega is done in **≤ 450 ms** including the 120 ms burst. Today it takes about 1.8 s. Small gloops keep 38 ms.
-   - Each popped cell gets its own anticipation: from `burstAt − 70`, it swells 1 → 1.12 over 40 ms, squashes 30 ms (0.85 along the direction from its BFS parent, 1/0.85 across), then bursts as in §9.13.f.5.
+   - Each popped cell gets its own anticipation: from `burstAt − 70`, it swells 1 → 1.12 over 40 ms, squashes 30 ms (0.85 along the direction from its BFS parent, 1/0.85 across), then bursts as in §9.13.f.5. The entry cells (depth 0) start their squash at F, like the sweep origin, so their `burstAt` = F + 30 on B; depth d adds d × step.
    - The bulge is visible as it travels ahead of the bursts.
    - Particles inherit the parent → cell direction (same 3-of-5 rule).
    - §9.4.4 kept: Huge and Mega faces pop last and grow to 1.3×.
@@ -559,7 +564,7 @@ On pointerdown in a slot (frame 0):
      - **coins line:** "+{n} coins", only for first-time bonuses.
    - **Stack sizes:**
      - Item heights are 1.0 × their font size. Gaps are 0.08c.
-     - Fonts as §9.7. A label shrinks so that its cached sprite width ≤ 0.92 × grid width (8c).
+     - Fonts as §9.7, in board units (× c/68, then the desktop font scale). A label shrinks so that its **largest drawn width**, i.e. sprite width × c/68 × font scale × the 1.2 pop overshoot, ≤ 0.92 × grid width (8c). The fit scale is computed once per item at `add()`.
      - Mega Pop, All Clear and first-time labels are 72 px before fitting. Other first-time labels are 48 px.
    - **Stack position:**
      - x = centroid x, clamped so the widest item keeps 0.2c from the grid's side edges.
@@ -684,11 +689,12 @@ On pointerdown in a slot (frame 0):
 
 ### 9.13.n Test checklist (unit tests, colocated)
 1. `hitStopMs(n, tier, comboTier)` gives:
-   - (8, lines, 0) = 50, (16, lines, 0) = 66, (32, lines, 0) = 98, (40, lines, 0) = 100
-   - (16, big, 0) = 82, (23, huge, 0) = 106, (32, mega, 0) = 134, (44, mega, 0) = 150
-   - (32, mega, 4) = 80, (8, lines, 4) = 50
+   - (8, lines, 0) = 50, (16, lines, 0) = 66, (32, lines, 0) = 80, (40, lines, 0) = 80
+   - (16, big, 0) = 82, (23, huge, 0) = 106, (32, mega, 0) = 120, (44, mega, 0) = 120
+   - (32, mega, 4) = 72, (8, lines, 4) = 50
    - n = 0 → 0
-   - never > 150 for any n ≤ 64 and any tier
+   - never > 120 for any n ≤ 64 and any tier
+   - cue schedule: for a 1-line move with T = 50, the first line cell's burst starts at real t 140 ± 1 frame and its flash and impact callback fire at real t 60 ± 1 frame (simulate the loop with 16.7 ms frames)
 2. Hitstop controller:
    - h is 0.0001 (not 0) during the hold, and reaches exactly 1 at T.
    - Two overlapping `schedule` calls never freeze longer than 150 ms from the first start.
