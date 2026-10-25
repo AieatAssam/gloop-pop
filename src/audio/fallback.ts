@@ -47,7 +47,7 @@ export const sfx = {
   },
   sparkle(params: { combo: number; lineIndex?: number; delayMs?: number; mega?: boolean }): void {
     const start = Math.min(10, Math.max(0, Math.floor(params.combo) - 1) + (params.lineIndex ?? 0)); const at = scheduleAt() + (params.delayMs ?? 0) / 1000;
-    for (let ping = 0; ping < 4; ping += 1) tone({ frequency: PENTATONIC[Math.min(10, start + ping)]!, duration: 0.04, peak: 10 ** ((params.mega ? -24 : -22) / 20), at: at + ping * 0.03 });
+    for (let ping = 0; ping < 4; ping += 1) tone({ frequency: PENTATONIC[Math.min(10, start + ping)]!, duration: 0.04, peak: 10 ** (-22 / 20), at: at + ping * 0.03 });
   },
   gloopPop(params: { index?: number; base?: number; at?: number; gainDb?: number } = {}): void {
     const graph = getAudioGraph(); if (!graph) return;

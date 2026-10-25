@@ -68,7 +68,7 @@ export const sfx = {
   comboHarmony(params: { combo: number; lineIndex?: number; delayMs?: number; mega?: boolean }): void { fallbackSfx.comboHarmony(params); },
   sparkle(params: { combo: number; lineIndex?: number; delayMs?: number; mega?: boolean }): void {
     const first = rungFor(params.combo, params.lineIndex ?? 0); const at = scheduleAt() + (params.delayMs ?? 0) / 1000;
-    const gain = 10 ** ((params.mega ? -24 : -22) / 20);
+    const gain = 10 ** ((-22) / 20);
     for (let i = 0; i < 4; i += 1) {
       const rung = Math.min(10, first + i); const when = at + i * 0.03;
       if (!playSegment('tink', { at: when, group: 'sparkle', priority: 'ladder', gain, rate: rungRate(rung), rateVariation: 2 ** (3 / 1200) - 1 })) tone({ frequency: PENTATONIC[rung]!, duration: 0.04, peak: gain, at: when, priority: 'ladder' });

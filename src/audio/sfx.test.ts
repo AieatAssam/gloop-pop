@@ -93,7 +93,7 @@ describe('sample event mapping', () => {
     sfx.comboHarmony({ combo: 12, mega: true });
     expect(fixture.tone.mock.calls[fixture.tone.mock.calls.length - 1]?.[0].peak).toBe(10 ** (-22 / 20));
     fixture.playSegment.mockClear(); sfx.sparkle({ combo: 12, mega: true });
-    expect(fixture.playSegment.mock.calls.map(([, options]) => options?.gain)).toEqual(Array(4).fill(10 ** (-24 / 20)));
+    expect(fixture.playSegment.mock.calls.map(([, options]) => options?.gain)).toEqual(Array(4).fill(10 ** (-22 / 20)));
     fixture.audioGraph = null; fixture.tone.mockClear(); fixture.noise.mockClear();
     sfx.lineClear({ combo: 12, lines: 1, mega: true });
     expect(fixture.tone.mock.calls.map(([options]) => options.peak)).toEqual([0.3 * 10 ** (-2 / 20), 0.08 * 10 ** (-2 / 20)]);
