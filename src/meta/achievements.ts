@@ -1,15 +1,15 @@
 import type { GameEvent, ModeId } from '../core/types';
 import type { SaveV2 } from './saveSchema';
 
-export type AchievementCategory = 'lines' | 'pops' | 'combo' | 'score' | 'daily' | 'streak' | 'misc' | 'collection';
+export type AchievementCategory = 'lines' | 'pops' | 'combo' | 'score' | 'daily' | 'streak' | 'misc' | 'collection' | 'goals';
 export interface AchievementDef { id: string; coins: 25 | 50 | 100; category: AchievementCategory; }
 // spec-note: Rivals is defined and can be evaluated from this fact; M4.6 will supply it from challenge sessions.
 export interface AchievementFacts { mode?: ModeId; events?: readonly GameEvent[]; score?: number; rescueUsed?: boolean; rescuedLine?: boolean; closeCall?: boolean; friendBeaten?: boolean; weeklyClaimed?: boolean; }
 const rows: readonly [string, AchievementCategory, 25 | 50 | 100][] = [
- ['first_clear','lines',25],['double','lines',25],['triple','lines',50],['quad','lines',100],['crossroads','lines',25],['first_pop','pops',25],['big_pop','pops',25],['huge_pop','pops',50],['mega_pop','pops',100],['big_pop_pro','pops',50],['long_gloop','pops',25],['one_flavour','lines',50],['spotless','lines',50],['clean_freak','lines',100],['combo5','combo',25],['combo10','combo',50],['combo20','combo',100],['score5k','score',25],['score20k','score',50],['score50k','score',100],['score100k','score',100],['expert25k','score',100],['close_call','lines',50],['no_help','score',50],['saved','misc',25],['lines100','lines',25],['lines1000','lines',50],['lines5000','lines',100],['pops500','pops',25],['pops5000','pops',100],['runs10','misc',25],['runs100','misc',50],['daily1','daily',25],['daily30','daily',100],['streak7','streak',50],['streak30','streak',100],['weekly1','misc',50],['level10','misc',25],['level50','misc',100],['collector','collection',100],['rivals','misc',50],
+ ['first_clear','lines',25],['double','lines',25],['triple','lines',50],['quad','lines',100],['crossroads','lines',25],['first_pop','pops',25],['big_pop','pops',25],['huge_pop','pops',50],['mega_pop','pops',100],['big_pop_pro','pops',50],['long_gloop','pops',25],['one_flavour','lines',50],['spotless','lines',50],['clean_freak','lines',100],['combo5','combo',25],['combo10','combo',50],['combo20','combo',100],['score5k','score',25],['score20k','score',50],['score50k','score',100],['score100k','score',100],['expert25k','score',100],['close_call','lines',50],['no_help','score',50],['saved','misc',25],['lines100','lines',25],['lines1000','lines',50],['lines5000','lines',100],['pops500','pops',25],['pops5000','pops',100],['runs10','misc',25],['runs100','misc',50],['daily1','daily',25],['daily30','daily',100],['streak7','streak',50],['streak30','streak',100],['weekly1','misc',50],['level10','misc',25],['level50','misc',100],['collector','collection',100],['rivals','misc',50],['adv_first','goals',25],['adv_20','goals',50],['adv_all','goals',100],['three_stars10','goals',50],['all_stars','goals',100],['win_streak5','goals',50],['missions10','goals',25],['missions100','goals',100],
 ];
 // Lifetime counters: the only achievements whose progress means something on the Achievements screen (design §15: "progress when counter-based").
-export const COUNTER_ACHIEVEMENTS: ReadonlySet<string> = new Set(['big_pop_pro', 'clean_freak', 'lines100', 'lines1000', 'lines5000', 'pops500', 'pops5000', 'runs10', 'runs100', 'daily30', 'streak7', 'streak30', 'level10', 'level50', 'collector']);
+export const COUNTER_ACHIEVEMENTS: ReadonlySet<string> = new Set(['big_pop_pro', 'clean_freak', 'lines100', 'lines1000', 'lines5000', 'pops500', 'pops5000', 'runs10', 'runs100', 'daily30', 'streak7', 'streak30', 'level10', 'level50', 'collector', 'adv_20', 'adv_all', 'three_stars10', 'all_stars', 'win_streak5', 'missions10', 'missions100']);
 export const ACHIEVEMENTS: readonly AchievementDef[] = rows.map(([id, category, coins]) => ({ id, category, coins }));
 
 export function achievementProgress(id: string, save: SaveV2, facts: AchievementFacts = {}): { current: number; target: number; met: boolean } {
@@ -31,6 +31,11 @@ export function achievementProgress(id: string, save: SaveV2, facts: Achievement
   case 'lines100': set(save.stats.linesCleared,100); break; case 'lines1000': set(save.stats.linesCleared,1000); break; case 'lines5000': set(save.stats.linesCleared,5000); break; case 'pops500': set(save.stats.extraCellsPopped,500); break; case 'pops5000': set(save.stats.extraCellsPopped,5000); break;
   case 'runs10': set(save.ui.runsFinished,10); break; case 'runs100': set(save.ui.runsFinished,100); break; case 'daily1': set(save.stats.dailiesFinished,1); break; case 'daily30': set(save.stats.dailiesFinished,30); break; case 'streak7': set(save.streak.best,7); break; case 'streak30': set(save.streak.best,30); break; case 'weekly1': set(facts.weeklyClaimed ? 1 : 0,1); break; case 'level10': set(save.profile.level,10); break; case 'level50': set(save.profile.level,50); break;
   case 'collector': set(save.owned.themes.length + save.owned.skins.length + save.owned.pops.length,21); break; case 'rivals': set(facts.friendBeaten ? 1 : 0,1); break;
+  case 'adv_first': set(save.stats.adventureWins > 0 ? 1 : 0,1); break; case 'adv_20': set(save.adventure.frontier - 1,20); break; case 'adv_all': set(save.adventure.frontier - 1,120); break;
+  case 'three_stars10': set(Object.values(save.adventure.levels).filter((level) => level.stars === 3).length,10); break;
+  case 'all_stars': set(Object.values(save.adventure.levels).reduce((sum,level) => sum + level.stars,0),360); break;
+  case 'win_streak5': set(save.adventure.bestWinStreak,5); break;
+  case 'missions10': set(save.missions.finished,10); break; case 'missions100': set(save.missions.finished,100); break;
   default: return { current:0,target:1,met:false };
  }
  return { current:Math.min(current,target), target, met };

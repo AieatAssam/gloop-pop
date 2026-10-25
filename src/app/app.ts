@@ -67,6 +67,8 @@ import { musicState } from '../audio/musicState';
 import { createCreditsScreen } from '../ui/screens/credits';
 import { drawGoalStrip } from '../render/goalStrip';
 import { nextTarget } from '../core/goals';
+import { addMissionProgress, claimMission, missionNearMiss, rerollMission, rollDay } from '../meta/missions';
+import { MISSIONS } from '../core/missions';
 
 export function bootApp(): void {
   const canvas = document.querySelector<HTMLCanvasElement>('#game'); const uiRoot = document.querySelector<HTMLElement>('#ui');
@@ -74,7 +76,15 @@ export function bootApp(): void {
   const gameCanvas = canvas;
   const query = new URLSearchParams(window.location.search); const debug = query.get('debug') === '1'; const veteranDemo = debug && query.get('save') === 'veteran';
   setSaveWritesDisabled(veteranDemo || (debug && query.has('demo')));
-  let save = veteranDemo ? migrate(veteranSave) : loadSave(); const savedRun = runToResumeOnBoot(save.inProgress);
+  let save = veteranDemo ? migrate(veteranSave) : loadSave(); save = rollDay(save, dayKeyFromMs(Date.now()));
+  if (debug && (query.get('demo') === 'missions' || query.get('demo') === 'missions-done')) {
+    const today = dayKeyFromMs(Date.now()); const done = query.get('demo') === 'missions-done';
+    save.missions.day = today; save.missions.slots = done
+      ? [{id:'lines15',pos:0,progress:15,claimed:true,issued:today},{id:'lines40',pos:0,progress:40,claimed:true,issued:today},{id:'lines80',pos:0,progress:80,claimed:true,issued:today}]
+      : [{id:'lines15',pos:0,progress:15,claimed:false,issued:today},{id:'lines40',pos:0,progress:32,claimed:false,issued:today},{id:'lines80',pos:0,progress:80,claimed:true,issued:today}];
+    save.missions.rerollDay = null; save.missions.shownToday = save.missions.slots.map((slot) => slot.id); save.missions.setPaid = done;
+  }
+  const savedRun = runToResumeOnBoot(save.inProgress);
   const skinMap: Record<string, SkinId> = { plain:'plain', googly:'googlyEyes', googlyEyes:'googlyEyes', freckles:'freckles', catears:'catEars', catEars:'catEars', glasses:'glasses', mustache:'mustache', bowtie:'bowtie', crown:'crown' };
   const syncCosmetics = (): void => setEquippedCosmetics({ theme: save.equipped.theme as keyof typeof PALETTE.theme, skin: skinMap[save.equipped.skin] ?? 'plain', popEffect: save.equipped.pop as PopEffectId });
   syncCosmetics();
@@ -193,7 +203,7 @@ export function bootApp(): void {
     if (action.type === 'place' && !shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion())) renderLoop.requestSlowMo(renderLoop.timeScale, 0, 0, 60);
     const filledBeforeResolve = action.type === 'place' ? session.state.board.filter((cell) => cell > 0).length + (PIECES[session.state.tray[action.slot]?.defId ?? -1]?.cells.length ?? 0) : 0;
     const scoreBefore = session.state.score; const pendingScoreFrom = shownScore; const events = action.type === 'place' ? dispatchImmediately(() => renderLoop.endNow(), () => session.dispatch(action)) : session.dispatch(action); const scoreDelta = session.state.score - scoreBefore; if (events.some((event) => event.type === 'cleared' || event.type === 'popped' || event.type === 'allClear' || event.type === 'gameOver')) live.textContent = `${S.score} ${new Intl.NumberFormat('en-US').format(session.state.score)}${session.state.status === 'over' ? ` · ${S.noRoom}` : ''}`; if (action.type === 'place' && tutorialActive && events.some((event) => event.type === 'placed')) advanceTutorial(); if (action.type === 'place' && filledBeforeResolve >= 52 && events.some((event) => event.type === 'cleared')) closeCall = true; runEvents.push(...events);
-    updateCanvasAria();
+    updateCanvasAria(); const missionProgress = addMissionProgress(save, session.state, events); save = missionProgress.save; for (const mission of missionProgress.done) toast.show(S.missionDoneToast(S.missionText(mission.id)), 'gold');
     const crossings = events.filter((event) => event.type === 'targetReached'); if (crossings.length) { const last = crossings[crossings.length - 1]!; if (last.type === 'targetReached') { goalCrossingTarget = last.target; goalCrossingCoins = crossings.length * 5; goalCrossingAt = -1; goalCrossingWorldAt = -1; goalCrossingCuePlayed = false; } }
     if (events.some((event) => event.type === 'miniDone')) { miniDoneAt = renderElapsed; miniDoneWorldAt = currentFrame.worldNow; sfx.chime({ gainDb: -14 }); vibrate('goal', save.settings.haptics); }
     if (hadGoalStrip !== Boolean(session.state.goals)) resize();
@@ -271,13 +281,14 @@ export function bootApp(): void {
   }
   function finishRun(): void {
     if (runRecorded) return; runRecorded = true;
-    const completed = session.state; const todayKey = completed.daily?.dayKey ?? dayKeyFromMs(Date.now());
-    const practiceDaily = completed.mode === 'daily' && Boolean(save.daily.records[todayKey]); const dailyBefore = structuredClone(save.daily); const dailiesBefore = save.stats.dailiesFinished;
+    const completed = session.state; const todayKey = dayKeyFromMs(Date.now()); const runDayKey = completed.daily?.dayKey ?? todayKey;
+    save = rollDay(save, todayKey);
+    const practiceDaily = completed.mode === 'daily' && Boolean(save.daily.records[runDayKey]); const dailyBefore = structuredClone(save.daily); const dailiesBefore = save.stats.dailiesFinished;
     save = recordRun(save, completed); if (practiceDaily) { save.daily = dailyBefore; save.stats.dailiesFinished = dailiesBefore; }
     save.stats.timePlayedMs += Math.max(0, Math.floor(performance.now() - runStartedAt)); const reward = rewardsForRun(save, summarizeRun(completed, runEvents), false); save = reward.save;
-    if (completed.mode === 'daily' && completed.moves > 0 && !save.daily.records[todayKey]) {
+    if (completed.mode === 'daily' && completed.moves > 0 && !save.daily.records[runDayKey]) {
       countedDailyThisRun = true;
-      save = recordDaily(save, completed, todayKey, runEvents); const streakUpdate = updateStreak(save, todayKey); save = streakUpdate.save; save.daily.records[todayKey]!.freezeUsed = streakUpdate.freezeUsed;
+      save = recordDaily(save, completed, runDayKey, runEvents); const streakUpdate = updateStreak(save, runDayKey); save = streakUpdate.save; save.daily.records[runDayKey]!.freezeUsed = streakUpdate.freezeUsed;
       if (streakUpdate.freezeUsed > 0) toast.show(S.freezeSaved(save.streak.current)); else if (streakUpdate.endedAt > 0) toast.show(S.streakEnded(streakUpdate.endedAt));
       if (streakMilestone(save.streak.current) && !shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion())) renderLoop.scheduleHitStop(currentFrame.boardNow, 70);
       save.profile.xp += 100; save.profile.coins += 30; save.profile.coinsEarned += 30;
@@ -303,13 +314,15 @@ export function bootApp(): void {
       const challengeText = (): void => { const flavor = summary.biggestGloop?.flavour ?? 1; const url = `${location.host}${import.meta.env.BASE_URL.replace(/\/$/, '')}/?beat=${session.state.score}&f=${flavourName(flavor as 1 | 2 | 3 | 4 | 5 | 6 | 7)}`; const text = buildChallengeText({ score: session.state.score, biggestPop: session.state.stats.biggestPop, bestCombo: session.state.bestCombo, flavour: flavor as 1 | 2 | 3 | 4 | 5 | 6 | 7 }, session.state.mode === 'expert' ? 'expert' : 'classic', url); void shareText(text, () => toast.show(S.copied)); };
       const weeklyId = WEEKLY_POOL[((save.weekly.weekIndex % WEEKLY_POOL.length) + WEEKLY_POOL.length) % WEEKLY_POOL.length]!; const weeklyTarget = WEEKLY_TARGETS[weeklyId];
       const nearAchievement = ACHIEVEMENTS.filter((def) => !save.achievements[def.id] && COUNTER_ACHIEVEMENTS.has(def.id)).map((def) => { const progress = achievementProgress(def.id, save); return { remaining: Math.max(0, progress.target - progress.current), target: progress.target, name: S.achievementName(def.id), unit: S.achievementUnit(def.id) }; }).filter((entry) => entry.remaining <= entry.target * 0.2).sort((a, b) => a.remaining - b.remaining)[0];
-      const near = nearMissMessages(session.state, runBest, session.state.stats.biggestPop, session.state.linesCleared, { xpRemaining: save.profile.level < 50 ? totalXpForLevel(save.profile.level + 1) - save.profile.xp : undefined, level: save.profile.level + 1, levelCost: save.profile.level < 50 ? xpToNext(save.profile.level) : undefined, weeklyRemaining: Math.max(0, weeklyTarget - save.weekly.progress), weeklyTarget, achievement: nearAchievement });
-      const noteLines = near.map((item) => item.kind === 'newBest' ? S.nearNewBest(item.amount) : item.kind === 'bestShort' ? S.nearBestShort(item.amount) : item.kind === 'targetShort' ? S.targetShort(item.amount, item.target ?? 0) : item.kind === 'piece' ? S.nearPiece(S.shapeName(item.shape ?? 'dot')) : item.kind === 'line' ? S.nearLine(item.lineKind ?? 'row', (item.index ?? 0) + 1) : item.kind === 'xp' ? S.nearXp(item.amount, item.level ?? 1) : item.kind === 'weekly' ? S.nearWeekly(item.amount) : item.kind === 'achievement' ? S.nearAchievement(item.amount, item.unit ?? 'more', item.name ?? '') : S.nearFallback(session.state.stats.biggestPop, session.state.linesCleared));
+      const missionNear = (session.state.mode === 'classic' || session.state.mode === 'expert') ? missionNearMiss(save) : null;
+      const near = nearMissMessages(session.state, runBest, session.state.stats.biggestPop, session.state.linesCleared, { xpRemaining: save.profile.level < 50 ? totalXpForLevel(save.profile.level + 1) - save.profile.xp : undefined, level: save.profile.level + 1, levelCost: save.profile.level < 50 ? xpToNext(save.profile.level) : undefined, weeklyRemaining: Math.max(0, weeklyTarget - save.weekly.progress), weeklyTarget, achievement: nearAchievement, mission: missionNear ? { remaining: missionNear.remaining, target: missionNear.target, text: S.missionText(missionNear.id) } : undefined });
+      const noteLines = near.map((item) => item.kind === 'newBest' ? S.nearNewBest(item.amount) : item.kind === 'bestShort' ? S.nearBestShort(item.amount) : item.kind === 'targetShort' ? S.targetShort(item.amount, item.target ?? 0) : item.kind === 'piece' ? S.nearPiece(S.shapeName(item.shape ?? 'dot')) : item.kind === 'line' ? S.nearLine(item.lineKind ?? 'row', (item.index ?? 0) + 1) : item.kind === 'xp' ? S.nearXp(item.amount, item.level ?? 1) : item.kind === 'weekly' ? S.nearWeekly(item.amount) : item.kind === 'achievement' ? S.nearAchievement(item.amount, item.unit ?? 'more', item.name ?? '') : item.kind === 'mission' ? S.missionNear(item.amount, item.name ?? '') : S.nearFallback(session.state.stats.biggestPop, session.state.linesCleared));
       const challengeNote = activeChallenge && challengeMode ? session.state.score > activeChallenge.score ? S.beatFriendBy(session.state.score - activeChallenge.score) : S.shortOfFriend(activeChallenge.score - session.state.score) : noteLines.join('\n'); const note = tutorialTipForGameOver ? `${challengeNote}${challengeNote ? '\n' : ''}${S.tutorialTip}` : challengeNote; tutorialTipForGameOver = false;
       const classicImage = (): void => { void import('../render/shareCard').then(({ renderShareCard }) => { const canvasCard = renderShareCard({ title: S.classic, date: '', score: session.state.score, combo: session.state.bestCombo, biggestPop: session.state.stats.biggestPop, lines: session.state.linesCleared, streak: 0, theme: save.equipped.theme as keyof typeof PALETTE.theme, board: session.state.board, biggestGloop: summary.biggestGloop ?? undefined }); canvasCard.toBlob((blob) => { if (blob) void shareImage(blob, `gloop-pop-classic-${session.state.score}.png`); }); }); };
       setAudioPaused(false);
       const endedBy = runEvents.find((event) => event.type === 'gameOver'); const gameOverTitle = session.state.mode === 'daily' ? endedBy?.type === 'gameOver' && endedBy.reason === 'traysDone' ? S.allTraysPlaced : S.dailyRunDone(session.state.daily?.dayNumber ?? 1) : S.noRoom;
-      ui.showGameOver(() => restart(), () => { ui.hide(); router.open('home'); }, session.state.score, session.state.mode === 'zen' ? null : runBest, S.gameOverFallback(session.state.stats.biggestPop, session.state.linesCleared), runReward, summary, challengeMode ? challengeText : undefined, challengeMode ? classicImage : undefined, note, gameOverTitle, session.state.mode === 'daily' ? () => router.open('dailyResult') : undefined, { targetsHit: session.state.goals?.targetsHit ?? 0, miniDone: session.state.goals?.mini.done ?? false });
+      const missionsReady = save.missions.slots.filter((slot) => !slot.claimed && slot.progress >= (MISSIONS.find((mission) => mission.id === slot.id)?.target ?? Infinity)).length;
+      ui.showGameOver(() => restart(), () => { ui.hide(); router.open('home'); }, session.state.score, session.state.mode === 'zen' ? null : runBest, S.gameOverFallback(session.state.stats.biggestPop, session.state.linesCleared), runReward, summary, challengeMode ? challengeText : undefined, challengeMode ? classicImage : undefined, note, gameOverTitle, session.state.mode === 'daily' ? () => router.open('dailyResult') : undefined, { targetsHit: session.state.goals?.targetsHit ?? 0, miniDone: session.state.goals?.mini.done ?? false, missionsReady });
     } else if (status === 'rescueOffer') ui.showRescue(() => apply({ type: 'useRescue' }), () => apply({ type: 'declineRescue' }));
     else if (!paused) ui.hide();
   }
@@ -333,7 +346,7 @@ export function bootApp(): void {
   }
   function renderScreen(screen: 'home' | 'stats' | 'play' | 'collection' | 'achievements' | 'dailyResult' | 'settings' | 'howToPlay' | 'credits'): void {
     homeHost.replaceChildren(); ui.hide();
-    if (screen === 'home') { homeHost.append(createHomeScreen(save, { play: start, dailyResult: () => router.open('dailyResult'), stats: () => router.open('stats'), collection: () => router.open('collection'), achievements: () => router.open('achievements'), settings: () => router.open('settings'), howToPlay: () => router.open('howToPlay'), credits: () => router.open('credits'), debugXp: () => { const result = grantXp(save, 5000); save = result.save; saveNow(save); for (const level of result.levels) toast.show(S.levelUp(level)); for (const item of result.unlocked) toast.show(S.unlocked(item)); renderScreen('home'); } }, debug, activeChallenge ?? undefined)); }
+    if (screen === 'home') { save = rollDay(save, dayKeyFromMs(Date.now())); saveNow(save); homeHost.append(createHomeScreen(save, { play: start, dailyResult: () => router.open('dailyResult'), stats: () => router.open('stats'), collection: () => router.open('collection'), achievements: () => router.open('achievements'), settings: () => router.open('settings'), howToPlay: () => router.open('howToPlay'), credits: () => router.open('credits'), claimMission: (slot, anchor) => { const start = anchor.getBoundingClientRect(); const target = document.querySelector(".home-header .home-chip:last-child")?.getBoundingClientRect(); const oldCoins = save.profile.coins; const reduced = shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion()); const result = claimMission(save, slot); if (!result.coins) return; save = result.save; toast.show(S.missionRewardToast(result.coins - (result.setBonus ? 50 : 0), result.xp - (result.setBonus ? 50 : 0)), 'coin'); if (result.setBonus) toast.show(S.missionSetToast, 'gold'); for (const level of result.levels) toast.show(S.levelUp(level)); for (const achievement of result.unlocked) toast.show(S.achievementUnlock(S.achievementName(achievement.id), achievement.coins)); saveNow(save); renderScreen('home'); if (target && !reduced) animateMissionCoins(start, target); sfx.coinTick({ count: reduced ? 1 : 3 }); if (!reduced) animateCoinCount(oldCoins, save.profile.coins); }, changeMission: (slot) => { save = rerollMission(save, slot, dayKeyFromMs(Date.now())); saveNow(save); renderScreen('home'); }, debugXp: () => { const result = grantXp(save, 5000); save = result.save; saveNow(save); for (const level of result.levels) toast.show(S.levelUp(level)); for (const item of result.unlocked) toast.show(S.unlocked(item)); renderScreen('home'); } }, debug, activeChallenge ?? undefined)); }
     else if (screen === 'stats') { paused = false; homeHost.append(createStatsScreen(save, () => router.back())); }
     else if (screen === 'collection') { paused = false; homeHost.append(createCollectionScreen(save, () => router.back(), (next) => { save = next; syncCosmetics(); backgroundTheme = ''; saveNow(save); })); }
     else if (screen === 'achievements') { paused = false; homeHost.append(createAchievementsScreen(save, () => router.back())); }
@@ -351,6 +364,29 @@ export function bootApp(): void {
     }
     else if (pauseStartedAt > 0) { runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; paused = false; }
   }
+}
+
+function animateMissionCoins(from: DOMRect, to: DOMRect): void {
+  const dx = to.x + to.width / 2 - (from.x + from.width / 2); const dy = to.y + to.height / 2 - (from.y + from.height / 2);
+  for (let index = 0; index < 6; index += 1) {
+    const coin = document.createElement('span'); coin.className = 'mission-coin-flight'; coin.setAttribute('aria-hidden', 'true');
+    coin.style.left = `${from.x + from.width / 2 - 8}px`; coin.style.top = `${from.y + from.height / 2 - 8}px`; document.body.append(coin);
+    const animation = coin.animate([
+      { transform: 'translate(0, 0) scale(1)' },
+      { transform: `translate(${dx / 2}px, ${dy / 2 - 48}px) scale(1.05)` },
+      { transform: `translate(${dx}px, ${dy}px) scale(0.8)` },
+    ], { duration: 500, delay: index * 40, easing: 'ease-in-out', fill: 'forwards' });
+    animation.onfinish = () => coin.remove();
+  }
+}
+
+function animateCoinCount(oldValue: number, newValue: number): void {
+  const chip = document.querySelector<HTMLElement>('.home-header .home-chip:last-child'); if (!chip) return;
+  const started = performance.now(); const tick = (now: number): void => {
+    const progress = Math.min(1, (now - started) / 600); chip.textContent = S.coins(Math.round(oldValue + (newValue - oldValue) * progress));
+    if (progress < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
 
 function firstMomentInfo(discoveries: readonly { key: string; coins: number }[]): { text: string; coins: number } {

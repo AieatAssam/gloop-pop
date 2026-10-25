@@ -85,6 +85,30 @@ body { color: var(--ui-text-primary); }
 .mode-lock { margin-left: auto; color: var(--ui-disabled-text); font-size: 19px; }
 .weekly-card { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 14px 16px; border: 2px solid var(--ui-panel-border); border-radius: 18px; background: var(--ui-panel-solid); color: var(--ui-text-primary); }
 .weekly-card strong { grid-column: 1 / -1; font: 800 17px/1.2 "Baloo 2", sans-serif; }
+.missions-card { width: 100%; max-width: 560px; align-self: center; padding: 10px 14px; border: 2px solid var(--ui-panel-border); border-radius: 18px; background: var(--ui-panel-solid); color: var(--ui-text-primary); }
+.missions-header { min-height: 40px; display: flex; align-items: center; justify-content: space-between; }
+.missions-header strong { font: 800 18px/1.1 "Baloo 2", sans-serif; }
+.missions-pips { display: flex; gap: 7px; }
+.missions-pip { width: 10px; height: 10px; border-radius: 50%; background: var(--ui-track); }
+.missions-pip.is-claimed { background: var(--ui-gold); box-shadow: 0 0 0 2px var(--light-specular-soft); }
+.mission-row { min-height: 68px; display: grid; grid-template-columns: 28px minmax(0,1fr) 96px; align-items: center; gap: 8px; border-top: 1px solid color-mix(in srgb, var(--ui-panel-border) 50%, transparent); animation: mission-crossfade 160ms ease both; }
+.mission-difficulty { color: var(--ui-gold); font: 800 13px/1 "Nunito", sans-serif; white-space: nowrap; }
+.mission-copy { min-width: 0; display: grid; gap: 5px; }
+.mission-text { color: var(--ui-text-primary); font: 700 14px/1.25 "Nunito", sans-serif; }
+.mission-progress-line { display: flex; align-items: center; gap: 8px; }
+.mission-progress-track { height: 8px; flex: 1; overflow: hidden; border-radius: 5px; background: var(--ui-track); }
+.mission-progress-track i { height: 100%; display: block; border-radius: inherit; background: linear-gradient(var(--ui-gold), var(--ui-primary-bottom)); transition: width 180ms ease; }
+.mission-progress-line small, .mission-side small { color: var(--ui-text-secondary); font: 700 12px/1 "Nunito", sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mission-side { min-height: 56px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px; }
+.mission-change { width: 36px; height: 36px; border: 1px solid var(--ui-panel-border); border-radius: 50%; color: var(--ui-text-primary); background: linear-gradient(var(--ui-secondary-top),var(--ui-secondary-bottom)); box-shadow: 0 2px 0 var(--ui-secondary-lip); font: 800 23px/1 "Nunito", sans-serif; cursor: pointer; }
+.mission-claim { min-height: 40px; padding: 0 13px; border-radius: 20px; font-size: 18px; animation: mission-pulse 1400ms ease-in-out infinite; }
+.mission-done { color: var(--ui-success); font: 700 13px/1 "Nunito", sans-serif; }
+.mission-coin-flight { position: fixed; z-index: 20; width: 16px; height: 16px; border: 1px solid var(--ui-gold); border-radius: 50%; background: radial-gradient(circle at 35% 30%, var(--light-specular-soft), var(--ui-coin) 58%, var(--ui-gold)); box-shadow: 0 2px 5px var(--light-shadow); pointer-events: none; }
+.mission-row.is-claimed .mission-text { color: var(--ui-text-secondary); }
+.missions-footer { min-height: 40px; display: flex; flex-direction: column; justify-content: center; gap: 4px; border-top: 1px solid color-mix(in srgb, var(--ui-panel-border) 50%, transparent); color: var(--ui-text-secondary); font: 700 12px/1.2 "Nunito", sans-serif; }
+@keyframes mission-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+@keyframes mission-crossfade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .mission-claim { animation: none; } }
 .weekly-card span { color: var(--ui-gold); font-weight: 800; }
 .weekly-card small { color: var(--ui-text-secondary); font-size: 13px; }
 .daily-share-grid { width: min(100%, 440px); display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; align-self: center; }
@@ -209,7 +233,7 @@ body { color: var(--ui-text-primary); }
 .achievement-badge.achievement-lines.is-unlocked { background: linear-gradient(145deg,var(--flavour-blueberry-light),var(--flavour-blueberry-base)); }
 .achievement-badge.achievement-pops.is-unlocked { background: linear-gradient(145deg,var(--flavour-cherry-light),var(--flavour-cherry-base)); }
 .achievement-badge.achievement-combo.is-unlocked { background: linear-gradient(145deg,var(--flavour-orange-light),var(--flavour-orange-base)); }
-.achievement-badge.achievement-score.is-unlocked { background: linear-gradient(145deg,var(--flavour-lemon-light),var(--flavour-lemon-base)); }
+.achievement-badge.achievement-score.is-unlocked, .achievement-badge.achievement-goals.is-unlocked { background: linear-gradient(145deg,var(--flavour-lemon-light),var(--flavour-lemon-base)); }
 .achievement-badge.achievement-daily.is-unlocked,.achievement-badge.achievement-streak.is-unlocked { background: linear-gradient(145deg,var(--flavour-grape-light),var(--flavour-grape-base)); }
 .achievement-badge.achievement-misc.is-unlocked { background: linear-gradient(145deg,var(--flavour-apple-light),var(--flavour-apple-base)); }
 .achievement-badge.achievement-collection.is-unlocked { background: linear-gradient(145deg,var(--flavour-bubblegum-light),var(--flavour-bubblegum-base)); }

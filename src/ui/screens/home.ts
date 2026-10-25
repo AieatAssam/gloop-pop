@@ -1,4 +1,4 @@
-// SG §11.7 and §10: home cards and lettered candy logo, with design §16.4 labels.
+// SG §11.7, §10 and §20.6: home cards and lettered candy logo, with design §16.4 labels.
 import type { ModeId } from '../../core/types';
 import type { SaveV2 } from '../../meta/saveSchema';
 import { createMiniGloop } from '../../render/miniGloop';
@@ -8,8 +8,9 @@ import { S } from '../strings';
 import { iconMarkup } from '../icons';
 import { WEEKLY_POOL, weekIndexFromMs } from '../../core/weekly';
 import { syncWeek, WEEKLY_TARGETS } from '../../meta/weeklyGoal';
+import { createMissionsCard } from '../missionsCard';
 
-export interface HomeActions { play(mode: ModeId): void; dailyResult?(): void; stats(): void; collection(): void; achievements(): void; settings(): void; howToPlay(): void; credits(): void; debugXp(): void }
+export interface HomeActions { play(mode: ModeId): void; dailyResult?(): void; stats(): void; collection(): void; achievements(): void; settings(): void; howToPlay(): void; credits(): void; debugXp(): void; claimMission?(slot: number, anchor: HTMLElement): void; changeMission?(slot: number): void }
 export function createHomeScreen(save: SaveV2, actions: HomeActions, debug = false, challenge?: { score: number; flavour: Flavour }): HTMLElement {
   const root = document.createElement('main'); root.className = 'screen-wrap'; const panel = document.createElement('section'); panel.className = 'panel home-panel';
   const header = document.createElement('header'); header.className = 'home-header'; const logo = createLogo(); header.append(logo, chip(S.level(save.profile.level)), chip(S.coins(save.profile.coins))); panel.append(header);
@@ -23,6 +24,7 @@ export function createHomeScreen(save: SaveV2, actions: HomeActions, debug = fal
   grid.append(modeCard(S.daily(dayNumber(dayKey)), dailyStatus, dailyFlavour, false, () => { if (dailyRecord) actions.dailyResult?.(); else actions.play('daily'); }, dailyRecord ? undefined : S.fodToday(S.flavourName(dailyFlavour))));
   grid.append(modeCard(S.zen, save.owned.modes.includes('zen') ? S.zenDescription : S.reachLevel(3), 5, !save.owned.modes.includes('zen'), () => { if (save.owned.modes.includes('zen')) actions.play('zen'); }));
   grid.append(modeCard(S.expert, save.owned.modes.includes('expert') ? S.expertDescription : S.reachLevel(8), 6, !save.owned.modes.includes('expert'), () => { if (save.owned.modes.includes('expert')) actions.play('expert'); })); panel.append(grid);
+  panel.append(createMissionsCard(save, { claim: (slot, anchor) => actions.claimMission?.(slot, anchor), change: (slot) => actions.changeMission?.(slot) }));
   const weekIndex = weekIndexFromMs(Date.now()); const weeklySave = syncWeek(save, weekIndex); const goal = WEEKLY_POOL[((weekIndex % WEEKLY_POOL.length) + WEEKLY_POOL.length) % WEEKLY_POOL.length]!; const target = WEEKLY_TARGETS[goal];
   const weekly = document.createElement('section'); weekly.className = 'weekly-card'; const weeklyTitle = document.createElement('strong'); weeklyTitle.textContent = S.weeklyTitle(goal); const progress = document.createElement('span'); progress.textContent = `${new Intl.NumberFormat('en-US').format(weeklySave.weekly.progress)} / ${new Intl.NumberFormat('en-US').format(target)}`; const resets = document.createElement('small'); const remaining = weekMs(Date.now()); resets.textContent = remaining < 86_400_000 ? S.weeklyResetHours(Math.max(1, Math.ceil(remaining / 3_600_000))) : S.weeklyReset(Math.ceil(remaining / 86_400_000)); const reward = document.createElement('small'); reward.textContent = S.weeklyReward; weekly.append(weeklyTitle, progress, resets, reward); panel.append(weekly);
   const streak = document.createElement('p'); streak.className = 'home-streak'; streak.textContent = save.streak.current ? S.streakStatus(save.streak.current, save.streak.freezes) : S.streakStart; panel.append(streak);

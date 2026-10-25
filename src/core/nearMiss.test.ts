@@ -22,4 +22,9 @@ describe('near miss facts', () => {
     state.score = 4499; expect(nearMissMessages(state, 0, 0, 0)[0]?.kind).toBe('fallback');
     state.score = 4500; expect(nearMissMessages(state, 0, 0, 0)[0]?.amount).toBe(500);
   });
+  it('places a mission at 80 percent after weekly and achievement near-misses', () => {
+    const state = newGame('classic', 'mission-near').state; state.board = [...makeBoard()]; state.tray = [null, null, null];
+    const result = nearMissMessages(state, 0, 0, 0, { mission: { remaining: 2, target: 15, text: 'Clear 15 lines' } });
+    expect(result.map((item) => item.kind)).toEqual(['mission','fallback']); expect(result[0]?.amount).toBe(2);
+  });
 });

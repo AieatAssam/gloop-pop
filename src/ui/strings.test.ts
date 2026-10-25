@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ACHIEVEMENT_COPY, S } from './strings';
+import { MISSIONS } from '../core/missions';
 
 const bannedWordsSample = ['epic', 'insane', 'awesome', 'legendary', 'ultimate'];
 
@@ -20,8 +21,8 @@ describe('player-facing strings', () => {
     expect(S.weeklyResetHours(1)).toBe('Resets in 1 hour');
     expect(S.daily(1200)).toBe('Daily #1,200');
   });
-  it('matches the eight How to Play rules, controls, and scoring line from design §16.5', () => {
-    expect([S.howToRule1, S.howToRule2, S.howToRule3, S.howToRule4, S.howToRule5, S.howToRule6, S.howToRule7, S.howToRule8]).toEqual([
+  it('matches the nine How to Play rules, controls, and scoring line from design §16.5', () => {
+    expect([S.howToRule1, S.howToRule2, S.howToRule3, S.howToRule4, S.howToRule5, S.howToRule6, S.howToRule7, S.howToRule8, S.howToRule9]).toEqual([
       "Drag pieces onto the board. Pieces can't be rotated.",
       'Fill a whole row or column to clear it. Clearing several at once scores much more.',
       'Same colours join into one gloop. Clear a line through any part of a gloop and the whole gloop pops for bonus points. Gloops of 8+ cells give a Big Pop bonus.',
@@ -30,11 +31,16 @@ describe('player-facing strings', () => {
       'The game ends when none of your pieces fit. In Classic you have one rescue per run: clear 10 lines to charge it.',
       'Daily challenge: the same board and pieces for everyone, every day. Your first try counts. Share your result with friends.',
       'Targets: in Classic and Expert, reach the next target score for +5 coins. Each run also has one mini goal.',
+      'Daily missions: three small goals a day. They count in every mode. Rewards wait until you claim them.',
     ]);
     expect(S.howToControls).toBe('Drag with the mouse, or press 1, 2, 3 to pick a piece, arrow keys to move it, Space to place. Esc pauses. M mutes.');
     expect(S.howToScoring).toBe('Each cell placed: 1 · 1 line: 100 · 2 lines: 300 · 3 lines: 600 · 4 lines: 1,000 · Each popped cell: 20 · Big Pop: +200 · Huge Pop: +600 · Mega Pop: +1,500 · Empty board: +2,000 · Combo multiplies everything except placing.');
     const achievementText = Object.values(ACHIEVEMENT_COPY).map((entry) => `${entry.name} ${entry.description}`).join(' ').toLowerCase();
     expect(achievementText).not.toContain('extra cell');
+  });
+  it('matches every mission string from design §24.3 exactly', () => {
+    const text: Record<string,string> = {lines15:'Clear 15 lines',pieces40:'Place 40 pieces',gloop25:'Pop 25 gloop cells',bigpop1:'Make a Big Pop (8+ cells)',combo3:'Reach combo 3',double1:'Clear 2 lines in one move',score3k:'Score 3,000 in one run',runs2:'Finish 2 runs',advwin1:'Win an Adventure level',cherry20:'Clear or pop 20 cherry cells',lines40:'Clear 40 lines',blueberry40:'Clear or pop 40 blueberry cells',combo6:'Reach combo 6',bigpop3:'Make 3 Big Pops',score10k:'Score 10,000 in one run',triple1:'Clear 3 lines in one move',cross3:'Clear a row and a column at once 3 times',advwin3:'Win 3 Adventure levels',adv3star:'Win an Adventure level with 3 stars',orange40:'Clear or pop 40 orange cells',lines80:'Clear 80 lines',hugepop1:'Make a Huge Pop (15+ cells)',combo10:'Reach combo 10',score20k:'Score 20,000 in one run',allclear1:'Empty the board once',multi10:'Clear 2+ lines in one move 10 times',lemon70:'Clear or pop 70 lemon cells',advstars6:'Earn 6 new Adventure stars',score50k:'Score 50,000 in total'};
+    for (const mission of MISSIONS) expect(S.missionText(mission.id)).toBe(text[mission.id]);
   });
   it('matches the Settings and Credits copy from design §16.4', () => {
     expect([S.settingSfx, S.settingSfxVolume, S.settingMusic, S.settingMusicVolume, S.settingVibration, S.settingReduceMotion, S.settingPatterns, S.showTutorial, S.credits, S.resetProgress]).toEqual([
