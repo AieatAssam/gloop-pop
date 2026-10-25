@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSave } from './saveSchema';
-import { assistAvailable, isStaleAttempt, recordLevelResult, unlockAdventure } from './adventureProgress';
-import { returnUnused } from './boosters';
+import { assistAvailable, dropStaleAdventureAttempt, isStaleAttempt, recordLevelResult, unlockAdventure } from './adventureProgress';
 import { newAdventureGame } from '../core/adventure';
 import { LEVELS } from '../core/levels.data';
+import { migrate } from './migrate';
+import veteran from './fixtures/save-v1-veteran.json';
 
 describe('Adventure progress', () => {
   it('pays first wins, new stars, replays and losses from the specified table', () => {
@@ -60,7 +61,7 @@ describe('Adventure progress', () => {
   });
 
   it('drops an M12 paused attempt without changing progress and returns armed boosters', () => {
-    let save = defaultSave();
+    let save = migrate(veteran);
     save.adventure.levels['25'] = { stars: 3, wins: 1, losses: 0, lossRun: 0, bestScore: 900 };
     save.adventure.levels['30'] = { stars: 1, wins: 1, losses: 0, lossRun: 0, bestScore: 500 };
     save.adventure.frontier = 41;
@@ -72,9 +73,10 @@ describe('Adventure progress', () => {
     const attempt = newAdventureGame(oldDef, { bonusMoves: 0, boosters: { shuffle: 1, pop: 1 }, freeShuffle: false }).state;
     save.adventure.inProgress = attempt;
 
+    save.adventure.inProgress = attempt;
     expect(isStaleAttempt(attempt, current)).toBe(true);
-    save = returnUnused(save, attempt);
-    save.adventure.inProgress = null;
+    const dropped = dropStaleAdventureAttempt(save, current);
+    expect(dropped.dropped).toBe(true); save = dropped.save;
     expect([save.adventure.levels['25']?.stars, save.adventure.levels['25']?.wins, save.adventure.levels['30']?.stars, save.adventure.levels['30']?.wins, save.adventure.frontier, save.adventure.winStreak, save.adventure.bestWinStreak, save.adventure.chaptersDone, save.adventure.chaptersAllStars]).toEqual([3, 1, 1, 1, 41, 4, 7, [1], [2]]);
     expect(save.adventure.boosters).toEqual({ moves: 2, shuffle: 2, pop: 1 });
     expect([save.adventure.levels['40']?.losses ?? 0, save.stats.adventureLosses]).toEqual([0, 0]);
@@ -85,5 +87,25 @@ describe('Adventure progress', () => {
   it('keeps an attempt made from the current table', () => {
     const attempt = newAdventureGame(LEVELS[0]!, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state;
     expect(isStaleAttempt(attempt, LEVELS[0]!)).toBe(false);
+  });
+  it('sanitizes Adventure stars from the M12 save fixture without lowering them', () => {
+    const loaded = migrate(veteran);
+    loaded.adventure.levels['25'] = { stars: 3, wins: 2, losses: 1, lossRun: 0, bestScore: 900 };
+    loaded.adventure.levels['30'] = { stars: 1, wins: 1, losses: 0, lossRun: 0, bestScore: 500 };
+    loaded.adventure.frontier = 31;
+    const sanitized = migrate(loaded);
+    expect(sanitized.adventure.levels['25']).toEqual({ stars: 3, wins: 2, losses: 1, lossRun: 0, bestScore: 900 });
+    expect(sanitized.adventure.levels['30']).toEqual({ stars: 1, wins: 1, losses: 0, lossRun: 0, bestScore: 500 });
+    expect(sanitized.adventure.frontier).toBe(31);
+  });
+  it('uses the same stale-attempt drop result at map open and resume', () => {
+    const def = LEVELS[38]!; const staleDef = { ...def, s: (def.s + 1) % 64 };
+    const attempt = newAdventureGame(staleDef, { bonusMoves: 0, boosters: { shuffle: 1, pop: 0 }, freeShuffle: false }).state;
+    const save = defaultSave(); save.adventure.inProgress = attempt; save.adventure.boosters.shuffle = 0;
+    const onMapOpen = dropStaleAdventureAttempt(save, def);
+    const onResume = dropStaleAdventureAttempt(save, def);
+    expect(onMapOpen.dropped).toBe(true); expect(onMapOpen.save).toEqual(onResume.save);
+    expect(onMapOpen.save.adventure.inProgress).toBeNull(); expect(onMapOpen.save.adventure.boosters.shuffle).toBe(1);
+    expect(onMapOpen.save.adventure.levels['39']).toBeUndefined(); expect(onMapOpen.save.stats.adventureLosses).toBe(0);
   });
 });

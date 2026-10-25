@@ -2,6 +2,7 @@ import type { SaveV2 } from './saveSchema';
 import { grantXp } from './progression';
 import type { GameState } from '../core/types';
 import type { LevelDef } from '../core/levels';
+import { returnUnused } from './boosters';
 
 export interface LevelResult { level: number; won: boolean; stars: 0 | 1 | 2 | 3; score?: number }
 export interface AdventureReward { save: SaveV2; xp: number; coins: number; firstWin: boolean; newStars: number; chapterDone: boolean; chapterAllStars: boolean; levels: number[]; unlocked: string[] }
@@ -70,6 +71,15 @@ export function isStaleAttempt(state: GameState | null, def: LevelDef): boolean 
       const current = def.goals[index];
       return !current || goal.kind !== current.kind || goal.flavour !== current.flavour || goal.target !== current.target;
     });
+}
+
+/** Drop a table-stale paused run without recording a loss and refund its armed boosters. */
+export function dropStaleAdventureAttempt(save: SaveV2, def: LevelDef): { save: SaveV2; dropped: boolean } {
+  const attempt = save.adventure.inProgress;
+  if (!attempt || !isStaleAttempt(attempt, def)) return { save, dropped: false };
+  const next = returnUnused(save, attempt);
+  next.adventure.inProgress = null;
+  return { save: next, dropped: true };
 }
 
 export function unlockAdventure(save: SaveV2): SaveV2 {

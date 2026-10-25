@@ -19,6 +19,8 @@ describe('M13 Adventure map styles', () => {
     expect(styles).toContain('height: calc(88px + var(--safe-area-bottom))');
     expect(styles).toContain('height: calc(84px + var(--safe-area-bottom)) !important');
     expect(styles).toContain('box-sizing: border-box; display: flex; align-items: center; gap: 12px;');
+    expect(styles).toMatch(/\.adventure-chapter-card \{[^}]*height: 112px;/);
+    expect(styles).toMatch(/\.adventure-footer \{[^}]*height: 52px; min-height: 52px;/);
     expect(styles).toContain('white-space: nowrap; text-overflow: ellipsis;');
     expect(styles).not.toContain('var(--node-y) + 164px');
     expect(styles).not.toContain('padding: 0 0 104px');

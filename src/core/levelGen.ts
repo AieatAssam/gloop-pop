@@ -31,10 +31,17 @@ export function calibrate(n: number, seedIndex: number): Calibration {
   const s2 = Math.max(1, Math.floor(s3 / 2));
   const def: LevelDef = { ...rawDef, goals, wins: measure.wins, margin: measure.margin, s2, s3 };
   const runs = Array.from({ length: RUN_COUNT }, (_, runIndex) => playRun(def, runIndex));
+  const replayStarsAgree = runs.every((run, runIndex) => {
+    const trace = rawRuns[runIndex]?.trace ?? [];
+    const firstWin = trace.findIndex((progress) => goals.every((goal, index) => (progress[index] ?? 0) >= goal.target));
+    const movesLeft = firstWin < 0 ? 0 : def.moves - firstWin - 1;
+    const expectedStars = firstWin < 0 ? 0 : movesLeft >= s3 ? 3 : movesLeft >= s2 ? 2 : 1;
+    return run.stars === expectedStars;
+  });
   const replayWins = runs.filter((run) => run.won);
   const replayMargin = lowerMedian(replayWins.map((run) => run.movesLeft));
-  if (replayWins.length !== def.wins || replayMargin !== def.margin) {
-    throw new Error(`Level ${n}, seed ${seedIndex}: trace replay differed (wins ${replayWins.length}/${def.wins}, margin ${replayMargin}/${def.margin})`);
+  if (replayWins.length !== def.wins || replayMargin !== def.margin || !replayStarsAgree) {
+    throw new Error(`Level ${n}, seed ${seedIndex}: trace replay differed (wins ${replayWins.length}/${def.wins}, margin ${replayMargin}/${def.margin}, stars agree ${replayStarsAgree})`);
   }
   return { def, runs, rawRuns };
 }

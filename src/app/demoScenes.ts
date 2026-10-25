@@ -5,12 +5,22 @@ import type { SaveV2 } from '../meta/saveSchema';
 export type FeelScene = 'combo' | 'mega';
 export type GoalScene = 'target' | 'target-hit' | 'mini-done';
 
+/** Shared save changes for the player's Skip action and the debug tutorial shortcut. */
+export function markTutorialSkipped(save: SaveV2): SaveV2 {
+  const next = structuredClone(save);
+  next.tutorialDone = true;
+  next.ui.seenTips = next.ui.seenTips.filter((tip) => tip !== 'tutorialStep4Pending');
+  return next;
+}
+
+export function debugSaveWritesDisabled(query: URLSearchParams, veteranDemo: boolean): boolean {
+  return veteranDemo || (query.get('debug') === '1' && (query.has('demo') || query.has('level')));
+}
+
 /** Apply the normal tutorial skip save changes to a debug-only in-memory save. */
 export function debugTutorialState(save: SaveV2, query: URLSearchParams): SaveV2 {
   if (query.get('debug') !== '1' || query.get('tutorial') === '1' || save.inProgress !== null || save.tutorialDone) return save;
-  const next = structuredClone(save); next.tutorialDone = true;
-  next.ui.seenTips = next.ui.seenTips.filter((tip) => tip !== 'tutorialStep4Pending');
-  return next;
+  return markTutorialSkipped(save);
 }
 
 /** Deterministic M12 capture scenes built from the current in-memory run. */

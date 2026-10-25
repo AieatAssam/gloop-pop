@@ -4,10 +4,11 @@ import { levelParams } from '../../core/levels';
 import { createMiniGloop } from '../../render/miniGloop';
 import { mapGeometry, type MapGeometry } from './mapGeometry';
 import { S } from '../strings';
+import { readSafeAreaInsets } from '../safeArea';
 
 const FLAVOURS = [1, 3, 4, 5, 6, 7] as const;
 export function createAdventureMap(save: SaveV2, actions: { back(): void; openLevel(level: number): void }): HTMLElement {
-  const safeTop = cssPixels('--safe-area-top'); const safeBottom = cssPixels('--safe-area-bottom');
+  const { top: safeTop, bottom: safeBottom } = readSafeAreaInsets();
   const geometry = mapGeometry({ w: window.innerWidth, h: window.innerHeight, safeTop, safeBottom });
   const root = document.createElement('main'); root.className = 'screen-wrap adventure-screen';
   const header = document.createElement('header'); header.className = 'adventure-header';
@@ -64,7 +65,6 @@ function chapterCard(save: SaveV2, chapter: number, pos: MapGeometry['cards'][nu
 }
 function chip(text: string): HTMLElement { const value = document.createElement('span'); value.className = 'adventure-chip'; value.textContent = text; return value; }
 function button(text: string, cls: string, action: () => void): HTMLButtonElement { const item = document.createElement('button'); item.type = 'button'; item.textContent = text; item.className = cls; item.addEventListener('click', action); return item; }
-function cssPixels(name: string): number { return Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0; }
 function mapPath(frontier: number, geometry: MapGeometry): SVGSVGElement {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.classList.add('adventure-map-path'); svg.setAttribute('viewBox', `0 0 ${geometry.colW} ${geometry.contentHeight}`); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('aria-hidden', 'true');
   const points = geometry.nodes.map(({ cx, cy }) => ({ x: cx, y: cy }));

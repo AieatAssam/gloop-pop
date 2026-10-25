@@ -1,11 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { step } from '../core/game';
 import { newGame } from '../core/game';
 import { createFeelScene, createGoalScene } from './demoScenes';
-import { debugTutorialState } from './demoScenes';
+import { debugSaveWritesDisabled, debugTutorialState, markTutorialSkipped } from './demoScenes';
 import { defaultSave } from '../meta/saveSchema';
+import { remove, read } from '../platform/storage';
+import { SAVE_KEY, saveNow, setSaveWritesDisabled } from '../platform/saveStore';
 
 describe('game-feel capture scenes', () => {
+  afterEach(() => { setSaveWritesDisabled(false); remove(SAVE_KEY); });
   it('clears each successive combo gap and climbs from combo 3', () => {
     let state = createFeelScene(newGame('classic', 'feel/combo').state, 'combo');
     for (const row of [7, 5, 3]) {
@@ -37,6 +40,16 @@ describe('game-feel capture scenes', () => {
     expect(changed.tutorialDone).toBe(true); expect(changed.ui.seenTips).toEqual(['tutorialTipPending']);
     expect(changed.profile).toEqual(save.profile); expect(changed.achievements).toEqual(save.achievements); expect(changed.stats).toEqual(save.stats);
     expect(save.tutorialDone).toBe(false); expect(save.ui.seenTips).toEqual(['tutorialStep4Pending', 'tutorialTipPending']);
+    expect(markTutorialSkipped(save)).toEqual(changed);
+  });
+  it('keeps demo URL saves out of storage, including the debug tutorial shortcut', () => {
+    const query = new URLSearchParams('debug=1&demo=adventure-map&frontier=41');
+    remove(SAVE_KEY);
+    setSaveWritesDisabled(debugSaveWritesDisabled(query, false));
+    saveNow(defaultSave());
+    expect(read(SAVE_KEY)).toBeNull();
+    expect(debugSaveWritesDisabled(new URLSearchParams('debug=1'), false)).toBe(false);
+    expect(debugSaveWritesDisabled(new URLSearchParams('demo=adventure-map'), false)).toBe(false);
   });
   it('leaves explicit tutorial runs and saves with an in-progress run unchanged', () => {
     const save = defaultSave();
