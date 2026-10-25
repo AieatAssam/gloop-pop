@@ -1100,11 +1100,13 @@ This is the **sawtooth** (RT16, RT27). Every 5th level is hard and short, and th
 | Chapter | easy | normal | hard |
 |---|---|---|---|
 | 1 | 30 | 26 | 18 |
-| 2 | 28 | 25 | 17 |
+| 2 | 28 | 25 | 14 |
 | 3 | 28 | 24 | 16 |
 | 4 | 27 | 24 | 16 |
 | 5 | 26 | 23 | 15 |
 | 6 | 26 | 22 | 14 |
+
+**Spec-note — 2026-10-25:** Chapter 2 hard levels use 14 moves and 1 start piece instead of 17 moves and 3 pieces. With 14 moves and 3 pieces, these levels averaged 9.00 wins, equal to Chapter 2 normal; the updated parameters give a hard-band mean of 8.50 wins against 9.00 normal.
 
 **Chapters and the complexity staircase** (RT17: one new thing at a time, first in an easy level, with a one-line tip on the start card):
 
@@ -1135,11 +1137,13 @@ Intro levels use S1 weights and F2 p = 1.
 | Chapter | easy | normal | hard |
 |---|---|---|---|
 | 1 | 0 | 2 | 3 |
-| 2 | 1 | 2 | 3 |
-| 3 | 2 | 3 | 4 |
+| 2 | 1 | 2 | 1 |
+| 3 | 10 | 3 | 4 |
 | 4 | 2 | 3 | 4 |
 | 5 | 2 | 4 | 5 |
 | 6 | 3 | 4 | 5 |
+
+**Spec-note — 2026-10-25:** Chapter 3 easy start boards use 10 pieces instead of 2. With 2 pieces, the frozen bot's best Level 46 seed reached the required 2+ line clear in only 9 of 12 runs across all 64 seeds; 10 pieces makes seed 0 pass 12 of 12 runs and keeps the first new mechanic easy.
 
 **Cubes on C levels** (sugar, hard). Two-goal levels always use the chapter's **easy** column, because their second goal carries the difficulty:
 
@@ -1149,7 +1153,9 @@ Intro levels use S1 weights and F2 p = 1.
 | 3 | 4, 0 | 6, 0 | 8, 0 |
 | 4 | 2, 1 | 3, 2 | 4, 3 |
 | 5 | 3, 1 | 4, 2 | 4, 4 |
-| 6 | 3, 2 | 4, 3 | 5, 4 |
+| 6 | 1, 0 | 4, 3 | 5, 4 |
+
+**Spec-note — 2026-10-25:** Chapter 6's easy cube column, used by every two-goal level, is one sugar cube and no hard cubes instead of three cubes (two hard). With the old count, Level 109's best seed cleared every cube in at most 1 of 12 runs across 64 seeds; the updated count validates Level 109 at 7 of 12 wins while keeping the second goal active.
 
 **Seeds and streams.** For level n and candidate seed index s (0, 1, 2, …): `seed = "gloop-pop/adventure/v1/" + n + "/" + s`. Sub-streams use `cyrb128(seed + "/board" | "/trays" | "/goal")` with 12 warm-up draws (like §10.2). Building a level:
 1. Board stream: drop the start pieces (rejecting full lines; at most 20,000 tries, else reject this seed). Then place hard cubes, then sugar cubes, each on a uniformly picked empty cell (`nextInt` over the list of empty cells in index order), rejecting a cell that would complete a row or column.

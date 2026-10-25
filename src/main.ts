@@ -8,5 +8,5 @@ import { bootApp } from './app/app';
 import { registerServiceWorker } from './platform/sw';
 
 setCssVars();
-bootApp();
+void bootApp();
 requestAnimationFrame(registerServiceWorker);

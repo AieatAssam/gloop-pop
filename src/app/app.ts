@@ -69,13 +69,14 @@ import { drawGoalStrip } from '../render/goalStrip';
 import { nextTarget } from '../core/goals';
 import { addMissionProgress, claimMission, missionNearMiss, rerollMission, rollDay } from '../meta/missions';
 import { MISSIONS } from '../core/missions';
+import { newAdventureGame } from '../core/adventure';
 
-export function bootApp(): void {
+export async function bootApp(): Promise<void> {
   const canvas = document.querySelector<HTMLCanvasElement>('#game'); const uiRoot = document.querySelector<HTMLElement>('#ui');
   if (!canvas || !uiRoot) throw new Error('Missing game surface.');
   const gameCanvas = canvas;
   const query = new URLSearchParams(window.location.search); const debug = query.get('debug') === '1'; const veteranDemo = debug && query.get('save') === 'veteran';
-  setSaveWritesDisabled(veteranDemo || (debug && query.has('demo')));
+  setSaveWritesDisabled(veteranDemo || (debug && (query.has('demo') || query.has('level'))));
   let save = veteranDemo ? migrate(veteranSave) : loadSave(); save = rollDay(save, dayKeyFromMs(Date.now()));
   if (debug && (query.get('demo') === 'missions' || query.get('demo') === 'missions-done')) {
     const today = dayKeyFromMs(Date.now()); const done = query.get('demo') === 'missions-done';
@@ -89,8 +90,12 @@ export function bootApp(): void {
   const syncCosmetics = (): void => setEquippedCosmetics({ theme: save.equipped.theme as keyof typeof PALETTE.theme, skin: skinMap[save.equipped.skin] ?? 'plain', popEffect: save.equipped.pop as PopEffectId });
   syncCosmetics();
   setMasterMuted(save.settings.muted); setSfxEnabled(save.settings.sfx); setMusicEnabled(save.settings.music); setEffectsVolume(save.settings.sfxVolume); setMusicVolume(save.settings.musicVolume);
-  const beginTutorial = !savedRun && !save.tutorialDone;
-  let session = createSession({ state: savedRun ?? (beginTutorial ? tutorialGame(1) : null), best: bestFor(save, savedRun?.mode ?? 'classic'), mode: 'classic', goals: save.tutorialDone });
+  const requestedLevel = Number(query.get('level'));
+  const levelTable = debug && Number.isInteger(requestedLevel) && requestedLevel >= 1 && requestedLevel <= 120 ? (await import('../core/levels.data')).LEVELS : undefined;
+  const debugLevelDef = levelTable?.[requestedLevel - 1];
+  const debugLevelState = debugLevelDef ? newAdventureGame(debugLevelDef, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state : null;
+  const beginTutorial = !debugLevelState && !savedRun && !save.tutorialDone;
+  let session = createSession({ state: debugLevelState ?? savedRun ?? (beginTutorial ? tutorialGame(1) : null), best: bestFor(save, debugLevelState?.mode ?? savedRun?.mode ?? 'classic'), mode: 'classic', goals: save.tutorialDone });
   canvas.setAttribute('aria-label', `${S.logo}. ${S.howToControls}`);
   updateCanvasAria();
   let runBest = session.best; let runStartedAt = performance.now(); let pauseStartedAt = 0; let runReward = { xp: 0, coins: 0, progress: 0, progressMax: xpToNext(save.profile.level), currentLevel: save.profile.level, level: undefined as number | undefined };
@@ -98,7 +103,7 @@ export function bootApp(): void {
   setColourBlindPatterns(save.settings.cbPatterns);
   let backgroundTheme = save.equipped.theme; const ui = createGameUi(uiRoot); const toast = createToasts(uiRoot); const homeHost = document.createElement('div'); uiRoot.append(homeHost);
   let paused = false; let shownScore = 0; let shownStatus = ''; let runRecorded = false; let countedDailyThisRun = false; let comboLostAt = -1; let layout: Layout = computeLayout(window.innerWidth, window.innerHeight, {}, Boolean(session.state.goals)); let renderElapsed = 0; let gameOverAt = -1; let saveTimer = 0; let runEvents: GameEvent[] = []; let closeCall = false;
-  let tutorialActive = beginTutorial || savedRun?.mode === 'tutorial' || (!save.tutorialDone && save.ui.seenTips.includes('tutorialStep4Pending')); let tutorialStep = tutorialActive ? (session.state.mode === 'tutorial' ? Math.min(3, session.state.traysDealt) : 4) : 0; let tutorialTouched = false; let tutorialBubbleText = ''; let tutorialBubbleUntil = -1; let tutorialTipForGameOver = false;
+  let tutorialActive = !debugLevelState && (beginTutorial || savedRun?.mode === 'tutorial' || (!save.tutorialDone && save.ui.seenTips.includes('tutorialStep4Pending'))); let tutorialStep = tutorialActive ? (session.state.mode === 'tutorial' ? Math.min(3, session.state.traysDealt) : 4) : 0; let tutorialTouched = false; let tutorialBubbleText = ''; let tutorialBubbleUntil = -1; let tutorialTipForGameOver = false;
   let candyFlameUntil = -1; let candyFlameFlavour = 1; let discoveryCoins = 0;
   let scoreAnimFrom = 0; let scoreAnimStart = 0; let scoreAnimDuration = 600; let scoreAnimPoints = 0;
   let newBestAt = -1;
@@ -107,7 +112,14 @@ export function bootApp(): void {
   let effectFrameMs = 0;
   let goalCrossingTarget = -1; let goalCrossingCoins = 0; let goalCrossingAt = -1; let goalCrossingWorldAt = -1; let goalCrossingCuePlayed = false; let miniDoneAt = -1; let miniDoneWorldAt = -1;
   let lastSlowMoAt = -10000; let newBestShown = false;
-  const demoBoard = query.get('demo') === 'board'; const demoFaces = query.get('demo') === 'faces'; const demoBg = query.get('demo') === 'bg'; const demoThemes = query.get('demo') === 'themes'; const demoMega = query.get('demo') === 'mega'; const autoplay = debug && (query.get('autoplay') === '1' || demoMega); const autoplayInterval = query.get('speed') === 'fast' ? 150 : 450; let autoplayAt = 0; let rescueOfferAt = -1; const botRng = seededRng('gloop-pop/debug-autoplay');
+  const demoBoard = query.get('demo') === 'board'; const demoFaces = query.get('demo') === 'faces'; const demoCubes = query.get('demo') === 'cubes'; const demoBg = query.get('demo') === 'bg'; const demoThemes = query.get('demo') === 'themes'; const demoMega = query.get('demo') === 'mega'; const autoplay = debug && (query.get('autoplay') === '1' || demoMega); const autoplayInterval = query.get('speed') === 'fast' ? 150 : 450; let autoplayAt = 0; let rescueOfferAt = -1; const botRng = seededRng('gloop-pop/debug-autoplay');
+  if (debug && demoCubes) {
+    const state = structuredClone(session.state); state.mode = 'classic'; state.board = new Array<number>(64).fill(0);
+    state.board[48] = 8; state.board[49] = 9; state.board[50] = 8; state.board[51] = 9; state.board[52] = 8; state.board[53] = 9; state.board[54] = 8;
+    state.board[9] = 8; state.board[14] = 8;
+    state.tray = [{ defId: 0, flavour: 1 }, null, null]; state.combo = 0; state.bestCombo = 0; state.fuse = 0; state.status = 'playing'; state.moves = 0;
+    session = createSession({ state, best: session.best }); runBest = session.best; runEvents = []; gameOverAt = -1; shownStatus = '';
+  }
   if (debug && demoMega) {
     // spec-note: The QA scenario builds a 28-cell apple gloop around one two-cell gap; its line clear resolves as a Mega Pop at combo tier 4.
     const state = structuredClone(session.state); state.mode = 'classic'; state.board = new Array<number>(64).fill(0);
