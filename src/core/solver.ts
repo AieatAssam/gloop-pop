@@ -1,5 +1,6 @@
-import { clearCells, fullLines, makeBoard } from './board';
+import { makeBoard } from './board';
 import { components } from './gloops';
+import { applyLineClear } from './applyLineClear';
 import { PLACEMENTS, PIECES } from './pieces';
 import type { Flavour, Piece, PieceDef } from './types';
 
@@ -21,15 +22,15 @@ export function canPlaceAll(board: ArrayLike<number>, pieces: readonly (Piece | 
         if ((lo & mask.lo) !== 0 || (hi & mask.hi) !== 0) continue;
         const next = makeBoard(current); const row = Math.floor(mask.pos / 8); const col = mask.pos % 8;
         for (const [dr, dc] of def.cells) next[(row + dr) * 8 + col + dc] = entry.flavour;
-        const { cells } = fullLines(next);
-        if (cells.length) {
-          const lineMask = new Uint8Array(64); for (const cell of cells) lineMask[cell] = 1;
-          const remove = [...cells];
-          for (const gloop of components(next)) {
+        const cleared = applyLineClear(next);
+        if (cleared.cells.length) {
+          const groups = components(next);
+          next.set(cleared.board);
+          const lineMask = new Uint8Array(64); for (const cell of cleared.cells) lineMask[cell] = 1;
+          for (const gloop of groups) {
             const inside = gloop.cells.some((cell) => lineMask[cell]); const outside = gloop.cells.some((cell) => !lineMask[cell]);
-            if (inside && outside) remove.push(...gloop.cells.filter((cell) => !lineMask[cell]));
+            if (inside && outside) for (const cell of gloop.cells) if (!lineMask[cell]) next[cell] = 0;
           }
-          next.set(clearCells(next, remove));
         }
         const rest = remaining.filter((_, index) => index !== ri);
         if (search(next, rest)) return true;

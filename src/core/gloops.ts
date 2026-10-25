@@ -5,7 +5,7 @@ export function components(board: ArrayLike<number>): Gloop[] {
   const seen = new Uint8Array(64); const stack = new Int16Array(64); const result: Gloop[] = [];
   for (let start = 0; start < 64; start += 1) {
     const flavour = board[start] ?? 0;
-    if (flavour === 0 || seen[start]) continue;
+    if (flavour === 0 || flavour > 7 || seen[start]) continue;
     let head = 0; let tail = 0; stack[tail++] = start; seen[start] = 1; const cells: number[] = [];
     while (head < tail) {
       const index = stack[head++] ?? 0; cells.push(index);

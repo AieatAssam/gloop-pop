@@ -26,4 +26,14 @@ describe('placement resolution', () => {
     const board = makeBoard(); for (let col = 0; col < 8; col += 1) board[7 * 8 + col] = 1;
     const result = resolveBoard(board); expect(result.allClear).toBe(true); expect(result.board.every((cell) => cell === 0)).toBe(true);
   });
+  it('counts cubes as filled, cracks hard cubes, removes sugar once across crossing lines, and never pops cubes', () => {
+    const board = makeBoard();
+    for (let col = 0; col < 8; col += 1) board[24 + col] = col === 0 ? 8 : col === 1 ? 9 : 1;
+    for (let row = 0; row < 8; row += 1) board[row * 8 + 0] = row === 3 ? 8 : 2;
+    const result = resolveBoard(board);
+    expect(result.cells).toContain(24); expect(result.removedCubes).toEqual([24]);
+    expect(result.crackedCubes).toEqual([25]); expect(result.board[25]).toBe(8);
+    expect(result.popped.every((gloop) => gloop.cells.every((cell) => (board[cell] ?? 0) <= 7))).toBe(true);
+    expect(result.allClear).toBe(false);
+  });
 });

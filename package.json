@@ -18,7 +18,9 @@
     "audio": "node tools/build-audio.mjs",
     "size": "node tools/check-size.mjs",
     "check": "node tools/gen-palette.mjs --check && npm run typecheck && npm run lint && npm run test && npm run build && npm run size",
-    "sim": "vite build --ssr src/core/sim.ts --outDir .sim --emptyOutDir && node tools/sim.mjs"
+    "sim": "vite build --ssr src/core/sim.ts --outDir .sim --emptyOutDir && node tools/sim.mjs",
+    "levels": "vite build --ssr src/core/levelGen.ts --outDir .sim --emptyOutDir && node tools/gen-levels.mjs",
+    "levels:verify": "npm run levels -- --verify"
   },
   "dependencies": {
     "@fontsource/baloo-2": "5.3.0",

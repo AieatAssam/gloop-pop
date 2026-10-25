@@ -237,6 +237,7 @@ All numbers from design §7.2, §9, §10. Tests snapshot the four configs.
 - `solver.ts`: `canPlaceAll(board, pieces, budget = 200_000): 'yes' | 'no' | 'budget'`. DFS over 3! orders (dedupe identical defs) × placements, applying resolve (clears and pops) between placements via the mask representation. Early exit on the first full solution.
 - Daily trays are generated once at `newGame` and stored in `state.daily.trays` (so resume never regenerates).
 - **Sugar cubes (design §24.5):** cell values 8 (sugar) and 9 (hard) exist only on Adventure boards. `components()` groups values 1–7 only. `resolve.ts` and `solver.ts` share one `applyLineClear` helper (8 → 0, 9 → 8 for cells in cleared lines; pops never touch cubes). `DealOptions` gains `weights`, `flavours` and `f2` for Adventure; the RNG consumption order is unchanged for every other mode.
+- `src/core/applyLineClear.ts` is the shared resolver/solver implementation of the cube clearing rule.
 - **Adventure levels (design §24.6):** `tools/gen-levels.mjs` (`npm run levels -- --write | --verify`, not in `check`) builds `levelGen.ts` with Vite SSR like `npm run sim` and writes `src/core/levels.data.ts`. `levels.test.ts` re-validates all 120 levels in `check` (≤ 30 s).
 
 ## 5. App state machine and data flow

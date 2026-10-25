@@ -6,7 +6,7 @@ import { canPlaceAll } from './solver';
 import { FAMILY_IDS, PIECES } from './pieces';
 import type { Flavour, Piece, RngState } from './types';
 
-export interface DealOptions { mode?: 'classic' | 'expert' | 'zen' | 'daily'; forceSolvable?: boolean; }
+export interface DealOptions { mode?: 'classic' | 'expert' | 'zen' | 'daily'; forceSolvable?: boolean; weights?: readonly number[]; flavours?: readonly Flavour[]; f2?: number; }
 export interface DealDebug { attempts: number; fallbackUsed: boolean; budgetHit: boolean; }
 export interface DealResult { tray: Piece[]; debug: DealDebug; }
 
@@ -17,12 +17,12 @@ export function dealTray(board: ArrayLike<number>, rng: RngState, stage: number,
   let lastWantsF2 = Boolean(options.forceSolvable);
   for (let attempt = 1; attempt <= 30; attempt += 1) {
     const tray: Piece[] = [];
-    for (let slot = 0; slot < 3; slot += 1) tray.push(drawPiece(rng, stage, daily));
+    for (let slot = 0; slot < 3; slot += 1) tray.push(drawPiece(rng, stage, daily, options));
     // design §7.3: the F2 draw follows the three piece draws.
-    const passesShape = enforceF3(tray, rng, stage, daily);
+    const passesShape = enforceF3(tray, rng, stage, daily, options);
     last = tray;
     const roll = nextFloat(rng);
-    const wantsF2 = options.forceSolvable || (!daily && roll < MODES[options.mode ?? 'classic'].f2Probability(stage));
+    const wantsF2 = options.forceSolvable || (!daily && roll < (options.f2 ?? MODES[options.mode ?? 'classic'].f2Probability(stage)));
     lastWantsF2 = wantsF2;
     const hasFit = tray.some((piece) => hasPlacement(board, piece.defId));
     if (!passesShape || !hasFit) continue;
@@ -37,22 +37,22 @@ export function dealTray(board: ArrayLike<number>, rng: RngState, stage: number,
   return { tray: fallback, debug: { attempts: 30, fallbackUsed: true, budgetHit } };
 }
 
-function drawPiece(rng: RngState, stage: number, daily: boolean): Piece {
-  const weights = weightsForStage(stage, daily);
+function drawPiece(rng: RngState, stage: number, daily: boolean, options: DealOptions = {}): Piece {
+  const weights = options.weights ? Object.fromEntries(FAMILY_IDS.map((family, index) => [family, options.weights?.[index] ?? 0])) : weightsForStage(stage, daily);
   const family = FAMILY_IDS[weightedPick(rng, FAMILY_IDS.map((id) => weights[id]))] ?? 'Dot';
   const defs = PIECES.filter((piece) => piece.family === family);
   const def = defs[nextInt(rng, defs.length)] ?? PIECES[0]!;
-  const flavours = daily ? flavoursForStage(3) : flavoursForStage(stage);
+  const flavours = options.flavours ?? (daily ? flavoursForStage(3) : flavoursForStage(stage));
   return { defId: def.id, flavour: flavours[nextInt(rng, flavours.length)] ?? 1 };
 }
 
-function enforceF3(tray: Piece[], rng: RngState, stage: number, daily: boolean): boolean {
+function enforceF3(tray: Piece[], rng: RngState, stage: number, daily: boolean, options: DealOptions = {}): boolean {
   const redraws = [0, 0, 0];
   while (true) {
     const offendingSlot = f3OffendingSlot(tray, stage, daily);
     if (offendingSlot === -1) return true;
     if ((redraws[offendingSlot] ?? 10) >= 10) return false;
-    tray[offendingSlot] = drawPiece(rng, stage, daily);
+    tray[offendingSlot] = drawPiece(rng, stage, daily, options);
     redraws[offendingSlot] = (redraws[offendingSlot] ?? 0) + 1;
   }
 }

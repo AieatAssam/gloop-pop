@@ -10,6 +10,7 @@ import { scoreMove } from './scoring';
 import { createRng, sfc32 } from './rng';
 import { miniProgress, pickMini, targetsPassed } from './goals';
 import type { Action, GameEvent, GameState, ModeId, Piece, Preview, RngState } from './types';
+import { stepAdventure } from './adventure';
 
 export function newGame(cfg: ModeId | ReturnType<typeof modeConfig>, seed: string, opts: { tutorialStep?: number; goals?: boolean; best?: number } = {}): { state: GameState; events: GameEvent[] } {
   void opts.tutorialStep;
@@ -40,6 +41,7 @@ export function newGame(cfg: ModeId | ReturnType<typeof modeConfig>, seed: strin
 }
 
 export function step(state: GameState, action: Action): { state: GameState; events: GameEvent[] } {
+  if (state.mode === 'adventure' && state.adventure) return stepAdventure(state, action);
   if (action.type === 'booster') return { state, events: [] };
   if (action.type === 'endRun') {
     if ((state.mode !== 'zen' && state.mode !== 'daily') || state.status !== 'playing') return { state, events: [] };
@@ -66,6 +68,7 @@ export function step(state: GameState, action: Action): { state: GameState; even
   // design §16.2: tutorial steps 1–3 empty their scripted boards on purpose; they never award All Clear.
   if (state.mode === 'tutorial') resolved.allClear = false;
   if (resolved.cells.length > 0) events.push({ type: 'cleared', rows: resolved.rows, cols: resolved.cols, cells: resolved.cells, flavoursByCell: resolved.cells.map((index) => placedBoard[index] ?? 0) });
+  if (resolved.removedCubes.length || resolved.crackedCubes.length) events.push({ type: 'cubes', removed: resolved.removedCubes, cracked: resolved.crackedCubes });
   if (resolved.popped.length > 0) events.push({ type: 'popped', gloops: resolved.popped });
   const comboResult = advanceCombo(next, resolved.rows.length + resolved.cols.length);
   const scored = scoreMove({
