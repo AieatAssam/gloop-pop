@@ -1,9 +1,9 @@
 import type { GameEvent, GameState } from '../core/types';
-import type { SaveV1 } from './saveSchema';
+import type { SaveV2 } from './saveSchema';
 
 export interface DailyResult { dayKey: string; score: number; trays: number[]; bestCombo: number; lines: number; biggestPop: number; allClears: number; freezeUsed: number }
 
-export function recordDaily(save: SaveV1, state: GameState, dayKey: string, events: readonly GameEvent[]): SaveV1 {
+export function recordDaily(save: SaveV2, state: GameState, dayKey: string, events: readonly GameEvent[]): SaveV2 {
   const next = structuredClone(save);
   if (next.daily.records[dayKey]) return next;
   const trays: number[] = [];
@@ -20,7 +20,7 @@ export function recordDaily(save: SaveV1, state: GameState, dayKey: string, even
   next.daily.finished += 1; next.daily.best = Math.max(next.daily.best, result.score); return next;
 }
 
-export function dailyResult(save: SaveV1, dayKey: string): DailyResult | null {
+export function dailyResult(save: SaveV2, dayKey: string): DailyResult | null {
   const result = save.daily.records[dayKey];
   return result ? { dayKey, score: result.score, trays: [...result.trays], bestCombo: result.bestCombo, lines: result.lines, biggestPop: result.biggestPop, allClears: result.allClears, freezeUsed: result.freezeUsed } : null;
 }

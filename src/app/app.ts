@@ -16,7 +16,7 @@ import { createGameUi } from '../ui/dom';
 import { createTopBar } from '../ui/topBar';
 import { S } from '../ui/strings';
 import { loadSave, saveNow } from '../platform/saveStore';
-import type { SaveV1 } from '../meta/saveSchema';
+import type { SaveV2 } from '../meta/saveSchema';
 import { recordRun } from '../meta/stats';
 import { grantXp, rewardsForRun, totalXpForLevel, xpToNext } from '../meta/progression';
 import { summarizeRun } from '../meta/runSummary';
@@ -333,7 +333,7 @@ function rescueClearWithinThree(events: readonly GameEvent[]): boolean {
   for (const [index, event] of events.entries()) { if (event.type === 'rescued') { rescueAt = index; placed = 0; } else if (rescueAt >= 0 && event.type === 'placed') placed += 1; else if (rescueAt >= 0 && event.type === 'cleared' && placed > 0 && placed <= 3) return true; }
   return false;
 }
-function bestFor(save: SaveV1, mode: ModeId): number { return mode === 'expert' ? save.best.expert : mode === 'daily' ? save.daily.best : mode === 'zen' ? 0 : save.best.classic; }
+function bestFor(save: SaveV2, mode: ModeId): number { return mode === 'expert' ? save.best.expert : mode === 'daily' ? save.daily.best : mode === 'zen' ? 0 : save.best.classic; }
 const debugFrameBuckets = new Uint16Array(8); let debugFrameCursor = 0; let debugFrameCount = 0; let debugFrameSum = 0;
 function drawDebug(context: CanvasRenderingContext2D, layout: Layout, dpr: number, dt: number, surface: ReturnType<typeof createCanvasSurface>, effectMs: number, audioLine: string): void {
   const buckets = debugFrameBuckets; const bin = Math.min(buckets.length - 1, Math.floor(dt / 2)); if (debugFrameCount === 120) { buckets[debugFrameCursor] = Math.max(0, buckets[debugFrameCursor]! - 1); debugFrameSum -= debugFrameLast[debugFrameCursor]!; } else debugFrameCount += 1;

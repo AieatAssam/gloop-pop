@@ -23,5 +23,5 @@ export const MODES: Readonly<Record<'classic' | 'expert' | 'zen' | 'daily', Mode
 };
 
 export function modeConfig(mode: ModeId): ModeConfig {
-  return mode === 'tutorial' ? MODES.classic : MODES[mode];
+  return mode === 'tutorial' || mode === 'adventure' ? MODES.classic : MODES[mode];
 }

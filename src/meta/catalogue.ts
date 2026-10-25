@@ -10,12 +10,12 @@ export const CATALOGUE: readonly CatalogueItem[] = [
   { kind: 'pop', id: 'bubbles', price: 500 }, { kind: 'pop', id: 'confetti', price: 800 }, { kind: 'pop', id: 'fireworks', price: 0, level: 30 },
 ];
 
-import type { SaveV1 } from './saveSchema';
+import type { SaveV2 } from './saveSchema';
 
-export type PurchaseResult = { save: SaveV1; ok: boolean };
+export type PurchaseResult = { save: SaveV2; ok: boolean };
 
 /** Buy an item when its requirement is met; failures return the original save. */
-export function buyItem(save: SaveV1, kind: ItemKind, id: string): PurchaseResult {
+export function buyItem(save: SaveV2, kind: ItemKind, id: string): PurchaseResult {
   const item = CATALOGUE.find((entry) => entry.kind === kind && entry.id === id);
   if (!item || isOwned(save, item) || requirement(item, save) !== null) return { save, ok: false };
   const next = structuredClone(save);
@@ -26,7 +26,7 @@ export function buyItem(save: SaveV1, kind: ItemKind, id: string): PurchaseResul
 }
 
 /** Equip owned items. The equipped values are part of the persisted save. */
-export function equipItem(save: SaveV1, kind: ItemKind, id: string): SaveV1 {
+export function equipItem(save: SaveV2, kind: ItemKind, id: string): SaveV2 {
   const item = CATALOGUE.find((entry) => entry.kind === kind && entry.id === id);
   if (!item || !isOwned(save, item)) return save;
   const next = structuredClone(save);
@@ -36,18 +36,18 @@ export function equipItem(save: SaveV1, kind: ItemKind, id: string): SaveV1 {
   return next;
 }
 
-export function isOwned(save: SaveV1, item: CatalogueItem): boolean {
+export function isOwned(save: SaveV2, item: CatalogueItem): boolean {
   return ownedList(save, item.kind).includes(item.id);
 }
 
 export type ItemRequirement = { kind: 'level'; level: number } | { kind: 'achievement'; achievement: string };
 /** null means the save meets every item requirement. */
-export function requirement(item: CatalogueItem, save: SaveV1): ItemRequirement | null {
+export function requirement(item: CatalogueItem, save: SaveV2): ItemRequirement | null {
   if (item.level !== undefined && save.profile.level < item.level) return { kind: 'level', level: item.level };
   if (item.achievement && !save.achievements[item.achievement]) return { kind: 'achievement', achievement: item.achievement };
   return null;
 }
 
-function ownedList(save: SaveV1, kind: ItemKind): string[] {
+function ownedList(save: SaveV2, kind: ItemKind): string[] {
   return kind === 'theme' ? save.owned.themes : kind === 'skin' ? save.owned.skins : save.owned.pops;
 }

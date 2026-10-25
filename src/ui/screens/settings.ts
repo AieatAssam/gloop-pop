@@ -1,5 +1,5 @@
 // M7.2 and SG §11.14: settings controls mirror design §16.4 and persist through app callbacks.
-import type { SaveV1 } from '../../meta/saveSchema';
+import type { SaveV2 } from '../../meta/saveSchema';
 import { S } from '../strings';
 
 export interface SettingsActions {
@@ -11,7 +11,7 @@ export interface SettingsActions {
   reset(): void;
   back(): void;
 }
-export function createSettingsScreen(save: SaveV1, actions: SettingsActions): HTMLElement {
+export function createSettingsScreen(save: SaveV2, actions: SettingsActions): HTMLElement {
   const root = document.createElement('main'); root.className = 'screen-wrap'; const panel = document.createElement('section'); panel.className = 'panel full-screen-panel';
   panel.append(header(S.settings, () => actions.back())); const list = document.createElement('div'); list.className = 'settings-list';
   const sfxToggle = toggleRow(S.settingSfx, save.settings.sfx, (value) => actions.change('sfx', value));

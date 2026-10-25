@@ -1,10 +1,10 @@
 import { dayNumber } from '../core/daily';
-import type { SaveV1 } from './saveSchema';
+import type { SaveV2 } from './saveSchema';
 
-export interface StreakUpdate { save: SaveV1; freezeUsed: number; endedAt: number }
+export interface StreakUpdate { save: SaveV2; freezeUsed: number; endedAt: number }
 export function streakMilestone(days: number): boolean { return days >= 3 && ([3, 7, 14, 30, 50].includes(days) || days % 100 === 0); }
 
-export function updateStreak(save: SaveV1, dayKey: string): StreakUpdate {
+export function updateStreak(save: SaveV2, dayKey: string): StreakUpdate {
   const next = structuredClone(save); const streak = next.streak; const today = dayNumber(dayKey); let freezeUsed = 0; let endedAt = 0;
   if (streak.lastDay) {
     const last = dayNumber(streak.lastDay); const gap = today - last;

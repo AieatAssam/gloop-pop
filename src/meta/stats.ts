@@ -1,7 +1,7 @@
 import type { GameState } from '../core/types';
-import type { SaveV1 } from './saveSchema';
+import type { SaveV2 } from './saveSchema';
 
-export function recordRun(save: SaveV1, state: GameState): SaveV1 {
+export function recordRun(save: SaveV2, state: GameState): SaveV2 {
   const next = structuredClone(save); const mode = state.mode;
   next.stats.runs[mode] = (next.stats.runs[mode] ?? 0) + 1; next.ui.runsFinished += 1;
   next.stats.linesCleared += state.linesCleared; next.stats.extraCellsPopped += state.stats.pops; next.stats.biggestPop = Math.max(next.stats.biggestPop, state.stats.biggestPop);

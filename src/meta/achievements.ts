@@ -1,5 +1,5 @@
 import type { GameEvent, ModeId } from '../core/types';
-import type { SaveV1 } from './saveSchema';
+import type { SaveV2 } from './saveSchema';
 
 export type AchievementCategory = 'lines' | 'pops' | 'combo' | 'score' | 'daily' | 'streak' | 'misc' | 'collection';
 export interface AchievementDef { id: string; coins: 25 | 50 | 100; category: AchievementCategory; }
@@ -12,7 +12,7 @@ const rows: readonly [string, AchievementCategory, 25 | 50 | 100][] = [
 export const COUNTER_ACHIEVEMENTS: ReadonlySet<string> = new Set(['big_pop_pro', 'clean_freak', 'lines100', 'lines1000', 'lines5000', 'pops500', 'pops5000', 'runs10', 'runs100', 'daily30', 'streak7', 'streak30', 'level10', 'level50', 'collector']);
 export const ACHIEVEMENTS: readonly AchievementDef[] = rows.map(([id, category, coins]) => ({ id, category, coins }));
 
-export function achievementProgress(id: string, save: SaveV1, facts: AchievementFacts = {}): { current: number; target: number; met: boolean } {
+export function achievementProgress(id: string, save: SaveV2, facts: AchievementFacts = {}): { current: number; target: number; met: boolean } {
  const events = facts.events ?? []; const clears = events.filter((e) => e.type === 'cleared');
  const pops = events.filter((e) => e.type === 'popped').flatMap((e) => e.gloops.map((g) => g.size));
  const combos = events.filter((e) => e.type === 'comboUp').map((e) => e.combo);
@@ -35,7 +35,7 @@ export function achievementProgress(id: string, save: SaveV1, facts: Achievement
  }
  return { current:Math.min(current,target), target, met };
 }
-export function grantAchievements(save: SaveV1, facts: AchievementFacts = {}): { save: SaveV1; unlocked: AchievementDef[] } {
+export function grantAchievements(save: SaveV2, facts: AchievementFacts = {}): { save: SaveV2; unlocked: AchievementDef[] } {
  const next = structuredClone(save); const unlocked: AchievementDef[] = [];
  for (const def of ACHIEVEMENTS) if (!next.achievements[def.id] && achievementProgress(def.id,next,facts).met) { next.achievements[def.id]=1; next.profile.coins+=def.coins; next.profile.coinsEarned+=def.coins; unlocked.push(def); }
  return { save:next, unlocked };

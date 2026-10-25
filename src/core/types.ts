@@ -1,10 +1,10 @@
 export type Flavour = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-export type Cell = 0 | Flavour;
+export type Cell = 0 | Flavour | 8 | 9;
 export type Board = Uint8Array;
 export type FamilyId = 'Dot' | 'I2' | 'I3' | 'I4' | 'I5' | 'O2' | 'O3' | 'R23' | 'L3' | 'L4' | 'T4' | 'S4' | 'L5';
 export interface PieceDef { id: number; family: FamilyId; cells: readonly (readonly [number, number])[]; w: number; h: number; }
 export interface Piece { defId: number; flavour: Flavour; }
-export type ModeId = 'classic' | 'expert' | 'zen' | 'daily' | 'tutorial';
+export type ModeId = 'classic' | 'expert' | 'zen' | 'daily' | 'tutorial' | 'adventure';
 export interface RngState { a: number; b: number; c: number; d: number; }
 export interface RunStats {
   placements: number; pops: number; biggestPop: number; allClears: number; bigPops: number;
@@ -17,11 +17,14 @@ export interface GameState {
   linesCleared: number; rescue: { charge: number; ready: boolean; used: boolean };
   daily?: { dayNumber: number; dayKey: string; flavourOfDay: Flavour; trays: Piece[][]; trayLines: number[]; traySpecial: boolean[] };
   status: 'playing' | 'stuck' | 'rescueOffer' | 'over'; moves: number; stats: RunStats;
+  goals?: { floor: number; targetsHit: number; mini: { id: string; flavour?: Flavour; target: number; progress: number; done: boolean } };
+  // spec-note: Leaving an Adventure attempt preserves it as inProgress; only explicit give-up records a loss.
+  adventure?: { level: number; moveLimit: number; bonusMoves: number; movesLeft: number; goals: { kind: 'L' | 'S' | 'F' | 'B' | 'M' | 'C'; flavour?: Flavour; target: number; progress: number }[]; s2: number; s3: number; stage: number; flavours: number; f2: number; boosters: { shuffle: 'none' | 'armed' | 'used'; pop: 'none' | 'armed' | 'used'; freeShuffle: boolean }; result: null | { won: boolean; reason: 'goals' | 'moves' | 'stuck' | 'gaveUp'; movesLeft: number; stars: 0 | 1 | 2 | 3 } };
 }
 export interface ScoreParts { place: number; lineBase: number; pop: number; bigPopBonus: number; allClear: number; }
 export interface Gloop { flavour: Flavour; cells: number[]; bfs: number[]; largestSquare: { row: number; col: number; size: number }; }
 export interface Preview { rows: number[]; cols: number[]; popping: number[][]; mergeTargets: number[][]; }
-export type Action = { type: 'place'; slot: 0 | 1 | 2; row: number; col: number } | { type: 'useRescue' } | { type: 'declineRescue' } | { type: 'endRun' };
+export type Action = { type: 'place'; slot: 0 | 1 | 2; row: number; col: number } | { type: 'useRescue' } | { type: 'declineRescue' } | { type: 'endRun' } | { type: 'booster'; id: 'shuffle' | 'pop' };
 export type GameEvent =
   | { type: 'placed'; slot: number; piece: Piece; cells: number[]; mergedInto: number[] }
   | { type: 'cleared'; rows: number[]; cols: number[]; cells: number[]; flavoursByCell: number[] }
@@ -31,4 +34,11 @@ export type GameEvent =
   | { type: 'allClear' } | { type: 'stageUp'; stage: number; newFlavour?: Flavour }
   | { type: 'dealt'; tray: Piece[] } | { type: 'rescueReady' } | { type: 'rescueOffered' } | { type: 'rescued'; poppedCells: number[] }
   | { type: 'zenShake'; poppedCells: number[] } | { type: 'stuck'; unfit: number[] }
-  | { type: 'gameOver'; reason: 'stuck' | 'traysDone' | 'endRun' } | { type: 'bigGloop'; size: number };
+  | { type: 'gameOver'; reason: 'stuck' | 'traysDone' | 'endRun' } | { type: 'bigGloop'; size: number }
+  | { type: 'cubes'; removed: number[]; cracked: number[] }
+  | { type: 'goalProgress'; index: number; progress: number; target: number }
+  | { type: 'levelWon'; level: number; movesLeft: number; stars: 0 | 1 | 2 | 3 }
+  | { type: 'levelLost'; level: number; reason: 'moves' | 'stuck' | 'gaveUp' }
+  | { type: 'boosterUsed'; id: 'shuffle' | 'pop'; poppedCells?: number[] }
+  | { type: 'targetReached'; target: number; index: number }
+  | { type: 'miniDone'; id: string };

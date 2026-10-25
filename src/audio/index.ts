@@ -121,6 +121,7 @@ export function onClimax(plan: MovePlan, kind: 'huge' | 'mega' | 'allClear'): vo
 export function playGameEvents(events: readonly GameEvent[], ctx: AudioEventContext = {}): void {
   const audioEvents: AudioEvent[] = [];
   for (const event of events) {
+    if (event.type === 'cubes' || event.type === 'goalProgress' || event.type === 'levelWon' || event.type === 'levelLost' || event.type === 'boosterUsed' || event.type === 'targetReached' || event.type === 'miniDone') continue;
     const audioEvent = event.type === 'placed'
       ? { ...event, piece: { cells: PIECES[event.piece.defId]!.cells } }
       : event;

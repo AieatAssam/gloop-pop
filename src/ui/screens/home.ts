@@ -1,6 +1,6 @@
 // SG §11.7 and §10: home cards and lettered candy logo, with design §16.4 labels.
 import type { ModeId } from '../../core/types';
-import type { SaveV1 } from '../../meta/saveSchema';
+import type { SaveV2 } from '../../meta/saveSchema';
 import { createMiniGloop } from '../../render/miniGloop';
 import { dayKeyFromMs, dayNumber, flavourForDay } from '../../core/daily';
 import type { Flavour } from '../../core/types';
@@ -10,7 +10,7 @@ import { WEEKLY_POOL, weekIndexFromMs } from '../../core/weekly';
 import { syncWeek, WEEKLY_TARGETS } from '../../meta/weeklyGoal';
 
 export interface HomeActions { play(mode: ModeId): void; dailyResult?(): void; stats(): void; collection(): void; achievements(): void; settings(): void; howToPlay(): void; credits(): void; debugXp(): void }
-export function createHomeScreen(save: SaveV1, actions: HomeActions, debug = false, challenge?: { score: number; flavour: Flavour }): HTMLElement {
+export function createHomeScreen(save: SaveV2, actions: HomeActions, debug = false, challenge?: { score: number; flavour: Flavour }): HTMLElement {
   const root = document.createElement('main'); root.className = 'screen-wrap'; const panel = document.createElement('section'); panel.className = 'panel home-panel';
   const header = document.createElement('header'); header.className = 'home-header'; const logo = createLogo(); header.append(logo, chip(S.level(save.profile.level)), chip(S.coins(save.profile.coins))); panel.append(header);
   if (challenge) { const rival = button(S.rivalCard(['🍒','🍊','🍋','🍏','🫐','🍇','🍬'][challenge.flavour - 1] ?? '🍒', new Intl.NumberFormat('en-US').format(challenge.score)), 'button button--secondary rival-card', () => actions.play('classic')); panel.append(rival); }

@@ -1,6 +1,6 @@
 // SG §11.1, §11.3 and §14: collection cards use live palette and gloop previews.
 import { CATALOGUE, buyItem, equipItem, isOwned, requirement, type ItemKind } from '../../meta/catalogue';
-import type { SaveV1 } from '../../meta/saveSchema';
+import type { SaveV2 } from '../../meta/saveSchema';
 import { PALETTE, type ThemeKey } from '../../render/palette';
 import { createMiniGloop } from '../../render/miniGloop';
 import { drawGloop } from '../../render/gloopRenderer';
@@ -11,7 +11,7 @@ import { S } from '../strings';
 
 const KINDS: readonly ItemKind[] = ['theme','skin','pop'];
 const SKIN_MAP: Record<string, SkinId> = { plain:'plain', googly:'googlyEyes', freckles:'freckles', catears:'catEars', glasses:'glasses', mustache:'mustache', bowtie:'bowtie', crown:'crown' };
-export function createCollectionScreen(save: SaveV1, onBack: () => void, onSave: (save: SaveV1) => void): HTMLElement {
+export function createCollectionScreen(save: SaveV2, onBack: () => void, onSave: (save: SaveV2) => void): HTMLElement {
  let kind: ItemKind = 'theme';
  const root = document.createElement('main'); root.className = 'screen-wrap';
  const panel = document.createElement('section'); panel.className = 'panel full-screen-panel collection-panel';
@@ -36,7 +36,7 @@ export function createCollectionScreen(save: SaveV1, onBack: () => void, onSave:
 }
 function tabLabel(kind: ItemKind): string { return kind==='theme'?S.collectionThemes:kind==='skin'?S.collectionSkins:S.collectionPops; }
 function button(label:string, className:string, action:()=>void):HTMLButtonElement { const el=document.createElement('button'); el.type='button';el.className=className;el.textContent=label;el.addEventListener('click',action);return el; }
-function syncCosmetics(save:SaveV1):void { setEquippedCosmetics({theme:save.equipped.theme as ThemeKey,skin:SKIN_MAP[save.equipped.skin]??'plain',popEffect:save.equipped.pop as PopEffectId}); }
+function syncCosmetics(save:SaveV2):void { setEquippedCosmetics({theme:save.equipped.theme as ThemeKey,skin:SKIN_MAP[save.equipped.skin]??'plain',popEffect:save.equipped.pop as PopEffectId}); }
 function previewCanvas(kind:ItemKind,id:string):HTMLCanvasElement {
  const canvas=document.createElement('canvas');canvas.width=160;canvas.height=112;canvas.className=`collection-preview${kind==='pop'?' collection-preview-pop':''}`;const ctx=canvas.getContext('2d');if(!ctx)return canvas;
  if(kind==='theme') drawThemePreview(ctx, PALETTE.theme[id as ThemeKey]??PALETTE.theme.midnight);

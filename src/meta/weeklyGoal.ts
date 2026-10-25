@@ -1,14 +1,14 @@
 import { WEEKLY_POOL, type WeeklyGoalId } from '../core/weekly';
 import type { GameEvent, GameState } from '../core/types';
-import type { SaveV1 } from './saveSchema';
+import type { SaveV2 } from './saveSchema';
 
 export const WEEKLY_TARGETS: Readonly<Record<WeeklyGoalId, number>> = { lines: 150, pops: 300, score: 60_000, combo6: 5, bigpops: 10, dailies: 4, allclear: 2, multi: 25 };
-export function syncWeek(save: SaveV1, weekIndex: number): SaveV1 {
+export function syncWeek(save: SaveV2, weekIndex: number): SaveV2 {
   if (save.weekly.weekIndex === weekIndex) return save;
   const next = structuredClone(save); next.weekly = { weekIndex, progress: 0, claimed: false, runsWithCombo6: 0 }; return next;
 }
 
-export function addWeeklyProgress(save: SaveV1, state: GameState, events: readonly GameEvent[], weekIndex: number): SaveV1 {
+export function addWeeklyProgress(save: SaveV2, state: GameState, events: readonly GameEvent[], weekIndex: number): SaveV2 {
   const next = syncWeek(save, weekIndex); if (next.weekly.claimed) return next;
   const id = WEEKLY_POOL[((weekIndex % WEEKLY_POOL.length) + WEEKLY_POOL.length) % WEEKLY_POOL.length]!;
   let amount = 0;
@@ -23,13 +23,13 @@ export function addWeeklyProgress(save: SaveV1, state: GameState, events: readon
   next.weekly.progress = Math.min(WEEKLY_TARGETS[id], next.weekly.progress + amount); return next;
 }
 
-export function claimWeeklyReward(save: SaveV1): SaveV1 {
+export function claimWeeklyReward(save: SaveV2): SaveV2 {
   const next = structuredClone(save); const id = WEEKLY_POOL[((save.weekly.weekIndex % WEEKLY_POOL.length) + WEEKLY_POOL.length) % WEEKLY_POOL.length]!;
   if (next.weekly.claimed || next.weekly.progress < WEEKLY_TARGETS[id]) return save;
   next.weekly.claimed = true; next.profile.coins += 200; next.profile.coinsEarned += 200; next.profile.xp += 150; next.streak.freezes = Math.min(2, next.streak.freezes + 1); return next;
 }
 
-export function weeklyGoalNearMiss(save: SaveV1): number | null {
+export function weeklyGoalNearMiss(save: SaveV2): number | null {
   const id = WEEKLY_POOL[((save.weekly.weekIndex % WEEKLY_POOL.length) + WEEKLY_POOL.length) % WEEKLY_POOL.length]!; const target = WEEKLY_TARGETS[id];
   if (save.weekly.claimed || save.weekly.progress < target * .8 || save.weekly.progress >= target) return null;
   return target - save.weekly.progress;

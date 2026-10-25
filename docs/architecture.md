@@ -317,7 +317,7 @@ interface SaveV1 {
 - `migrate(raw: unknown): SaveV1`: if missing/invalid JSON → `defaultSave()`. `migrations: Record<number, (s) => s>` keyed by *from* version; apply in sequence up to `CURRENT_VERSION`. Unknown future version (`v > CURRENT`) → keep a backup and start fresh (never crash).
 - **Validation:** after migration, run `sanitize(save)` that clamps numbers (non-negative integers), drops unknown item ids, ensures equipped items are owned (else default), and validates `inProgress` (board length 64, values 0–7, tray length 3); if invalid, drop it.
 - Writes: debounced 300 ms, immediate on run end, purchase, settings change, and `visibilitychange: hidden` / `pagehide`.
-- **Save v2 (pass 3):** `CURRENT_VERSION = 2`. The full `SaveV2` shape, the `1 → 2` migration and the v2 sanitize rules are in design §24.14; tests and fixtures (`save-v1-veteran.json`, `save-v2-veteran.expected.json`) are listed in milestones M12.1. `GameState` stays `v: 1` with optional `goals` and `adventure` fields.
+- **Save v2 (pass 3):** `CURRENT_VERSION = 2`. `SaveV2` preserves all v1 fields and adds Adventure progress, boosters, mission slots and five lifetime counters. The migration pipeline runs `0 → 1 → 2`; level 2+ profiles receive the Adventure unlock and one of each booster. Sanitization rules and field definitions are in design §24.14. `GameState` stays `v: 1` with optional `goals` and `adventure` fields.
 - Tests ship a fixture `fixtures/save-v1.json` and a synthetic `v0` (pre-release shape: `{ best: number, coins: number }`) migration to prove the pipeline works: `v0 → v1` maps `best → best.classic`, `coins → profile.coins`.
 
 ## 9. Testing strategy (Vitest)

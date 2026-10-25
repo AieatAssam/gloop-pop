@@ -12,7 +12,7 @@ import type { Action, GameEvent, GameState, ModeId, Piece, Preview, RngState } f
 
 export function newGame(cfg: ModeId | ReturnType<typeof modeConfig>, seed: string, opts: { tutorialStep?: number } = {}): { state: GameState; events: GameEvent[] } {
   void opts.tutorialStep;
-  const config = typeof cfg === 'string' ? modeConfig(cfg) : cfg;
+  const config = typeof cfg === 'string' ? modeConfig(cfg === 'adventure' ? 'classic' : cfg) : cfg;
   const rng = createRng(seed); for (let i = 0; i < 12; i += 1) sfc32(rng);
   const state: GameState = {
     v: 1, mode: config.id, seed, rng, board: [...makeBoard()], tray: [null, null, null], traysDealt: 0,
@@ -29,12 +29,13 @@ export function newGame(cfg: ModeId | ReturnType<typeof modeConfig>, seed: strin
     state.tray = dailyDeal.trays[0]?.map((piece) => ({ ...piece })) ?? [null, null, null]; state.traysDealt = 1;
     return { state, events: [{ type: 'dealt', tray: state.tray.filter((piece): piece is Piece => piece !== null) }] };
   }
-  const dealt = dealTray(state.board, rng, state.stage, { mode: config.id === 'tutorial' ? 'classic' : config.id, forceSolvable: config.id === 'zen' });
+  const dealt = dealTray(state.board, rng, state.stage, { mode: config.id === 'tutorial' || config.id === 'adventure' ? 'classic' : config.id, forceSolvable: config.id === 'zen' });
   state.rng = rng; state.tray = dealt.tray; state.traysDealt = 1; state.stats.f2Fallbacks += dealt.debug.fallbackUsed ? 1 : 0;
   return { state, events: [{ type: 'dealt', tray: dealt.tray }] };
 }
 
 export function step(state: GameState, action: Action): { state: GameState; events: GameEvent[] } {
+  if (action.type === 'booster') return { state, events: [] };
   if (action.type === 'endRun') {
     if ((state.mode !== 'zen' && state.mode !== 'daily') || state.status !== 'playing') return { state, events: [] };
     return { state: { ...state, status: 'over' }, events: [{ type: 'gameOver', reason: 'endRun' }] };
@@ -78,7 +79,7 @@ export function step(state: GameState, action: Action): { state: GameState; even
   events.push(...comboResult.events);
   if (resolved.allClear) events.push({ type: 'allClear' });
 
-  const config = modeConfig(next.mode); const oldStage = next.stage; next.stage = Math.max(oldStage, config.stageForScore(next.score));
+  const config = modeConfig(next.mode === 'adventure' ? 'classic' : next.mode); const oldStage = next.stage; next.stage = Math.max(oldStage, config.stageForScore(next.score));
   if (next.stage > oldStage) events.push({ type: 'stageUp', stage: next.stage, ...(next.stage === 3 ? { newFlavour: 6 as const } : next.stage === 5 ? { newFlavour: 7 as const } : {}) });
   if (config.rescue) {
     next.rescue.charge = Math.min(10, next.rescue.charge + resolved.rows.length + resolved.cols.length);
@@ -93,7 +94,7 @@ export function step(state: GameState, action: Action): { state: GameState; even
     if (next.mode === 'daily' && next.daily) {
       next.tray = next.daily.trays[next.traysDealt]?.map((item) => ({ ...item })) ?? [null, null, null]; next.traysDealt += 1;
     } else {
-      const deal = dealTray(next.board, next.rng, next.stage, { mode: next.mode === 'tutorial' ? 'classic' : next.mode });
+      const deal = dealTray(next.board, next.rng, next.stage, { mode: next.mode === 'tutorial' || next.mode === 'adventure' ? 'classic' : next.mode });
       next.tray = deal.tray; next.traysDealt += 1; next.stats.f2Fallbacks += deal.debug.fallbackUsed ? 1 : 0;
     }
     events.push({ type: 'dealt', tray: next.tray.filter((item): item is Piece => item !== null) });

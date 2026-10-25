@@ -1,18 +1,18 @@
 import type { ModeId } from '../core/types';
-import type { SaveV1 } from './saveSchema';
+import type { SaveV2 } from './saveSchema';
 import type { RunSummary } from './runSummary';
 
-export interface RewardResult { save: SaveV1; xp: number; coins: number; levels: number[]; unlocked: string[] }
+export interface RewardResult { save: SaveV2; xp: number; coins: number; levels: number[]; unlocked: string[] }
 export function xpToNext(level: number): number { return level >= 50 ? 0 : 60 + 40 * (level - 1); }
 export function totalXpForLevel(level: number): number { let total = 0; for (let current = 1; current < Math.min(50, level); current += 1) total += xpToNext(current); return total; }
-export function rewardsForRun(save: SaveV1, run: RunSummary, countedDaily = false): RewardResult {
+export function rewardsForRun(save: SaveV2, run: RunSummary, countedDaily = false): RewardResult {
   const mult = run.mode === 'expert' ? 1.5 : run.mode === 'zen' ? 0.5 : 1;
   const xp = Math.floor((20 + Math.floor(run.score / 100)) * mult) + (countedDaily ? 100 : 0);
   const coins = Math.floor((5 + Math.floor(run.score / 200)) * mult) + (countedDaily ? 30 : 0);
   const result = grantXp(save, xp); result.save.profile.coins += coins; result.save.profile.coinsEarned += coins;
   return { ...result, coins };
 }
-export function grantXp(save: SaveV1, xp: number): RewardResult {
+export function grantXp(save: SaveV2, xp: number): RewardResult {
   const next = structuredClone(save); next.profile.xp += Math.max(0, Math.floor(xp));
   const levels: number[] = [];
   while (next.profile.level < 50 && next.profile.xp >= totalXpForLevel(next.profile.level + 1)) { next.profile.level += 1; levels.push(next.profile.level); next.profile.coins += 50; next.profile.coinsEarned += 50; }
@@ -33,4 +33,4 @@ export function grantXp(save: SaveV1, xp: number): RewardResult {
   }
   return { save: next, xp: Math.max(0, Math.floor(xp)), coins: 0, levels, unlocked };
 }
-export function isModeUnlocked(save: SaveV1, mode: ModeId): boolean { return save.owned.modes.includes(mode); }
+export function isModeUnlocked(save: SaveV2, mode: ModeId): boolean { return save.owned.modes.includes(mode); }
