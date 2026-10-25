@@ -11,6 +11,7 @@
 }
 
 * { box-sizing: border-box; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 body, #ui, #ui * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 html, body { width: 100%; }
@@ -23,6 +24,14 @@ body { color: var(--ui-text-primary); }
 .gloop-icon-button svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .daily-topbar-pill { height: 36px; max-width: 220px; overflow: hidden; padding: 0 12px; border: 2px solid var(--ui-panel-border); border-radius: 18px; color: var(--ui-text-primary); background: var(--ui-panel-solid); font: 800 15px/1.2 Nunito, sans-serif; text-overflow: ellipsis; white-space: nowrap; pointer-events: auto; cursor: pointer; }
 .gloop-icon-button:focus-visible { outline: 3px solid var(--ui-focus-ring); outline-offset: 3px; }
+.button:focus-visible, .text-button:focus-visible, .daily-topbar-pill:focus-visible, .mode-card:focus-visible, .settings-toggle:focus-visible, select:focus-visible { outline: 3px solid var(--ui-focus-ring); outline-offset: 3px; }
+.tutorial-topbar-skip { display: none; min-height: 44px; padding: 0 14px; font-size: 16px; pointer-events: auto; }
+.gloop-topbar.is-tutorial .gloop-topbar-actions { display: none; }
+.gloop-topbar.is-tutorial .tutorial-topbar-skip { margin-left: auto; }
+.tutorial-layer .tutorial-skip { display: none; }
+.tutorial-skip { position: absolute; right: 24px; top: 0; min-height: 44px; pointer-events: auto; }
+.controls-hint { display: none; }
+@media (min-width: 700px) { .controls-hint { position: absolute; bottom: 12px; left: 50%; display: block; max-width: 760px; padding: 8px 14px; border: 2px solid var(--ui-panel-border); border-radius: 16px; color: var(--ui-text-secondary); background: var(--ui-panel-solid); font: 700 13px/1.3 Nunito, sans-serif; text-align: center; transform: translateX(-50%); pointer-events: none; } }
 .gloop-overlay { position: fixed; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; padding: 20px; background: var(--ui-scrim); pointer-events: auto; }
 .gloop-overlay.is-visible { display: flex; }
 .gloop-modal { width: min(100%, 360px); display: grid; justify-items: center; gap: 18px; text-align: center; animation: modal-in 220ms cubic-bezier(.34,1.56,.64,1) both; }

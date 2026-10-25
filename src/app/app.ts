@@ -55,6 +55,8 @@ import { createSettingsScreen } from '../ui/screens/settings';
 import { createHowToPlayScreen } from '../ui/screens/howToPlay';
 import { defaultSave } from '../meta/saveSchema';
 import { setColourBlindPatterns } from '../render/gloopRenderer';
+import { chooseBotMove } from '../core/sim';
+import { seededRng } from '../core/rng';
 
 export function bootApp(): void {
   const canvas = document.querySelector<HTMLCanvasElement>('#game'); const uiRoot = document.querySelector<HTMLElement>('#ui');
@@ -66,6 +68,7 @@ export function bootApp(): void {
   setMasterMuted(save.settings.muted); setSfxEnabled(save.settings.sfx); setMusicEnabled(save.settings.music);
   const beginTutorial = !savedRun && !save.tutorialDone;
   let session = createSession({ state: savedRun ?? (beginTutorial ? tutorialGame(1) : null), best: bestFor(save, savedRun?.mode ?? 'classic'), mode: 'classic' });
+  canvas.setAttribute('aria-label', `${S.logo}. ${S.howToControls}`);
   let runBest = session.best; let runStartedAt = performance.now(); let pauseStartedAt = 0; let runReward = { xp: 0, coins: 0, progress: 0, progressMax: xpToNext(save.profile.level), level: undefined as number | undefined };
   const router = createRouter('play'); const surface = createCanvasSurface(canvas); const background = createBackground(save.equipped.theme as keyof typeof PALETTE.theme); const view = createBoardView(); const director = createDirector();
   setColourBlindPatterns(save.settings.cbPatterns);
@@ -79,11 +82,22 @@ export function bootApp(): void {
   let comboPulseAt = -1; let scoreSparkleAt = -1;
   const queuedActions: Action[] = [];
   let lastSlowMoAt = -10000; let newBestShown = false;
-  const query = new URLSearchParams(window.location.search); const demoBoard = query.get('demo') === 'board'; const demoFaces = query.get('demo') === 'faces'; const demoBg = query.get('demo') === 'bg'; const demoThemes = query.get('demo') === 'themes'; const debug = query.get('debug') === '1';
+  const query = new URLSearchParams(window.location.search); const demoBoard = query.get('demo') === 'board'; const demoFaces = query.get('demo') === 'faces'; const demoBg = query.get('demo') === 'bg'; const demoThemes = query.get('demo') === 'themes'; const demoMega = query.get('demo') === 'mega'; const debug = query.get('debug') === '1'; const autoplay = debug && (query.get('autoplay') === '1' || demoMega); const autoplayInterval = query.get('speed') === 'fast' ? 150 : 450; let autoplayAt = 0; const botRng = seededRng('gloop-pop/debug-autoplay');
+  if (debug && demoMega) {
+    // spec-note: The QA scenario builds a 28-cell apple gloop around one two-cell gap; its line clear resolves as a Mega Pop at combo tier 4.
+    const state = structuredClone(session.state); state.mode = 'classic'; state.board = new Array<number>(64).fill(0);
+    for (let row = 1; row <= 4; row += 1) for (let col = 0; col < 8; col += 1) {
+      if ((row === 2 && col === 0) || (row === 3 && (col === 3 || col === 4)) || (row === 4 && col === 7)) continue;
+      state.board[row * 8 + col] = 4;
+    }
+    state.tray = [{ defId: 1, flavour: 4 }, null, null]; state.combo = 11; state.bestCombo = 11; state.fuse = 2; state.status = 'playing'; state.moves = 0; session = createSession({ state, best: session.best }); runBest = session.best; runEvents = []; gameOverAt = -1; shownStatus = '';
+  }
   let activeChallenge = parseChallenge(window.location.search); let challengeBeaten = false;
   if (activeChallenge) { const clean = new URL(window.location.href); clean.searchParams.delete('beat'); clean.searchParams.delete('f'); history.replaceState(history.state, '', clean); }
   const requestedSkin = query.get('skin'); if (demoFaces && requestedSkin && skinMap[requestedSkin]) setEquippedCosmetics({ theme: save.equipped.theme as keyof typeof PALETTE.theme, skin: skinMap[requestedSkin], popEffect: save.equipped.pop as PopEffectId });
-  const topBar = createTopBar(() => goHome(), () => showPause(), () => { initAudioOnFirstInput(); save.settings.muted = !save.settings.muted; setMasterMuted(save.settings.muted); topBar.muteButton.setAttribute('aria-label', save.settings.muted ? S.unmute : S.mute); persist(true); }, () => start('daily')); uiRoot.append(topBar.element);
+  const topBar = createTopBar(() => goHome(), () => showPause(), () => { initAudioOnFirstInput(); save.settings.muted = !save.settings.muted; setMasterMuted(save.settings.muted); topBar.muteButton.setAttribute('aria-label', save.settings.muted ? S.unmute : S.mute); persist(true); }, () => start('daily'), skipTutorial); uiRoot.append(topBar.element);
+  const live = document.createElement('div'); live.className = 'sr-only'; live.setAttribute('aria-live', 'polite'); live.setAttribute('aria-atomic', 'true'); uiRoot.append(live);
+  const controlsHint = document.createElement('div'); controlsHint.className = 'controls-hint'; controlsHint.textContent = S.howToControls; controlsHint.hidden = save.ui.runsFinished >= 3; uiRoot.append(controlsHint);
   const tutorialBubble = createTutorialBubble(skipTutorial); if (tutorialActive) uiRoot.append(tutorialBubble.element);
   let audioStarted = false;
   const enableAudio = (): void => { initAudioOnFirstInput(); if (!audioStarted && router.current === 'play') { startMusic(); audioStarted = true; } };
@@ -115,7 +129,7 @@ export function bootApp(): void {
     else if (backgroundTheme !== save.equipped.theme) { backgroundTheme = save.equipped.theme; background.setTheme(backgroundTheme as keyof typeof PALETTE.theme, elapsedMs); }
     const ctx = surface.context; ctx.setTransform(surface.dpr, 0, 0, surface.dpr, 0, 0); background.draw(ctx, elapsedMs, layout, session.state.stage);
     const today = dayKeyFromMs(Date.now()); const pill = save.daily.records[today] ? S.dailyPillDone : save.streak.current >= 2 && new Date().getUTCHours() >= 18 ? S.dailyKeepStreak(dayNumber(today), save.streak.current) : S.daily(dayNumber(today)); if (topBar.dailyPill.textContent !== pill) topBar.dailyPill.textContent = pill;
-    const isPlay = router.current === 'play'; topBar.element.style.display = isPlay ? 'flex' : 'none';
+    const isPlay = router.current === 'play'; topBar.element.style.display = isPlay ? 'flex' : 'none'; topBar.element.classList.toggle('is-tutorial', tutorialActive); topBar.dailyPill.hidden = tutorialActive; topBar.muteButton.hidden = tutorialActive; topBar.pauseButton.hidden = tutorialActive; topBar.tutorialSkip.style.display = tutorialActive ? 'block' : 'none';
     topBar.dailyPill.classList.toggle('is-at-risk', save.streak.current >= 2 && !save.daily.records[today] && new Date().getUTCHours() >= 18);
     if (isPlay && !demoBg) {
       const reduced = reducedForFrame;
@@ -124,16 +138,16 @@ export function bootApp(): void {
       if (paused) { ctx.fillStyle = PALETTE.ui.scrim; ctx.fillRect(0, 0, layout.width, layout.height); }
       shownScore = drawHud(ctx, layout, session.state, session.best, elapsedMs, shownScore, comboLostAt, activeChallenge?.score, candyFlameUntil, candyFlameFlavour, reduced, scoreAnimFrom, scoreAnimStart, scoreAnimDuration, newBestAt, flameBreakAt, comboPulseAt, scoreSparkleAt);
       if (tutorialActive && tutorialStep < 4 && !tutorialTouched) { const target = tutorialStep === 1 ? { row: 6, col: 6, width: 2 } : tutorialStep === 2 ? { row: 6, col: 3, width: 1 } : { row: 4, col: 6, width: 2 }; const cells = tutorialStep === 2 ? [[0, 0], [1, 0]] as const : [[0, 0], [0, 1]] as const; const hand = tutorialHandPoints(layout.board, layout.tray, layout.cellSize, target.row, target.col, target.width); drawGhostHand(ctx, elapsedMs, hand.from, hand.to, layout.cellSize, cells); }
-      if (debug) drawDebug(ctx, layout, surface.dpr, dtMs);
+      if (debug) drawDebug(ctx, layout, surface.dpr, dtMs, surface);
     }
     updateTutorial(elapsedMs);
     updateOverlay();
-    }, (elapsed) => surface.reportFrame(elapsed));
+    }, (elapsed) => { surface.reportFrame(elapsed); if (autoplay && router.current === 'play' && !paused && session.state.status === 'playing' && renderElapsed >= autoplayAt) { autoplayAt = renderElapsed + autoplayInterval; enableAudio(); const move = demoMega && session.state.moves === 0 ? { slot: 0 as const, row: 3, col: 3 } : chooseBotMove(session.state, botRng); if (move) apply({ type: 'place', slot: move.slot, row: move.row, col: move.col }); } });
 
   function apply(action: Action): void {
     if (renderLoop.isHitStopped()) { queuedActions.push(action); return; }
     const filledBeforeResolve = action.type === 'place' ? session.state.board.filter((cell) => cell > 0).length + (PIECES[session.state.tray[action.slot]?.defId ?? -1]?.cells.length ?? 0) : 0;
-    const scoreBefore = session.state.score; const events = session.dispatch(action); if (action.type === 'place' && tutorialActive && events.some((event) => event.type === 'placed')) advanceTutorial(); if (session.state.score > scoreBefore) { scoreAnimFrom = shownScore; scoreAnimStart = renderElapsed; scoreAnimDuration = Math.min(600, 150 + (session.state.score - scoreBefore) / 10); if (session.state.score - scoreBefore >= 1000) scoreSparkleAt = scoreAnimStart + scoreAnimDuration; } if (action.type === 'place' && filledBeforeResolve >= 52 && events.some((event) => event.type === 'cleared')) closeCall = true; runEvents.push(...events);
+    const scoreBefore = session.state.score; const events = session.dispatch(action); if (events.some((event) => event.type === 'cleared' || event.type === 'popped' || event.type === 'allClear' || event.type === 'gameOver')) live.textContent = `${S.score} ${new Intl.NumberFormat('en-US').format(session.state.score)}${session.state.status === 'over' ? ` · ${S.noRoom}` : ''}`; if (action.type === 'place' && tutorialActive && events.some((event) => event.type === 'placed')) advanceTutorial(); if (session.state.score > scoreBefore) { scoreAnimFrom = shownScore; scoreAnimStart = renderElapsed; scoreAnimDuration = Math.min(600, 150 + (session.state.score - scoreBefore) / 10); if (session.state.score - scoreBefore >= 1000) scoreSparkleAt = scoreAnimStart + scoreAnimDuration; } if (action.type === 'place' && filledBeforeResolve >= 52 && events.some((event) => event.type === 'cleared')) closeCall = true; runEvents.push(...events);
     const reduced = shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion());
     if (events.length) { const passedBest = runBest > 0 && scoreBefore <= runBest && session.state.score > runBest; playGameEvents(events, { combo: session.state.combo, newBest: passedBest }); director.receive(events, renderElapsed, reduced, session.state, layout); view.receive(events, renderElapsed, session.state); if (action.type === 'place') { const lineCount = events.reduce((sum, event) => sum + (event.type === 'cleared' ? event.rows.length + event.cols.length : 0), 0); const peak = events.reduce((size, event) => event.type === 'popped' ? Math.max(size, ...event.gloops.map((gloop) => gloop.size)) : size, 0); const stuck = events.some((event) => event.type === 'stuck'); const mega = events.some((event) => event.type === 'allClear') || peak >= 24; vibrate(stuck ? 'stuck' : mega ? 'mega' : peak >= 8 ? 'big' : lineCount >= 2 ? 'line2' : lineCount === 1 ? 'line1' : 'place', save.settings.haptics); }
       const scored = events.find((event) => event.type === 'scored'); if (scored?.type === 'scored' && scored.points >= 2000) candyFlameUntil = renderElapsed + 1500;
@@ -222,7 +236,7 @@ export function bootApp(): void {
       if (streakMilestone(save.streak.current) && save.settings.reducedMotion !== 'on') { renderLoop.setTimeScale(0); window.setTimeout(() => renderLoop.setTimeScale(1), 70); }
       save.profile.xp += 100; save.profile.coins += 30; save.profile.coinsEarned += 30;
     }
-    save.inProgress = null; if (completed.mode === 'daily') save.dailyInProgress = null;
+    save.inProgress = null; if (completed.mode === 'daily') save.dailyInProgress = null; controlsHint.hidden = save.ui.runsFinished >= 3;
     if (save.ui.seenTips.includes('tutorialTipPending')) { save.ui.seenTips = save.ui.seenTips.filter((tip) => tip !== 'tutorialTipPending'); tutorialTipForGameOver = true; }
     const achievementResult = grantAchievements(save, { mode: completed.mode, score: completed.score, rescueUsed: completed.rescue.used, closeCall, rescuedLine: rescueClearWithinThree(runEvents), events: runEvents, friendBeaten: challengeBeaten }); save = achievementResult.save;
     const lastLevel = reward.levels[reward.levels.length - 1]; runReward = { xp: reward.xp, coins: reward.coins, progress: Math.max(0, save.profile.xp - totalXpForLevel(save.profile.level)), progressMax: xpToNext(save.profile.level), level: lastLevel };
@@ -288,6 +302,13 @@ function rescueClearWithinThree(events: readonly GameEvent[]): boolean {
   return false;
 }
 function bestFor(save: SaveV1, mode: ModeId): number { return mode === 'expert' ? save.best.expert : mode === 'daily' ? save.daily.best : mode === 'zen' ? 0 : save.best.classic; }
-function drawDebug(context: CanvasRenderingContext2D, layout: Layout, dpr: number, dt: number): void {
-  context.save(); context.fillStyle = PALETTE.light.shadowDeep; context.fillRect(8, 8, 170, 52); context.fillStyle = PALETTE.ui.textPrimary; context.font = '700 12px Nunito, sans-serif'; context.fillText(`frame ${dt.toFixed(1)} ms`, 16, 28); context.fillText(`dpr ${dpr.toFixed(2)} · ${layout.width}×${layout.height}`, 16, 47); context.restore();
+const debugFrameBuckets = new Uint16Array(8); let debugFrameCursor = 0; let debugFrameCount = 0; let debugFrameSum = 0;
+function drawDebug(context: CanvasRenderingContext2D, layout: Layout, dpr: number, dt: number, surface: ReturnType<typeof createCanvasSurface>): void {
+  const buckets = debugFrameBuckets; const bin = Math.min(buckets.length - 1, Math.floor(dt / 2)); if (debugFrameCount === 120) { buckets[debugFrameCursor] = Math.max(0, buckets[debugFrameCursor]! - 1); debugFrameSum -= debugFrameLast[debugFrameCursor]!; } else debugFrameCount += 1;
+  debugFrameLast[debugFrameCursor] = dt; buckets[bin] = buckets[bin]! + 1; debugFrameSum += dt; debugFrameCursor = (debugFrameCursor + 1) % 120;
+  let accumulated = 0; let p95 = 16; for (let i = 0; i < buckets.length; i += 1) { accumulated += buckets[i]!; if (accumulated >= debugFrameCount * 0.95) { p95 = i * 2 + 1; break; } } const average = debugFrameSum / Math.max(1, debugFrameCount);
+  // spec-note: `slow=1` feeds synthetic slow frames into the same sampler for repeatable adaptive-DPR QA.
+  const forced = new URLSearchParams(window.location.search).get('slow') === '1'; if (forced) for (let i = 0; i < 120; i += 1) surface.reportFrame(25);
+  context.save(); context.fillStyle = PALETTE.light.shadowDeep; context.fillRect(8, 8, 230, 94); context.fillStyle = PALETTE.ui.textPrimary; context.font = '700 12px Nunito, sans-serif'; context.fillText(`frame ${dt.toFixed(1)} ms · avg ${average.toFixed(1)} · p95 ${p95.toFixed(1)}`, 16, 28); context.fillText(`dpr ${dpr.toFixed(2)} · ${layout.width}×${layout.height}`, 16, 47); context.fillText(`120f history ${debugFrameCount} · ${forced ? 'slow test' : 'live'}`, 16, 66); let peak = 1; for (let i = 0; i < buckets.length; i += 1) peak = Math.max(peak, buckets[i]!); context.fillStyle = PALETTE.ui.gold; for (let i = 0; i < buckets.length; i += 1) { const height = 18 * buckets[i]! / peak; context.fillRect(16 + i * 26, 94 - height, 18, height); } context.restore();
 }
+const debugFrameLast = new Float32Array(120);
