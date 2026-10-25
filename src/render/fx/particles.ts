@@ -4,6 +4,17 @@ import { createCosmeticRng } from '../cosmeticRng';
 import { FLAVOUR_KEYS, PALETTE } from '../palette';
 import type { PopEffectId } from '../themes';
 
+export interface PopParticleStyle { kind: 'sparkles' | 'hearts' | 'stars' | 'bubbles' | 'confetti' | 'fireworks'; colour: string }
+/** Gold effects reuse their base particle geometry and only select from existing palette roles. */
+export function popParticleStyle(effect: PopEffectId, random: () => number, flavourGlow: string): PopParticleStyle {
+  if (effect === 'goldsparkles') return { kind: 'sparkles', colour: random() < 0.6 ? PALETTE.ui.gold : PALETTE.fx.sugar };
+  if (effect === 'goldstars') return { kind: 'stars', colour: random() < 0.7 ? PALETTE.ui.gold : PALETTE.ui.coinShade };
+  if (effect === 'goldconfetti') return { kind: 'confetti', colour: [PALETTE.ui.gold, PALETTE.ui.coinShade, PALETTE.ui.coinShine, PALETTE.fx.sugar][Math.floor(random() * 4)]! };
+  const kind = effect;
+  const colour = effect === 'hearts' && random() < 0.5 ? PALETTE.fx.heart : effect === 'stars' ? PALETTE.fx.star : effect === 'bubbles' ? PALETTE.fx.bubble : effect === 'confetti' ? [PALETTE.fx.confettiA, PALETTE.fx.confettiB, PALETTE.fx.confettiC, PALETTE.fx.confettiD, PALETTE.fx.confettiE][Math.floor(random() * 5)]! : random() < 0.6 ? flavourGlow : PALETTE.fx.sugar;
+  return { kind, colour };
+}
+
 export function createParticles(seed = 0x504f5058) {
   const pool = createParticlePool(); const random = createCosmeticRng(seed);
   return {
@@ -12,10 +23,9 @@ export function createParticles(seed = 0x504f5058) {
       const budgetScale = pool.items.length > 300 ? Math.max(0, (420 - pool.items.length) / 120) : 1;
       const scaledCount = Math.floor(count * budgetScale);
       for (let i = 0; i < scaledCount; i += 1) {
-        const angle = inheritedDirection && i < inheritedCount ? Math.atan2(inheritedDirection[1], inheritedDirection[0]) + (random() - 0.5) * Math.PI * 0.7 : random() * Math.PI * 2; const speed = (120 + random() * 200) * (effect === 'fireworks' ? 1.5 : 1) * (inheritedDirection && i < inheritedCount ? 1.15 : 1);
-        const kind = effect;
-        const colour = effect === 'hearts' && random() < 0.5 ? PALETTE.fx.heart : effect === 'stars' ? PALETTE.fx.star : effect === 'bubbles' ? PALETTE.fx.bubble : effect === 'confetti' ? [PALETTE.fx.confettiA, PALETTE.fx.confettiB, PALETTE.fx.confettiC, PALETTE.fx.confettiD, PALETTE.fx.confettiE][Math.floor(random() * 5)]! : random() < 0.6 ? flavourColours.glow : PALETTE.fx.sugar;
-        pool.spawn(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed - (random() < 0.3 ? speed * 0.3 : 0), 0, effect === 'hearts' ? -120 : effect === 'stars' ? 600 : effect === 'bubbles' ? -200 : effect === 'confetti' ? 500 : 900, random() * Math.PI * 2, (random() - 0.5) * 8, cell * (effect === 'confetti' ? 0.08 : 0.08 + random() * 0.06), 0, 0.45 + random() * 0.25, colour, kind, 0, false);
+        const angle = inheritedDirection && i < inheritedCount ? Math.atan2(inheritedDirection[1], inheritedDirection[0]) + (random() - 0.5) * Math.PI * 0.7 : random() * Math.PI * 2; const baseKind = baseEffect(effect); const speed = (120 + random() * 200) * (baseKind === 'fireworks' ? 1.5 : 1) * (inheritedDirection && i < inheritedCount ? 1.15 : 1); const style = popParticleStyle(effect, random, flavourColours.glow);
+        const colour = style.colour;
+        pool.spawn(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed - (random() < 0.3 ? speed * 0.3 : 0), 0, baseKind === 'hearts' ? -120 : baseKind === 'stars' ? 600 : baseKind === 'bubbles' ? -200 : baseKind === 'confetti' ? 500 : 900, random() * Math.PI * 2, (random() - 0.5) * 8, cell * (baseKind === 'confetti' ? 0.08 : 0.08 + random() * 0.06), 0, 0.45 + random() * 0.25, colour, baseKind, 0, false);
       }
     },
     jellyDrop(x: number, y: number, cell: number, flavour: number): void {
@@ -39,6 +49,10 @@ export function createParticles(seed = 0x504f5058) {
     get count(): number { return pool.items.length; },
     clear(): void { pool.clear(); },
   };
+}
+
+function baseEffect(effect: PopEffectId): PopParticleStyle['kind'] {
+  return effect === 'goldsparkles' ? 'sparkles' : effect === 'goldstars' ? 'stars' : effect === 'goldconfetti' ? 'confetti' : effect;
 }
 
 function drawParticle(ctx: CanvasRenderingContext2D, p: Particle): void {

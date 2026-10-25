@@ -133,3 +133,11 @@ Screenshot URLs and expected states (each at **412 × 915** and **1280 × 800**,
 - [x] Production build keeps Adventure UI and level data in one lazy chunk, excludes `levelBot`, and stays within the 115 KB target.
 
 Pixel 7 layout and chapter 1–2 human play checks remain listed above for the lead reviewer.
+
+## M13 map layout and Gold pop effects
+
+- [ ] `/gloop-pop/?debug=1&demo=adventure-map` at 412 × 915, 360 × 740 and 1280 × 800: frontier 23; Chapter 1 card sits between Levels 20 and 21; footer bar covers nothing.
+- [ ] `/gloop-pop/?debug=1&demo=adventure-map&frontier=41` at 412 × 915 and 360 × 740: Chapter 2 card sits just under the frontier without overlap.
+- [ ] `/gloop-pop/?debug=1&demo=adventure-map-end` at 360 × 740: footer bar holds the all-won line.
+- [ ] `/gloop-pop/?debug=1&demo=level-card&level=25` at 412 × 915 and 360 × 740; `/gloop-pop/?debug=1&demo=level-card&level=50` at 412 × 915: level card goals and hard-level layouts.
+- [ ] `/gloop-pop/?debug=1&save=veteran` at 412 × 915, then Collection → Pop effects: all three Gold rows and prices.

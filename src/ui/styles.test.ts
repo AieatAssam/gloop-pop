@@ -12,3 +12,15 @@ describe('M12 layout styles', () => {
     expect(styles).toContain('.adventure-result-shade .adventure-result-panel { max-height: 100%; }');
   });
 });
+
+describe('M13 Adventure map styles', () => {
+  it('reserves a fixed footer, fixes chapter card height and truncates each copy line', () => {
+    expect(styles).toContain('inset: calc(var(--safe-area-top) + 64px) 0 calc(var(--safe-area-bottom) + 88px)');
+    expect(styles).toContain('height: calc(88px + var(--safe-area-bottom))');
+    expect(styles).toContain('height: calc(84px + var(--safe-area-bottom)) !important');
+    expect(styles).toContain('box-sizing: border-box; display: flex; align-items: center; gap: 12px;');
+    expect(styles).toContain('white-space: nowrap; text-overflow: ellipsis;');
+    expect(styles).not.toContain('var(--node-y) + 164px');
+    expect(styles).not.toContain('padding: 0 0 104px');
+  });
+});

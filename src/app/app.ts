@@ -62,7 +62,7 @@ import { defaultSave } from '../meta/saveSchema';
 import { setColourBlindPatterns } from '../render/gloopRenderer';
 import { chooseBotMove } from '../core/sim';
 import { seededRng } from '../core/rng';
-import { createFeelScene, createGoalScene } from './demoScenes';
+import { createFeelScene, createGoalScene, debugTutorialState } from './demoScenes';
 import { musicState } from '../audio/musicState';
 import { createCreditsScreen } from '../ui/screens/credits';
 import { drawGoalStrip } from '../render/goalStrip';
@@ -93,6 +93,8 @@ export async function bootApp(): Promise<void> {
     save.missions.rerollDay = null; save.missions.shownToday = save.missions.slots.map((slot) => slot.id); save.missions.setPaid = done;
   }
   const savedRun = runToResumeOnBoot(save.inProgress);
+  const tutorialSave = debugTutorialState(save, query);
+  if (tutorialSave !== save) { save = tutorialSave; saveNow(save); }
   const skinMap: Record<string, SkinId> = { plain:'plain', googly:'googlyEyes', googlyEyes:'googlyEyes', freckles:'freckles', catears:'catEars', catEars:'catEars', glasses:'glasses', mustache:'mustache', bowtie:'bowtie', crown:'crown' };
   const syncCosmetics = (): void => setEquippedCosmetics({ theme: save.equipped.theme as keyof typeof PALETTE.theme, skin: skinMap[save.equipped.skin] ?? 'plain', popEffect: save.equipped.pop as PopEffectId });
   syncCosmetics();
@@ -124,14 +126,16 @@ export async function bootApp(): Promise<void> {
   }
   if (debug && ['adventure-map', 'adventure-map-end'].includes(adventureDemo)) {
     save.owned.modes = Array.from(new Set<ModeId>([...save.owned.modes, 'adventure']));
-    save.adventure.frontier = adventureDemo === 'adventure-map-end' ? 121 : 23;
+    const requestedFrontier = Math.max(1, Math.min(120, Math.round(Number(query.get('frontier')) || 23)));
+    save.adventure.frontier = adventureDemo === 'adventure-map-end' ? 121 : requestedFrontier;
     save.adventure.levels = {};
-    for (let level = 1; level <= (adventureDemo === 'adventure-map-end' ? 120 : 22); level += 1) save.adventure.levels[String(level)] = { stars: (((level - 1) % 3) + 1) as 1 | 2 | 3, wins: 1, losses: 0, lossRun: 0, bestScore: 0 };
-    if (adventureDemo === 'adventure-map') { save.adventure.inProgress = newAdventureGame(levelTable?.[22] ?? (await import('../ui/adventureBundle')).LEVELS[22]!, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state; save.adventure.chaptersDone = [1]; }
+    for (let level = 1; level < save.adventure.frontier; level += 1) save.adventure.levels[String(level)] = { stars: (((level - 1) % 3) + 1) as 1 | 2 | 3, wins: 1, losses: 0, lossRun: 0, bestScore: 0 };
+    if (adventureDemo === 'adventure-map') { save.adventure.inProgress = newAdventureGame(levelTable?.[requestedFrontier - 1] ?? (await import('../ui/adventureBundle')).LEVELS[requestedFrontier - 1]!, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state; save.adventure.chaptersDone = requestedFrontier > 20 ? [1] : []; }
     if (adventureDemo === 'adventure-map-end') { save.adventure.levels = Object.fromEntries(Array.from({ length: 120 }, (_, index) => [String(index + 1), { stars: 3 as const, wins: 1, losses: 0, lossRun: 0, bestScore: 0 }])); save.adventure.chaptersDone = [1, 2, 3, 4, 5, 6]; save.adventure.chaptersAllStars = [1, 2, 3, 4, 5, 6]; }
   }
-  const beginTutorial = !debug && !debugLevelState && !savedRun && !save.tutorialDone;
-  let session = createSession({ state: debugLevelState ?? savedRun ?? (beginTutorial ? tutorialGame(1) : null), best: bestFor(save, debugLevelState?.mode ?? savedRun?.mode ?? 'classic'), mode: 'classic', goals: save.tutorialDone || debug });
+  const runDebugTutorial = debug && query.get('tutorial') === '1';
+  const beginTutorial = (!debug || runDebugTutorial) && !debugLevelState && !savedRun && !save.tutorialDone;
+  let session = createSession({ state: debugLevelState ?? savedRun ?? (beginTutorial ? tutorialGame(1) : null), best: bestFor(save, debugLevelState?.mode ?? savedRun?.mode ?? 'classic'), mode: 'classic', goals: save.tutorialDone || (debug && !runDebugTutorial) });
   if (debug && session.state.adventure && adventureDemo === 'adventure-play') session.state.adventure.movesLeft = 3;
   if (debug && session.state.adventure && adventureDemo === 'adventure-win') {
     const stars = Number(query.get('stars') ?? 3); const value = Math.max(1, Math.min(3, stars)) as 1 | 2 | 3;

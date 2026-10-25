@@ -65,6 +65,9 @@ describe('player-facing strings', () => {
     expect(S.bonusStarsCaption(1)).toBe("Your 1 extra move doesn't count for stars.");
     expect(S.bonusStarsCaption(2)).toBe("Your 2 extra moves don't count for stars.");
   });
+  it('names the three Gold pop effects in the Collection', () => {
+    expect(['goldsparkles', 'goldstars', 'goldconfetti'].map((id) => S.catalogueName(id))).toEqual(['Gold Sparkles', 'Gold Stars', 'Gold Confetti']);
+  });
   it('uses the exact short and full mini-goal labels from design §24.2', () => {
     expect(['bigpop','combo4','double','cross','flavour12','lines12','pop15','grow12'].map((id) => S.miniShort(id, 0, 4))).toEqual(['Big Pop 0/1','Combo 0/4','2 lines at once 0/1','Row + column 0/1','Apple cells 0/12','Lines 0/12','Gloop cells 0/15','12-cell gloop 0/1']);
     expect(S.miniText('flavour12', 4)).toBe('Clear or pop 12 apple cells');

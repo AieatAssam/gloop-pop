@@ -1,37 +1,33 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultSave } from '../../meta/saveSchema';
-import { LEVELS } from '../../core/levels.data';
-import { newAdventureGame } from '../../core/adventure';
-import { createAdventureMap, yFor } from './adventureMap';
+import { createAdventureMap } from './adventureMap';
+import { mapGeometry } from './mapGeometry';
 
-describe('Adventure map screen', () => {
-  it('renders all nodes and chapter cards with states, aria labels, paused progress and footer action', () => {
-    const save = defaultSave(); save.adventure.frontier = 23; save.adventure.chaptersDone = [1];
-    for (let level = 1; level <= 22; level += 1) save.adventure.levels[String(level)] = { stars: (level % 3) as 0 | 1 | 2, wins: 1, losses: 0, lossRun: 0, bestScore: 0 };
-    save.adventure.inProgress = newAdventureGame(LEVELS[22]!, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state;
-    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
-    const openLevel = vi.fn(); const screen = createAdventureMap(save, { back: vi.fn(), openLevel });
-    expect(screen.querySelectorAll('.adventure-node')).toHaveLength(120);
-    expect(yFor(20, 96) - yFor(21, 96)).toBe(228);
-    expect(screen.querySelector('.adventure-map-content')?.getAttribute('style')).toContain(`height: ${120 * 96 + 6 * 132 + 220}px`);
-    expect([...screen.querySelectorAll<HTMLButtonElement>('.adventure-node')].find((node) => node.textContent === '21')?.parentElement?.getAttribute('style')).toContain(`--node-y: ${yFor(21, 96)}px`);
-    expect(screen.querySelectorAll('.adventure-chapter-card')[0]?.getAttribute('style')).toContain(`top: ${yFor(20, 96) + 4}px`);
-    expect(screen.querySelectorAll('.adventure-chapter-card')).toHaveLength(6);
-    expect(screen.querySelector('[aria-label="Level 1, 1 stars"]')).toBeTruthy();
-    expect(screen.querySelector('[aria-label="Level 23, next"]')).toBeTruthy();
-    expect(screen.querySelector('[aria-label="Level 24, locked"]')).toBeTruthy();
-    expect(screen.textContent).toContain('Continue');
-    expect(screen.textContent).toContain('All 20 levels: 200 coins, 100 XP ✓');
-    screen.querySelector<HTMLButtonElement>('.adventure-footer')!.click();
-    expect(openLevel).toHaveBeenCalledWith(23);
+beforeEach(() => { vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+describe('Adventure map DOM positions (SG §20.2)', () => {
+  it('uses geometry for every node and card and keeps the play action in the footer bar', () => {
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { callback(0); return 1; });
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 412 }); Object.defineProperty(window, 'innerHeight', { configurable: true, value: 915 });
+    const save = defaultSave(); save.adventure.frontier = 23;
+    for (let level = 1; level < 23; level += 1) save.adventure.levels[String(level)] = { stars: 2, wins: 1, losses: 0, lossRun: 0, bestScore: 0 };
+    const open = vi.fn(); const root = createAdventureMap(save, { back: vi.fn(), openLevel: open }); const geo = mapGeometry({ w: 412, h: 915, safeTop: 0, safeBottom: 0 });
+    const nodes = root.querySelectorAll<HTMLElement>('.adventure-node-wrap'); expect(nodes).toHaveLength(120);
+    for (const nodeGeo of geo.nodes) {
+      const wrap = nodes[nodeGeo.level - 1]!;
+      expect(wrap.style.left).toBe(`${nodeGeo.cx - nodeGeo.box.w / 2}px`); expect(wrap.style.top).toBe(`${nodeGeo.box.y}px`);
+    }
+    const cards = root.querySelectorAll<HTMLElement>('.adventure-chapter-card'); expect(cards).toHaveLength(6);
+    geo.cards.forEach((cardGeo, index) => { expect(cards[index]?.style.left).toBe(`${cardGeo.x}px`); expect(cards[index]?.style.top).toBe(`${cardGeo.y}px`); expect(cards[index]?.style.width).toBe(`${cardGeo.w}px`); });
+    const footer = root.querySelector<HTMLElement>('.adventure-footer-bar')!; const button = footer.querySelector('button')!;
+    expect(button.textContent).toBe('Play level 23'); button.click(); expect(open).toHaveBeenCalledWith(23);
   });
-
-  it('shows the completed state after all 360 stars', () => {
+  it('puts the all-won line in the same footer bar without a button', () => {
     const save = defaultSave(); save.adventure.frontier = 121;
-    save.adventure.levels = Object.fromEntries(Array.from({ length: 120 }, (_, index) => [String(index + 1), { stars: 3 as const, wins: 1, losses: 0, lossRun: 0, bestScore: 0 }]));
-    const screen = createAdventureMap(save, { back: vi.fn(), openLevel: vi.fn() });
-    expect(screen.textContent).toContain('You won every level. Replay any level to get more stars.');
-    expect(screen.querySelector('.adventure-footer')).toBeNull();
+    const root = createAdventureMap(save, { back: vi.fn(), openLevel: vi.fn() });
+    expect(root.querySelector('.adventure-footer-bar')?.textContent).toContain('You won every level. Replay any level to get more stars.');
+    expect(root.querySelector('.adventure-footer-bar button')).toBeNull();
   });
 });

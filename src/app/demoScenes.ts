@@ -1,8 +1,17 @@
 import type { GameState } from '../core/types';
 import { step } from '../core/game';
+import type { SaveV2 } from '../meta/saveSchema';
 
 export type FeelScene = 'combo' | 'mega';
 export type GoalScene = 'target' | 'target-hit' | 'mini-done';
+
+/** Apply the normal tutorial skip save changes to a debug-only in-memory save. */
+export function debugTutorialState(save: SaveV2, query: URLSearchParams): SaveV2 {
+  if (query.get('debug') !== '1' || query.get('tutorial') === '1' || save.inProgress !== null || save.tutorialDone) return save;
+  const next = structuredClone(save); next.tutorialDone = true;
+  next.ui.seenTips = next.ui.seenTips.filter((tip) => tip !== 'tutorialStep4Pending');
+  return next;
+}
 
 /** Deterministic M12 capture scenes built from the current in-memory run. */
 export function createGoalScene(state: GameState, scene: GoalScene): GameState {

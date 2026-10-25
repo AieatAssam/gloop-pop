@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { step } from '../core/game';
 import { newGame } from '../core/game';
 import { createFeelScene, createGoalScene } from './demoScenes';
+import { debugTutorialState } from './demoScenes';
+import { defaultSave } from '../meta/saveSchema';
 
 describe('game-feel capture scenes', () => {
   it('clears each successive combo gap and climbs from combo 3', () => {
@@ -28,5 +30,18 @@ describe('game-feel capture scenes', () => {
     const target = createGoalScene(base, 'target'); const hit = createGoalScene(base, 'target-hit'); const done = createGoalScene(base, 'mini-done');
     expect(target.score).toBe(4880); expect(hit.goals?.targetsHit).toBe(1); expect(hit.score).toBeGreaterThan(5000);
     expect(done.goals?.mini).toMatchObject({ id: 'bigpop', progress: 1, done: true });
+  });
+  it('marks a fresh debug tutorial skipped through the normal save changes only', () => {
+    const save = defaultSave(); save.ui.seenTips = ['tutorialStep4Pending', 'tutorialTipPending'];
+    const changed = debugTutorialState(save, new URLSearchParams('debug=1'));
+    expect(changed.tutorialDone).toBe(true); expect(changed.ui.seenTips).toEqual(['tutorialTipPending']);
+    expect(changed.profile).toEqual(save.profile); expect(changed.achievements).toEqual(save.achievements); expect(changed.stats).toEqual(save.stats);
+    expect(save.tutorialDone).toBe(false); expect(save.ui.seenTips).toEqual(['tutorialStep4Pending', 'tutorialTipPending']);
+  });
+  it('leaves explicit tutorial runs and saves with an in-progress run unchanged', () => {
+    const save = defaultSave();
+    expect(debugTutorialState(save, new URLSearchParams('debug=1&tutorial=1'))).toBe(save);
+    save.inProgress = newGame('classic', 'debug-saved-run').state;
+    expect(debugTutorialState(save, new URLSearchParams('debug=1'))).toBe(save);
   });
 });

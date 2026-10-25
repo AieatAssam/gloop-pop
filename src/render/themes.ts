@@ -2,7 +2,7 @@
 import type { ThemeKey } from './palette';
 
 export type SkinId = 'plain' | 'googlyEyes' | 'freckles' | 'catEars' | 'glasses' | 'mustache' | 'bowtie' | 'crown';
-export type PopEffectId = 'sparkles' | 'hearts' | 'stars' | 'bubbles' | 'confetti' | 'fireworks';
+export type PopEffectId = 'sparkles' | 'hearts' | 'stars' | 'bubbles' | 'confetti' | 'fireworks' | 'goldsparkles' | 'goldstars' | 'goldconfetti';
 export const SKIN_IDS: readonly SkinId[] = ['plain', 'googlyEyes', 'freckles', 'catEars', 'glasses', 'mustache', 'bowtie', 'crown'];
 
 export interface EquippedCosmetics { theme: ThemeKey; skin: SkinId; popEffect: PopEffectId }

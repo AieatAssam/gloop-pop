@@ -42,6 +42,11 @@ describe('save migration', () => {
     expect(migrate({ ...fixture, settings: { ...fixture.settings, sfxVolume: -1, musicVolume: 3 } }).settings).toMatchObject({ sfxVolume: 0, musicVolume: 1 });
   });
   it('drops an invalid in-progress board and unknown equipped item', () => { const save = migrate({ ...fixture, inProgress: { board: [9], tray: [] }, equipped: { theme: 'unknown', skin: 'bad', pop: 'bad' } }); expect(save.inProgress).toBeNull(); expect(save.equipped.theme).toBe('midnight'); });
+  it('keeps Gold pop ids that are owned and equipped, and drops unknown pop ids', () => {
+    const fresh = defaultSave(); const clean = sanitize({ ...fresh, owned: { ...fresh.owned, pops: ['sparkles', 'goldconfetti', 'unknown'] }, equipped: { ...fresh.equipped, pop: 'goldconfetti' } });
+    expect(clean.owned.pops).toEqual(['sparkles', 'goldconfetti']); expect(clean.equipped.pop).toBe('goldconfetti');
+    expect(sanitize({ ...fresh, owned: { ...fresh.owned, pops: ['sparkles', 'unknown'] }, equipped: { ...fresh.equipped, pop: 'unknown' } }).owned.pops).toEqual(['sparkles']);
+  });
   it('starts fresh on an unknown future version', () => { expect(migrate({ v: 200, best: 100 }).best.classic).toBe(0); });
   it('migrates v1 fields and grants the level 2 Adventure gift', () => {
     const v1 = { ...fixture, profile: { xp: 1200, level: 2, stars: 0, coins: 40, coinsEarned: 40 }, v: 1 };

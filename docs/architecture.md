@@ -80,6 +80,7 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   │   ├─ runSummary.ts      # fold GameEvents of a run into a RunSummary
 │   │   ├─ missions.ts        # M12.3: day roll, progress, claim, change, set bonus (design §24.3)
 │   │   ├─ adventureProgress.ts # M12.5–6: stars, frontier, rewards, chapters, win streak, lossRun (design §24.7–24.9)
+│   │   ├─ mapGeometry.ts      # M13.2: pure Adventure map positions and scroll targets (SG §20.2)
 │   │   └─ boosters.ts        # M12.6: prices, caps, buy, arm, return unused (design §24.10)
 │   ├─ app/
 │   │   ├─ app.ts             # top-level state machine (§5), wires everything

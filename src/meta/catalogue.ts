@@ -8,6 +8,7 @@ export const CATALOGUE: readonly CatalogueItem[] = [
   { kind: 'skin', id: 'mustache', price: 900 }, { kind: 'skin', id: 'bowtie', price: 1200 }, { kind: 'skin', id: 'crown', price: 0, achievement: 'mega_pop' },
   { kind: 'pop', id: 'sparkles', price: 0 }, { kind: 'pop', id: 'hearts', price: 0, level: 2 }, { kind: 'pop', id: 'stars', price: 300 },
   { kind: 'pop', id: 'bubbles', price: 500 }, { kind: 'pop', id: 'confetti', price: 800 }, { kind: 'pop', id: 'fireworks', price: 0, level: 30 },
+  { kind: 'pop', id: 'goldsparkles', price: 1500 }, { kind: 'pop', id: 'goldstars', price: 2000 }, { kind: 'pop', id: 'goldconfetti', price: 2500 },
 ];
 
 import type { SaveV2 } from './saveSchema';

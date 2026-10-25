@@ -3,7 +3,10 @@ import { CATALOGUE } from './catalogue';
 
 describe('catalogue', () => {
   it('contains every themed item with the specified total shop prices', () => {
-    expect(CATALOGUE).toHaveLength(21); expect(CATALOGUE.reduce((sum, item) => sum + item.price, 0)).toBe(10_000);
+    expect(CATALOGUE).toHaveLength(24); expect(CATALOGUE.reduce((sum, item) => sum + item.price, 0)).toBe(16_000);
+    expect(CATALOGUE.filter((item) => item.id.startsWith('gold'))).toEqual([
+      { kind: 'pop', id: 'goldsparkles', price: 1500 }, { kind: 'pop', id: 'goldstars', price: 2000 }, { kind: 'pop', id: 'goldconfetti', price: 2500 },
+    ]);
     expect(CATALOGUE.find((item) => item.id === 'snowglobe')?.level).toBe(20);
     expect(CATALOGUE.find((item) => item.id === 'crown')?.achievement).toBe('mega_pop');
   });
@@ -26,5 +29,9 @@ describe('collection purchases and equipment', () => {
     expect(requirement(CATALOGUE.find((item) => item.id === 'snowglobe')!, save)).toEqual({ kind: 'level', level: 20 });
     expect(requirement(CATALOGUE.find((item) => item.id === 'crown')!, save)).toEqual({ kind: 'achievement', achievement: 'mega_pop' });
     save.profile.level = 20; expect(requirement(CATALOGUE.find((item) => item.id === 'snowglobe')!, save)).toBeNull();
+  });
+  it('refuses an unaffordable Gold effect without changing the save', () => {
+    const save = defaultSave(); save.profile.coins = 1499;
+    expect(buyItem(save, 'pop', 'goldsparkles')).toEqual({ save, ok: false });
   });
 });

@@ -3,6 +3,7 @@ import type { GameEvent } from '../core/types';
 import { achievementProgress, ACHIEVEMENTS, grantAchievements } from './achievements';
 import { CATALOGUE } from './catalogue';
 import { defaultSave } from './saveSchema';
+import { sanitize } from './migrate';
 
 const events: GameEvent[] = [
  {type:'cleared',rows:[0,1,2,3],cols:[0,1,2,3],cells:Array.from({length:64},(_,i)=>i),flavoursByCell:Array(64).fill(1)},
@@ -27,5 +28,14 @@ describe('achievements',()=>{
   expect(achievementProgress('all_stars',save)).toMatchObject({current:21,target:360,met:false});
   expect(achievementProgress('win_streak5',save)).toMatchObject({current:3,target:5,met:false});
   expect(achievementProgress('missions10',save)).toMatchObject({current:7,target:10,met:false});
+ });
+ it('requires all 24 collection items and preserves an unlocked Collector on load',()=>{
+  const save=defaultSave();save.owned.themes=CATALOGUE.filter((item)=>item.kind==='theme').map((item)=>item.id);save.owned.skins=CATALOGUE.filter((item)=>item.kind==='skin').map((item)=>item.id);save.owned.pops=CATALOGUE.filter((item)=>item.kind==='pop').slice(0,6).map((item)=>item.id);
+  expect(achievementProgress('collector',save)).toMatchObject({current:21,target:24,met:false});
+  save.owned.pops=CATALOGUE.filter((item)=>item.kind==='pop').map((item)=>item.id);
+  expect(achievementProgress('collector',save)).toMatchObject({current:24,target:24,met:true});
+  expect(grantAchievements(save).save.achievements.collector).toBe(1);
+  const prior=defaultSave();prior.owned.themes=save.owned.themes;prior.owned.skins=save.owned.skins;prior.owned.pops=save.owned.pops.slice(0,6);prior.achievements.collector=1;
+  expect(sanitize(prior).achievements.collector).toBe(1);
  });
 });

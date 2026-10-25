@@ -4,7 +4,7 @@ import { PIECES } from '../core/pieces';
 
 const themeIds = new Set(['midnight', 'sunset', 'aquarium', 'observatory', 'kitchen', 'snowglobe', 'dawn']);
 const skinIds = new Set(['plain', 'googly', 'freckles', 'catears', 'glasses', 'mustache', 'bowtie', 'crown']);
-const popIds = new Set(['sparkles', 'hearts', 'stars', 'bubbles', 'fireworks', 'confetti']);
+const popIds = new Set(['sparkles', 'hearts', 'stars', 'bubbles', 'fireworks', 'confetti', 'goldsparkles', 'goldstars', 'goldconfetti']);
 const modeIds = new Set(['classic', 'expert', 'zen', 'daily', 'tutorial', 'adventure']);
 const missionIds = new Set(['lines15','pieces40','gloop25','bigpop1','combo3','double1','score3k','runs2','advwin1','cherry20','lines40','blueberry40','combo6','bigpop3','score10k','triple1','cross3','advwin3','adv3star','orange40','lines80','hugepop1','combo10','score20k','allclear1','multi10','lemon70','advstars6','score50k']);
 
