@@ -709,7 +709,7 @@ Lifetime: Runs played (per mode), Best score (Classic, Expert), Average score (l
 
 ---
 
-## 21. Requirement traceability (R1–R22)
+## 21. Requirement traceability (R1–R30)
 
 | Req | How Gloop Pop meets it | Where |
 |---|---|---|
@@ -735,8 +735,112 @@ Lifetime: Runs played (per mode), Best score (Classic, Expert), Average score (l
 | R20 Return reasons | Daily, streak with freezes, rotating weekly goal | §10–12 |
 | R21 Sound respectful | On by default, starts on first input, mute always visible in the top bar, M key | SG §13, §17 |
 | R22 Performance | Cached board layer, DPR cap 2 with adaptive drop to 1.5, pooled particles, no per-frame shadowBlur | architecture §6 |
+| R23 PB chase bar | Gold progress bar under the score; pulses at 80%; label "{d} to beat your best" | §23.1 |
+| R24 First-time moments | One-time banners and coin bonuses for first Big/Huge/Mega Pop, All Clear, combo 5/10 | §23.2 |
+| R25 Signature score effect | Candy-flame score at combo 8+ or 2,000+ point moves | §23.3 |
+| R26 Hit-stop | 50–70 ms freeze on 3+ lines, Huge/Mega, All Clear | §23.4 |
+| R27 Beat my score | Classic/Expert "Challenge a friend" text and image with a ?beat= link; the friend's score becomes the chase bar | §23.5 |
+| R28 Streak celebration | Animated flame tick-up, gold milestone flames with confetti | §23.6 |
+| R29 Screenshot results | Biggest gloop drawn with its face, best combo, lines | §23.7 |
+| R30 Replay | Deferred (deterministic reducer supports it) | §23.8 |
 
 ---
 
 ## 22. What is deliberately not in the game
-No ads, IAP, energy, loot boxes, accounts, backend, leaderboards, push notifications, timers in Classic/Daily, paid streak repair, fake near-misses, or rigged pieces. No link in share text beyond the bare site address. No text walls.
+No ads, IAP, energy, loot boxes, accounts, backend, leaderboards, push notifications, timers in Classic/Daily, paid streak repair, fake near-misses, or rigged pieces. No link in share text beyond the bare site address (and the `?beat=` score in a Classic challenge). Replays of runs are a later idea (§23.8). No text walls.
+
+---
+
+## 23. Research v2 additions (R23–R30)
+
+Added on 25 Oct 2026 after the deep research pass (docs/research/virality.md v2). Where this section conflicts with an earlier one, this section wins.
+
+### 23.1 Personal-best chase bar (R23, from Block Blast)
+- Classic and Expert, once a best exists for that mode: a thin bar under the HUD score block (portrait: full board width, 6 px tall, radius 3, 6 px under the best line; desktop: inside the left panel under "Best", 240 px wide).
+- Fill = `min(1, score / best)`, track `ui.panelSolid` at alpha 0.6, fill `ui.gold` at alpha 0.85. It eases to the new value over the score count-up time.
+- At ≥ 80% the fill pulses (scale Y 1 → 1.5 → 1, 900 ms loop) and the label "Best 14,210" becomes "{d} to beat your best" (`{d}` = best − score, en-US format).
+- When the score passes the best: the bar flashes white for 120 ms, then turns into a full gold bar with a 6-sparkle burst. The label becomes "New best!" (same moment as §20.4).
+- **Challenge target (§23.5):** when a friend's challenge is active, the bar chases the friend's score instead, with the label "{d} to beat your friend's score". When the score passes it: banner "You beat your friend!" (40 px gold, same as the New best banner), then the bar switches to the player's own best if that is higher.
+- Zen and Daily: no bar. Daily is a fresh board for everyone, and Zen has no stakes.
+
+### 23.2 First-time discoveries (R24, from Threes)
+The first time a player ever makes each of these (lifetime, stored in `save.firsts`), the moment gets a one-time banner, a bonus and a hit-stop (§23.4):
+
+| Moment | Banner text (48 px, flavour colour of the gloop or gold) | Bonus |
+|---|---|---|
+| First line clear | "Nice!" (tutorial step, no bonus) | none |
+| First 2+ line clear | "Double!" | 10 coins |
+| First Big Pop (8+) | "First Big Pop!" | 20 coins |
+| First Huge Pop (15+) | "First Huge Pop!" | 40 coins |
+| First Mega Pop (24+) | "First Mega Pop!" | 80 coins |
+| First All Clear | "First All Clear!" | 100 coins |
+| First combo 5 | "Combo 5! Keep clearing." | 20 coins |
+| First combo 10 | "Combo 10!" | 50 coins |
+
+- The banner replaces the normal Big/Huge/Mega text for that one event and stays 1,600 ms (normal: 900 ms). A small "+20 coins" line sits under it. Coins are added to the run's coin total, so the game-over rewards row includes them.
+- Daily counted runs also award these (fair: it's a one-time lifetime bonus, not a score change). Score is never affected.
+
+### 23.3 Candy-flame score (R25, from Balatro)
+- The HUD score number catches fire when **combo tier ≥ 3** (combo 8+, SG §9.6) or for 1,500 ms after **a single move worth 2,000+ points**.
+- Look: 10–16 small teardrop flames (pooled particles) rise from the top edge of the score glyphs. Each flame is a two-stop gradient from the current tier's flavour colour (base) to `ui.gold` (tip), with additive blending, rising 18–30 px over 450–700 ms, swaying ±4 px, and scaling to 0.2. Spawn rate is 22/s at tier 3 and 34/s at tier 4. The score glyph outline turns the flavour colour.
+- The flames die out over 400 ms when the combo breaks. Reduced motion: no flames; the score glyphs get a static flavour-coloured outline instead.
+- This is the game's signature clip effect, so it must read at 64 px thumbnail size.
+
+### 23.4 Hit-stop (R26, from Nijman's "sleep")
+- On resolving a placement that clears **3+ lines**, makes a **Huge or Mega Pop**, or an **All Clear**: freeze the simulation and all tweens for **50 ms** (3+ lines), **70 ms** (Huge, Mega, All Clear, first-time moments), then play the effects. Shake and flash begin on the first frame after the freeze. Slow-mo (SG §9.9) starts after the hit-stop.
+- Input during the freeze is queued, not dropped. Reduced motion: no hit-stop.
+- Implementation: one `fx.hitStop(ms)` in the FX timeline that sets the effective dt to 0 while it's active.
+
+### 23.5 "Beat my score" challenge (R27, from Flappy Bird, Block Blast and VS)
+- **Classic and Expert game-over panels** get a real "Challenge a friend" button (it replaces the small "Share score" text button from §13.3, and sits as the secondary button beside "Play again").
+- **Share text:**
+```
+I scored 8,450 in Gloop Pop 🍒
+Biggest pop: 18 cells · Best combo 7
+Can you beat it?
+owner.github.io/gloop-pop/?beat=8450&f=cherry
+```
+  - Line 1 shows the flavour emoji of the player's biggest gloop this run (cherry by default).
+  - Line 2 omits any part that is below its threshold: a biggest pop under 8, or a best combo under 2. If both are omitted, the line is dropped.
+  - Expert runs say "in Gloop Pop Expert".
+  - The URL is the only link: no hashtags and no protocol, matching the Daily rule.
+- **Image:** "Share image" makes a Classic version of the PNG card (SG §12 layout). It uses the title "Classic" instead of "Daily #12" and the final board instead of the tray grid (a Classic board is no spoiler). The run's biggest gloop is drawn on top with its face at 1.4× scale, plus the score and "Can you beat it?" in 44 px.
+- **Receiving:**
+  - On load, if `?beat=N` holds a valid integer with 1 ≤ N ≤ 10,000,000 and `f` is a known flavour (otherwise cherry), store `challenge = {score: N, flavour: f}` in session memory (not saved), then strip the query string with `history.replaceState`.
+  - Home shows a card at the top: "{Flavour emoji} A friend scored 8,450. Beat it!" with the primary button "Play Classic".
+  - In the run, the PB bar (§23.1) chases N, using the label name "your friend's" ("1,200 to beat your friend's score").
+  - Beating it shows the "You beat your friend!" banner, and the game-over panel's first near-miss line becomes "You beat your friend by {d}!" or "{d} short of your friend's score." That replaces near-miss rule 1/2 for the run.
+  - The challenge stays active until beaten or until the tab closes.
+  - A first-time visitor gets the tutorial first (§16.2). The challenge card appears on Home after that, and the tutorial's final step says "Now beat your friend's 8,450!" instead of the usual last line.
+- Achievement #41 "Rivals": "Beat a friend's challenge score." (category misc, 50 coins). All "N / 40" counts use the real total (41).
+
+### 23.6 Streak celebration (R28, from Duolingo)
+- After a counted Daily finishes, the Daily result panel shows the streak as a large drawn flame with the number (Baloo 2 800, 64 px). It animates from the old value to the new one: the flame grows 1 → 1.25 → 1 with `easeOutBack` over 500 ms, and the digit rolls up over 300 ms with a `levelUp` sting.
+- Text under it: "3-day streak!", or "Streak started!" for day 1, or "A freeze kept your streak alive." when one was used.
+- **Milestones at 3, 7, 14, 30, 50, 100 and every 100 after:**
+  - The flame turns gold.
+  - 40 confetti pieces fall.
+  - 70 ms hit-stop.
+  - A banner: "7-day streak! +1 freeze" (7, 14, …) or "30-day streak!".
+- Home's 7-day strip gets today's tick on return to Home, with a 300 ms pop.
+
+### 23.7 Results screen worth screenshotting (R29, from Vampire Survivors)
+The game-over panel (§13.3) adds a "run highlights" row between the score and the near-miss lines:
+- **Left:** the run's biggest gloop, redrawn from the board snapshot (true shape, flavour, face with a "proud" expression) and fitted in a 96 × 96 box. Under it: "Biggest pop: 18 cells" (or "Biggest gloop: 6 cells" if nothing popped at 8+).
+- **Right:** two stat chips, "Best combo 7" and "Lines 34".
+- The row fades in 150 ms after the panel. It must not delay "Play again", which stays clickable at once (R4).
+- The run summary records `biggestGloop: {cells: [x,y][], flavour}`, captured at the moment of the pop or, if nothing popped, the largest gloop present at game over.
+
+### 23.8 Replay (R30, optional)
+Not built for launch. The deterministic reducer makes it possible later: store the move list for the counted Daily and replay it at 2×. Listed in §22 as a future idea, not a gap in the core loop.
+
+### 23.9 Seconds-to-fun audit (R2, R3, P2)
+- Tutorial step 1 already shows a board one piece away from a clear (§16.2). Keep it that way. A tutorial board must always show the rule before asking for the move (the Threes lesson).
+- No splash, no cookie banner, no "tap to start". Fonts use `font-display: swap`, and the first frame draws with the fallback font when needed.
+- The first counted Daily is always offered after the tutorial and the first Classic run, never before: players first learn the loop, then get the shared puzzle.
+
+### 23.10 Clip moments added to §20
+10. **Candy-flame score** at combo 8+ (§23.3).
+11. **"You beat your friend!"** banner (§23.5).
+12. **First Mega Pop** banner with its hit-stop (§23.2, §23.4).
+13. **Milestone streak flame** turning gold (§23.6).

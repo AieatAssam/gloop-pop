@@ -172,6 +172,13 @@ Rules for every task:
 - **Files:** `src/meta/streak.ts` + test, Home streak strip (7 days), toasts for freeze used / streak ended, game-over daily panel streak line.
 - **Done when:** streak tests pass for all cases in arch §9.1; the strip shows ✓/❄️/today correctly with a fake clock.
 
+### M4.6 Challenge links and Classic share (design §23.5, §23.7)
+- Parse and strip `?beat=&f=` on load (pure function `parseChallenge(search)` with unit tests for valid, invalid, out-of-range, unknown flavour). Home challenge card, chase target in run, "You beat your friend!" banner, game-over near-miss override, share text builder `buildChallengeText(summary, mode, url)` with exact-string unit tests, Classic PNG card variant with the final board and biggest gloop, "Rivals" achievement, run summary `biggestGloop`, game-over highlights row.
+- Done when: unit tests pass for parse and text, and the game-over panel shows the highlights row.
+
+### M4.7 Streak celebration (design §23.6)
+- Flame tick-up animation on the Daily result panel, milestone gold flame with confetti and hit-stop, freeze-used text, Home strip tick pop. Pure helper `streakMilestone(n)` with tests.
+
 ### M4.5 Weekly goal
 - **Implements:** design §12.
 - **Files:** `src/meta/weeklyGoal.ts` + test, Home weekly card, game-over near-miss line 6 hook, reward toast.
@@ -200,6 +207,12 @@ Rules for every task:
 - **Implements:** SG §6.5 triggers (all rows), §9.8, design §13.2–13.4 (all near-miss messages).
 - **Files:** `face.ts`, `boardView.ts`, `director.ts`, `src/core/nearMiss.ts` (complete), `src/ui/gameOverPanel.ts` (2 near-miss lines from the priority list).
 - **Done when:** worried faces at 45+ filled cells; happy near clears; star eyes at tier 3; sad shaking unfit pieces and dizzy board on loss; the 1-cell near-miss is highlighted on the board; panel at 450 ms with correct lines (tests for message selection order).
+
+### M5.6 Research v2 juice (design §23.1–23.4)
+- `fx.hitStop(ms)` in the FX timeline (dt = 0 while active, input queued), wired for 3+ lines, Huge/Mega, All Clear, first-time moments.
+- The PB chase bar under the HUD score (portrait and desktop), with pulse at ≥ 80%, label switching and the pass flash.
+- Candy-flame score particles at combo tier ≥ 3 or 2,000+ point moves; reduced-motion fallback.
+- First-time discovery banners and coin bonuses (`save.firsts`, pure `detectFirsts(events, firsts)` with tests).
 
 ### M5.5 Haptics and reduced motion
 - **Implements:** SG §16, §9.11.
