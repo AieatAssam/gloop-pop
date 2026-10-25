@@ -7,6 +7,7 @@ import { PALETTE } from './palette';
 import { withAlpha } from './colour';
 import { drawGloop, drawPiece } from './gloopRenderer';
 import { roundRectPath } from './silhouette';
+import { S } from '../ui/strings';
 import type { Layout, Rect } from './layout';
 
 export interface SlotView { rect: Rect; piece: Piece | null; cell: number }
@@ -38,7 +39,11 @@ export function createBoardView(): BoardView {
       for (const gloop of groups) drawGloop(ctx, gloop, c, gx, gy, elapsed, state.status === 'over' ? 'dizzy' : 'idle');
       const slotViews = slotsFor(layout, state);
       slotViews.forEach((slot, i) => {
-        const r = slot.rect; ctx.fillStyle = PALETTE.theme.midnight.frameDark; ctx.globalAlpha = slot.piece ? 0.42 : 0.35; ctx.fill(roundRectPath(r.x, r.y, r.width, r.height, 18)); ctx.globalAlpha = 1;
+        const r = slot.rect;
+        // SG §8.2 tray wells: keep the specified translucent frameDark fill and add a soft interior lift for legibility.
+        ctx.fillStyle = PALETTE.theme.midnight.frameDark; ctx.globalAlpha = slot.piece ? 0.42 : 0.35; ctx.fill(roundRectPath(r.x, r.y, r.width, r.height, 18));
+        const slotLight = ctx.createLinearGradient(0, r.y, 0, r.y + r.height); slotLight.addColorStop(0, withAlpha(PALETTE.theme.midnight.frameLight, 0.24)); slotLight.addColorStop(0.42, withAlpha(PALETTE.theme.midnight.frame, 0.08)); slotLight.addColorStop(1, withAlpha(PALETTE.theme.midnight.frameDark, 0));
+        ctx.globalAlpha = 0.72; ctx.fillStyle = slotLight; ctx.fill(roundRectPath(r.x + 2, r.y + 2, r.width - 4, r.height - 4, 16)); ctx.globalAlpha = 1;
         if (!slot.piece || drag?.slot === i) return;
         const def = PIECES[slot.piece.defId]!; const pc = Math.min(slot.cell, r.width / 5.4, r.height / 5.4); const fit = hasFit(state, slot.piece); const x = r.x + (r.width - def.w * pc) / 2; const y = r.y + (r.height - def.h * pc) / 2;
         drawPiece(ctx, slot.piece.flavour, def.cells, pc, x, y, elapsed, fit ? 'idle' : 'worried', fit ? 1 : 0.45);
@@ -95,7 +100,7 @@ function drawPreview(ctx: CanvasRenderingContext2D, _state: GameState, piece: Pi
   for (const group of preview.popping) {
     let count = 0; let totalX = 0; let totalY = 0;
     for (const index of group) { const x = gx + (index % 8) * c; const y = gy + Math.floor(index / 8) * c; ctx.stroke(roundRectPath(x + 2, y + 2, c - 4, c - 4, c * 0.2)); if (!cleared.has(index)) { count += 1; totalX += x + c / 2; totalY += y + c / 2; } }
-    if (count) { ctx.font = `800 ${Math.max(14, c * 0.36)}px "Baloo 2", sans-serif`; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = PALETTE.fx.numberOutline; ctx.fillStyle = PALETTE.ui.textPrimary; ctx.strokeText(`+${new Intl.NumberFormat('en-US').format(count)}`, totalX / count, totalY / count); ctx.fillText(`+${new Intl.NumberFormat('en-US').format(count)}`, totalX / count, totalY / count); }
+    if (count) { const label = S.extraPopCount(count); ctx.font = `800 ${Math.max(14, c * 0.36)}px "Baloo 2", sans-serif`; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = PALETTE.fx.numberOutline; ctx.fillStyle = PALETTE.ui.textPrimary; ctx.strokeText(label, totalX / count, totalY / count); ctx.fillText(label, totalX / count, totalY / count); }
   }
   if (preview.rows.length === 0 && preview.cols.length === 0) {
     ctx.globalAlpha = 0.7; ctx.strokeStyle = PALETTE.flavour[Object.keys(PALETTE.flavour)[piece.flavour - 1] as keyof typeof PALETTE.flavour].light; ctx.lineWidth = c * 0.04;

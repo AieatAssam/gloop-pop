@@ -1,14 +1,19 @@
 // SG §11.1–11.3: DOM overlays use palette CSS variables and exact design strings.
 import { S } from './strings';
 
-export interface GameUi { root: HTMLElement; showPause(onResume: () => void, onRestart: () => void): void; showRestartConfirm(onStart: () => void, onCancel: () => void): void; showGameOver(onRestart: () => void, score: number, best: number, fallback: string): void; showRescue(onUse: () => void, onDecline: () => void): void; hide(): void }
+export interface GameUi { root: HTMLElement; showPause(onResume: () => void, onRestart: () => void, onHome: () => void, restartLabel: string): void; showRestartConfirm(onStart: () => void, onCancel: () => void): void; showGameOver(onRestart: () => void, onHome: () => void, score: number, best: number | null, fallback: string, rewards: { xp: number; coins: number; progress: number; progressMax: number; level?: number }): void; showRescue(onUse: () => void, onDecline: () => void): void; hide(): void }
 export function createGameUi(root: HTMLElement): GameUi {
   const overlay = document.createElement('div'); overlay.className = 'gloop-overlay'; root.append(overlay);
   return {
     root,
-    showPause(onResume, onRestart) { renderPanel(overlay, S.pause, [[S.resume, 'button button--primary', onResume], [S.restart, 'button button--secondary', onRestart]]); },
+    showPause(onResume, onRestart, onHome, restartLabel) { renderPanel(overlay, S.pause, [[S.resume, 'button button--primary', onResume], [restartLabel, 'button button--secondary', onRestart], [S.home, 'button button--secondary', onHome]]); },
     showRestartConfirm(onStart, onCancel) { renderPanel(overlay, S.restartConfirm, [[S.startOver, 'button button--primary', onStart], [S.cancel, 'button button--secondary', onCancel]]); },
-    showGameOver(onRestart, score, best, fallback) { renderPanel(overlay, S.noRoom, [[S.playAgain, 'button button--primary', onRestart]], new Intl.NumberFormat('en-US').format(score), score >= best && score > 0 ? S.newBest : S.best(new Intl.NumberFormat('en-US').format(best)), fallback); },
+    showGameOver(onRestart, onHome, score, best, fallback, rewards) {
+      const rewardText = S.rewardRow(rewards.xp, rewards.coins);
+      renderPanel(overlay, S.noRoom, [[S.playAgain, 'button button--primary', onRestart], [S.home, 'button button--secondary', onHome]], new Intl.NumberFormat('en-US').format(score), best === null ? undefined : best > 0 && score > best ? S.newBest : S.best(new Intl.NumberFormat('en-US').format(best)), S.gameOverNote(fallback, rewards.level));
+      const panel = overlay.querySelector('.gloop-modal'); if (!panel) return;
+      const reward = document.createElement('div'); reward.className = 'gloop-rewards'; const label = document.createElement('p'); label.textContent = rewardText; const track = document.createElement('div'); track.className = 'xp-track'; const fill = document.createElement('span'); fill.style.width = '0%'; track.append(fill); reward.append(label, track); panel.insertBefore(reward, panel.querySelector('.gloop-result-note')); requestAnimationFrame(() => { fill.style.width = `${rewards.progressMax ? Math.min(100, rewards.progress / rewards.progressMax * 100) : 100}%`; });
+    },
     showRescue(onUse, onDecline) { renderPanel(overlay, S.rescueReady, [[S.rescueUse, 'button button--primary', onUse], [S.rescueDecline, 'button button--secondary', onDecline]]); },
     hide() { overlay.replaceChildren(); overlay.classList.remove('is-visible'); },
   };

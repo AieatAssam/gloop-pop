@@ -1,13 +1,16 @@
-// M2.5: thin app session around the deterministic core reducer.
+// M3.1: session state can restore a JSON-safe run and reports each reducer result for persistence.
 import { newGame, step } from '../core/game';
-import type { Action, GameEvent, GameState } from '../core/types';
+import type { Action, GameEvent, GameState, ModeId } from '../core/types';
 
-export interface Session { readonly state: GameState; readonly best: number; dispatch(action: Action): GameEvent[]; restart(): void }
-export function createSession(): Session {
-  let result = newGame('classic', 'gloop-pop/classic/session'); let state = result.state; let best = 0;
+export interface Session { readonly state: GameState; readonly best: number; dispatch(action: Action): GameEvent[]; restart(mode?: ModeId): void; }
+export function createSession(options: { state?: GameState | null; best?: number; mode?: ModeId } = {}): Session {
+  let mode = options.state?.mode ?? options.mode ?? 'classic';
+  let result = options.state ? { state: options.state, events: [] as GameEvent[] } : newGame(mode, seed(mode));
+  let state = result.state; const best = options.best ?? 0;
   return {
     get state() { return state; }, get best() { return best; },
-    dispatch(action) { const next = step(state, action); state = next.state; best = Math.max(best, state.score); return next.events; },
-    restart() { result = newGame('classic', `gloop-pop/classic/session-${state.moves}-${state.score}`); state = result.state; },
+    dispatch(action) { const next = step(state, action); state = next.state; return next.events; },
+    restart(nextMode = mode) { mode = nextMode; result = newGame(mode, seed(mode, state.moves + state.score)); state = result.state; },
   };
 }
+function seed(mode: ModeId, salt = 0): string { return `gloop-pop/${mode}/session-${salt}`; }

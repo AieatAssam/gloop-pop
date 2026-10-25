@@ -1,5 +1,5 @@
-// M2.1–M2.6: boot a live Classic run and connect canvas, reducer, input and HUD.
-// spec-note: this milestone keeps the personal best in memory for the session; durable save wiring is M3.1.
+// M2.1–M3.4: canvas play loop, durable runs, progression and Home/Stats routing.
+// spec-note: Load remains on Classic because design §9.1 specifies that entry; Home is one menu action away.
 import { createCanvasSurface } from '../render/canvas';
 import { createBackground } from '../render/background';
 import { computeLayout, type Layout } from '../render/layout';
@@ -14,18 +14,31 @@ import { createSession } from './session';
 import { createGameUi } from '../ui/dom';
 import { createTopBar } from '../ui/topBar';
 import { S } from '../ui/strings';
+import { loadSave, saveNow } from '../platform/saveStore';
+import type { SaveV1 } from '../meta/saveSchema';
+import { recordRun } from '../meta/stats';
+import { grantXp, rewardsForRun, totalXpForLevel, xpToNext } from '../meta/progression';
+import { summarizeRun } from '../meta/runSummary';
+import { createRouter } from './router';
+import { createHomeScreen } from '../ui/screens/home';
+import { createStatsScreen } from '../ui/screens/stats';
+import { createToasts } from '../ui/toasts';
+import { onSaveVisibility } from '../platform/visibility';
+import type { Action, ModeId } from '../core/types';
 
 export function bootApp(): void {
   const canvas = document.querySelector<HTMLCanvasElement>('#game'); const uiRoot = document.querySelector<HTMLElement>('#ui');
   if (!canvas || !uiRoot) throw new Error('Missing game surface.');
-  const surface = createCanvasSurface(canvas); const background = createBackground('midnight'); const view = createBoardView(); const director = createDirector(); const session = createSession();
-  const ui = createGameUi(uiRoot); let paused = false; let shownScore = 0; let shownStatus = '';
-  let layout: Layout = computeLayout(window.innerWidth, window.innerHeight); let renderElapsed = 0; const query = new URLSearchParams(window.location.search); const demoBoard = query.get('demo') === 'board'; const demoFaces = query.get('demo') === 'faces'; const demoBg = query.get('demo') === 'bg'; const debug = query.get('debug') === '1';
-  const showPause = (): void => { paused = true; ui.showPause(() => { paused = false; ui.hide(); }, () => { if (session.state.score > 0) ui.showRestartConfirm(() => restart(), () => showPause()); else restart(); }); };
-  const pause = (): void => { if (session.state.status !== 'playing') return; if (paused) { paused = false; ui.hide(); } else showPause(); };
-  const topBar = createTopBar(() => { if (session.state.status === 'over') return; if (!paused) showPause(); }); uiRoot.append(topBar.element);
+  let save = loadSave(); const savedRun = save.inProgress ?? save.dailyInProgress;
+  let session = createSession({ state: savedRun, best: bestFor(save, savedRun?.mode ?? 'classic'), mode: 'classic' });
+  let runBest = session.best; let runStartedAt = performance.now(); let pauseStartedAt = 0; let runReward = { xp: 0, coins: 0, progress: 0, progressMax: xpToNext(save.profile.level), level: undefined as number | undefined };
+  const router = createRouter('play'); const surface = createCanvasSurface(canvas); const background = createBackground(save.equipped.theme as keyof typeof PALETTE.theme); const view = createBoardView(); const director = createDirector();
+  const ui = createGameUi(uiRoot); const toast = createToasts(uiRoot); const homeHost = document.createElement('div'); uiRoot.append(homeHost);
+  let paused = false; let shownScore = 0; let shownStatus = ''; let runRecorded = false; let comboLostAt = -1; let layout: Layout = computeLayout(window.innerWidth, window.innerHeight); let renderElapsed = 0; let saveTimer = 0;
+  const query = new URLSearchParams(window.location.search); const demoBoard = query.get('demo') === 'board'; const demoFaces = query.get('demo') === 'faces'; const demoBg = query.get('demo') === 'bg'; const debug = query.get('debug') === '1';
+  const topBar = createTopBar(() => goHome(), () => showPause()); uiRoot.append(topBar.element);
   const pointer = createPointerInput(view, () => layout, () => session.state, (slot, row, col) => apply({ type: 'place', slot: slot as 0 | 1 | 2, row, col }));
-  const keyboard = attachKeyboard(view, () => layout, () => session.state, (slot, row, col) => apply({ type: 'place', slot: slot as 0 | 1 | 2, row, col }), () => pointer.cancel(), pause);
+  const keyboard = attachKeyboard(view, () => layout, () => session.state, (slot, row, col) => apply({ type: 'place', slot: slot as 0 | 1 | 2, row, col }), () => pointer.cancel(), () => { if (router.current === 'play') showPause(); else router.back(); });
   const resize = (): void => {
     surface.resize(window.innerWidth, window.innerHeight);
     const rootStyle = getComputedStyle(document.documentElement); const safeTop = Number.parseFloat(rootStyle.getPropertyValue('--safe-area-top')) || 0; const safeBottom = Number.parseFloat(rootStyle.getPropertyValue('--safe-area-bottom')) || 0;
@@ -33,38 +46,82 @@ export function bootApp(): void {
     topBar.element.style.left = `${layout.column.x}px`; topBar.element.style.width = `${layout.column.width}px`; topBar.element.style.top = `${layout.topBar.y}px`; topBar.element.style.height = `${layout.topBar.height}px`;
   };
   resize(); window.addEventListener('resize', resize, { passive: true });
-  canvas.addEventListener('pointerdown', (event) => { if (paused || session.state.status !== 'playing') return; canvas.setPointerCapture(event.pointerId); pointer.pointerDown(event.offsetX, event.offsetY, event.pointerType); });
-  canvas.addEventListener('pointermove', (event) => { if (session.state.status === 'playing') pointer.pointerMove(event.offsetX, event.offsetY, event.pointerType); });
-  canvas.addEventListener('pointerup', (event) => { if (paused || session.state.status !== 'playing') return; pointer.pointerUp(event.offsetX, event.offsetY, event.pointerType); });
+  canvas.addEventListener('pointerdown', (event) => { if (router.current !== 'play' || paused || session.state.status !== 'playing') return; canvas.setPointerCapture(event.pointerId); pointer.pointerDown(event.offsetX, event.offsetY, event.pointerType); });
+  canvas.addEventListener('pointermove', (event) => { if (router.current === 'play' && session.state.status === 'playing') pointer.pointerMove(event.offsetX, event.offsetY, event.pointerType); });
+  canvas.addEventListener('pointerup', (event) => { if (router.current !== 'play' || paused || session.state.status !== 'playing') return; pointer.pointerUp(event.offsetX, event.offsetY, event.pointerType); });
   canvas.addEventListener('pointercancel', () => pointer.cancel());
-  document.addEventListener('visibilitychange', () => { if (document.hidden && !paused && session.state.status === 'playing') showPause(); });
-  window.addEventListener('keydown', (event) => {
-    if (session.state.status === 'over' && [' ', 'Enter', 'r', 'R'].includes(event.key)) { event.preventDefault(); restart(); }
-  });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && router.current === 'play' && !paused && session.state.status === 'playing') showPause(); });
+  window.addEventListener('keydown', (event) => { if (session.state.status === 'over' && router.current === 'play' && [' ', 'Enter', 'r', 'R'].includes(event.key)) { event.preventDefault(); restart(); } });
+  onSaveVisibility(() => { window.clearTimeout(saveTimer); persist(true); });
+  router.subscribe((screen) => renderScreen(screen)); renderScreen('play'); persist(true);
   startRenderLoop((dtMs, elapsedMs) => {
-    renderElapsed = elapsedMs;
-    const ctx = surface.context; ctx.setTransform(surface.dpr, 0, 0, surface.dpr, 0, 0); background.draw(ctx, elapsedMs, layout, session.state.stage);
-    if (!demoBg) {
-      view.draw(ctx, layout, session.state, elapsedMs, paused ? undefined : pointer.drag ?? keyboard.drag(), demoBoard ? 'board' : demoFaces ? 'faces' : '');
-      director.draw(ctx, layout, elapsedMs);
+    renderElapsed = elapsedMs; const ctx = surface.context; ctx.setTransform(surface.dpr, 0, 0, surface.dpr, 0, 0); background.draw(ctx, elapsedMs, layout, session.state.stage);
+    const isPlay = router.current === 'play'; topBar.element.style.display = isPlay ? 'flex' : 'none';
+    if (isPlay && !demoBg) {
+      view.draw(ctx, layout, session.state, elapsedMs, paused ? undefined : pointer.drag ?? keyboard.drag(), demoBoard ? 'board' : demoFaces ? 'faces' : ''); director.draw(ctx, layout, elapsedMs);
       if (paused) { ctx.fillStyle = PALETTE.ui.scrim; ctx.fillRect(0, 0, layout.width, layout.height); }
-      shownScore = drawHud(ctx, layout, session.state, session.best, elapsedMs, shownScore);
+      shownScore = drawHud(ctx, layout, session.state, session.best, elapsedMs, shownScore, comboLostAt);
       if (debug) drawDebug(ctx, layout, surface.dpr, dtMs);
     }
     updateOverlay();
   }, (elapsed) => surface.reportFrame(elapsed));
 
-  function apply(action: Parameters<typeof session.dispatch>[0]): void { const events = session.dispatch(action); director.receive(events, renderElapsed); paused = false; ui.hide(); }
-  function restart(): void { session.restart(); shownScore = 0; shownStatus = ''; director.receive([], renderElapsed); paused = false; ui.hide(); pointer.cancel(); }
+  function apply(action: Action): void {
+    const events = session.dispatch(action); director.receive(events, renderElapsed);
+    for (const event of events) if (event.type === 'comboLost' && event.combo >= 2) comboLostAt = renderElapsed;
+    paused = false; ui.hide(); persist(false);
+    if (session.state.status === 'over') finishRun();
+  }
+  function start(mode: ModeId): void {
+    const savedForMode = mode === 'daily' ? save.dailyInProgress : save.inProgress?.mode === mode ? save.inProgress : null;
+    const resume = session.state.mode === mode && session.state.status === 'playing';
+    if (!resume) { runBest = bestFor(save, mode); session = createSession({ state: savedForMode, best: runBest, mode }); runStartedAt = performance.now(); runRecorded = false; shownScore = 0; shownStatus = ''; comboLostAt = -1; }
+    else if (pauseStartedAt > 0) { runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; }
+    paused = false; ui.hide(); router.open('play'); persist(false);
+  }
+  function restart(): void { runBest = bestFor(save, session.state.mode); session = createSession({ best: runBest, mode: session.state.mode }); runStartedAt = performance.now(); pauseStartedAt = 0; shownScore = 0; shownStatus = ''; runRecorded = false; comboLostAt = -1; director.receive([], renderElapsed); paused = false; ui.hide(); pointer.cancel(); persist(false); }
+  function showPause(): void {
+    if (router.current !== 'play' || session.state.status !== 'playing') return;
+    paused = true; if (pauseStartedAt === 0) pauseStartedAt = performance.now(); persist(true); const mode = session.state.mode; const label = mode === 'daily' ? S.giveUp : mode === 'zen' ? S.endRun : S.restart;
+    ui.showPause(() => { if (pauseStartedAt > 0) runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; paused = false; ui.hide(); }, () => { if (mode === 'zen' || mode === 'daily') { if (pauseStartedAt > 0) runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; apply({ type: 'endRun' }); } else if (session.state.score > 0) ui.showRestartConfirm(() => restart(), () => showPause()); else restart(); }, () => { paused = true; if (pauseStartedAt === 0) pauseStartedAt = performance.now(); ui.hide(); router.open('home'); persist(true); }, label);
+  }
+  function goHome(): void {
+    if (router.current !== 'play') return;
+    if (session.state.status === 'playing') { paused = true; if (pauseStartedAt === 0) pauseStartedAt = performance.now(); persist(true); }
+    ui.hide(); router.open('home');
+  }
+  function finishRun(): void {
+    if (runRecorded) return; runRecorded = true;
+    const completed = session.state;
+    save = recordRun(save, completed); save.stats.timePlayedMs += Math.max(0, Math.floor(performance.now() - runStartedAt)); const reward = rewardsForRun(save, summarizeRun(completed), false); save = reward.save;
+    save.inProgress = null; if (completed.mode === 'daily') save.dailyInProgress = null;
+    const lastLevel = reward.levels[reward.levels.length - 1]; runReward = { xp: reward.xp, coins: reward.coins, progress: Math.max(0, save.profile.xp - totalXpForLevel(save.profile.level)), progressMax: xpToNext(save.profile.level), level: lastLevel };
+    saveNow(save); if (lastLevel) toast.show(S.levelUp(lastLevel)); for (const item of reward.unlocked) toast.show(S.unlocked(item));
+  }
   function updateOverlay(): void {
-    const status = session.state.status;
-    if (status === shownStatus) return; shownStatus = status;
-    if (status === 'over') { paused = false; ui.showGameOver(() => restart(), session.state.score, session.best, S.gameOverFallback(session.state.stats.biggestPop, session.state.linesCleared)); }
-    else if (status === 'rescueOffer') ui.showRescue(() => { const events = session.dispatch({ type: 'useRescue' }); director.receive(events, renderElapsed); ui.hide(); shownStatus = ''; }, () => { const events = session.dispatch({ type: 'declineRescue' }); director.receive(events, renderElapsed); ui.hide(); shownStatus = ''; });
+    const status = session.state.status; if (status === shownStatus) return; shownStatus = status;
+    if (status === 'over') {
+      finishRun();
+      paused = false; ui.showGameOver(() => restart(), () => { ui.hide(); router.open('home'); }, session.state.score, session.state.mode === 'zen' ? null : runBest, S.gameOverFallback(session.state.stats.biggestPop, session.state.linesCleared), runReward);
+    } else if (status === 'rescueOffer') ui.showRescue(() => apply({ type: 'useRescue' }), () => apply({ type: 'declineRescue' }));
     else if (!paused) ui.hide();
+  }
+  function persist(immediate: boolean): void {
+    if (router.current === 'play' && session.state.status !== 'over') {
+      if (session.state.mode === 'daily') save.dailyInProgress = session.state; else save.inProgress = session.state;
+    }
+    const writeLater = (): void => saveNow(save);
+    window.clearTimeout(saveTimer); if (immediate) writeLater(); else saveTimer = window.setTimeout(writeLater, 300);
+  }
+  function renderScreen(screen: 'home' | 'stats' | 'play'): void {
+    homeHost.replaceChildren(); ui.hide();
+    if (screen === 'home') { homeHost.append(createHomeScreen(save, { play: start, stats: () => router.open('stats'), collection: () => undefined, achievements: () => undefined, settings: () => undefined, howToPlay: () => undefined, debugXp: () => { const result = grantXp(save, 5000); save = result.save; saveNow(save); for (const level of result.levels) toast.show(S.levelUp(level)); for (const item of result.unlocked) toast.show(S.unlocked(item)); renderScreen('home'); } }, debug)); }
+    else if (screen === 'stats') { paused = false; homeHost.append(createStatsScreen(save, () => router.back())); }
+    else if (pauseStartedAt > 0) { runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; paused = false; }
   }
 }
 
+function bestFor(save: SaveV1, mode: ModeId): number { return mode === 'expert' ? save.best.expert : mode === 'daily' ? save.daily.best : mode === 'zen' ? 0 : save.best.classic; }
 function drawDebug(context: CanvasRenderingContext2D, layout: Layout, dpr: number, dt: number): void {
   context.save(); context.fillStyle = PALETTE.light.shadowDeep; context.fillRect(8, 8, 170, 52); context.fillStyle = PALETTE.ui.textPrimary; context.font = '700 12px Nunito, sans-serif'; context.fillText(`frame ${dt.toFixed(1)} ms`, 16, 28); context.fillText(`dpr ${dpr.toFixed(2)} · ${layout.width}×${layout.height}`, 16, 47); context.restore();
 }

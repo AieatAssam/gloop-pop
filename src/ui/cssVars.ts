@@ -10,6 +10,8 @@ export function setCssVars(themeId = 'midnight'): void {
   addVariables(values, 'ui', PALETTE.ui);
   addVariables(values, 'fx', PALETTE.fx);
   addVariables(values, 'light', PALETTE.light);
+  for (const [flavour, colours] of Object.entries(PALETTE.flavour)) addVariables(values, `flavour-${flavour}`, colours);
+  addVariables(values, 'face', PALETTE.face);
   addVariables(values, 'theme', theme);
   values['--bg'] = theme.skyTop;
   for (const [name, value] of Object.entries(values)) root.style.setProperty(name, value);

@@ -110,6 +110,8 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   │   └─ screens/home.ts, collection.ts, achievements.ts, stats.ts, settings.ts, howToPlay.ts, dailyResult.ts
 │   └─ platform/
 │       ├─ storage.ts         # localStorage wrapper with try/catch + in-memory fallback
+│       ├─ saveStore.ts       # migrate on load, back up corrupt/future saves, write the save key
+│       └─ visibility.ts      # flush saves on visibilitychange hidden and pagehide
 │       ├─ share.ts           # navigator.share / clipboard / download
 │       ├─ haptics.ts         # SG §16
 │       ├─ visibility.ts      # pause + save on hidden

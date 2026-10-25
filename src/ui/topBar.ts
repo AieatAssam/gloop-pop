@@ -3,9 +3,9 @@ import { S } from './strings';
 import { iconMarkup } from './icons';
 
 export interface TopBar { element: HTMLElement; pauseButton: HTMLButtonElement }
-export function createTopBar(onPause: () => void): TopBar {
+export function createTopBar(onMenu: () => void, onPause: () => void): TopBar {
   const root = document.createElement('div'); root.className = 'gloop-topbar';
-  const menu = button(iconMarkup('menu'), S.home, onPause); menu.classList.add('gloop-icon-button');
+  const menu = button(iconMarkup('menu'), S.home, onMenu); menu.classList.add('gloop-icon-button');
   const pause = button(iconMarkup('pause'), S.pause, onPause); pause.classList.add('gloop-icon-button');
   root.append(menu, pause);
   return { element: root, pauseButton: pause };
