@@ -8,6 +8,7 @@ import { PALETTE } from '../render/palette';
 import { createBoardView } from '../render/boardView';
 import { drawHud } from '../render/hudView';
 import { createDirector } from '../render/director';
+import { dispatchImmediately } from '../render/fx/hitStop';
 import { createPointerInput } from '../input/pointer';
 import { attachKeyboard } from '../input/keyboard';
 import { createSession, runToResumeOnBoot } from './session';
@@ -25,6 +26,7 @@ import { createStatsScreen } from '../ui/screens/stats';
 import { createToasts } from '../ui/toasts';
 import { onSaveVisibility } from '../platform/visibility';
 import type { Action, GameEvent, ModeId } from '../core/types';
+import type { Frame } from '../render/loop';
 import { setEquippedCosmetics, THEME_KEYS, type SkinId, type PopEffectId } from '../render/themes';
 import { createCollectionScreen } from '../ui/screens/collection';
 import { createAchievementsScreen } from '../ui/screens/achievements';
@@ -80,7 +82,6 @@ export function bootApp(): void {
   let newBestAt = -1;
   let flameBreakAt = -1;
   let comboPulseAt = -1; let scoreSparkleAt = -1;
-  const queuedActions: Action[] = [];
   let lastSlowMoAt = -10000; let newBestShown = false;
   const query = new URLSearchParams(window.location.search); const demoBoard = query.get('demo') === 'board'; const demoFaces = query.get('demo') === 'faces'; const demoBg = query.get('demo') === 'bg'; const demoThemes = query.get('demo') === 'themes'; const demoMega = query.get('demo') === 'mega'; const debug = query.get('debug') === '1'; const autoplay = debug && (query.get('autoplay') === '1' || demoMega); const autoplayInterval = query.get('speed') === 'fast' ? 150 : 450; let autoplayAt = 0; let rescueOfferAt = -1; const botRng = seededRng('gloop-pop/debug-autoplay');
   if (debug && demoMega) {
@@ -124,19 +125,21 @@ export function bootApp(): void {
   canvas.addEventListener('pointerup', (event) => { if (router.current !== 'play' || paused || session.state.status !== 'playing') return; pointer.pointerUp(event.offsetX, event.offsetY, event.pointerType); });
   canvas.addEventListener('pointercancel', () => pointer.cancel());
   document.addEventListener('visibilitychange', () => { if (document.hidden && router.current === 'play' && !paused && session.state.status === 'playing') showPause(); });
-  let queuedRestart = false;
-  window.addEventListener('keydown', (event) => { enableAudio(); if (['1', '2', '3'].includes(event.key)) vibrate('pick', save.settings.haptics); if (event.key.toLowerCase() === 'm') { save.settings.muted = !save.settings.muted; setMasterMuted(save.settings.muted); topBar.muteButton.setAttribute('aria-label', save.settings.muted ? S.unmute : S.mute); persist(true); } if (session.state.status === 'over' && router.current === 'play' && [' ', 'Enter', 'r', 'R'].includes(event.key)) { event.preventDefault(); if (renderLoop.isHitStopped()) queuedRestart = true; else restart(); } });
+  window.addEventListener('keydown', (event) => { enableAudio(); if (['1', '2', '3'].includes(event.key)) vibrate('pick', save.settings.haptics); if (event.key.toLowerCase() === 'm') { save.settings.muted = !save.settings.muted; setMasterMuted(save.settings.muted); topBar.muteButton.setAttribute('aria-label', save.settings.muted ? S.unmute : S.mute); persist(true); } if (session.state.status === 'over' && router.current === 'play' && [' ', 'Enter', 'r', 'R'].includes(event.key)) { event.preventDefault(); restart(); } });
   onSaveVisibility(() => { window.clearTimeout(saveTimer); persist(true); });
   router.subscribe((screen) => { if (screen !== 'play') toast.clear(); renderScreen(screen); }); renderScreen('play'); persist(true);
-  const renderLoop = startRenderLoop((dtMs, elapsedMs) => {
+  let currentFrame: Readonly<Frame> = { realDt: 0, worldDt: 0, boardDt: 0, realNow: 0, worldNow: 0, boardNow: 0 };
+  const renderLoop = startRenderLoop((frame) => {
+    currentFrame = frame;
+    const elapsedMs = frame.realNow; const dtMs = frame.realDt;
     renderElapsed = elapsedMs;
     uiRoot.style.setProperty('--toast-play-top', `${layout.board.y + layout.board.height}px`); uiRoot.style.setProperty('--toast-play-left', `${layout.board.x + layout.board.width / 2}px`);
-    if (!renderLoop.isHitStopped() && queuedActions.length) { const nextAction = queuedActions.shift(); if (nextAction) apply(nextAction); }
-    if (!renderLoop.isHitStopped() && queuedRestart) { queuedRestart = false; restart(); }
     const reducedForFrame = shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion()); background.setReducedMotion(reducedForFrame);
-    if (demoThemes) background.setTheme(THEME_KEYS[Math.floor(elapsedMs / 2400) % THEME_KEYS.length]!, elapsedMs);
-    else if (backgroundTheme !== save.equipped.theme) { backgroundTheme = save.equipped.theme; background.setTheme(backgroundTheme as keyof typeof PALETTE.theme, elapsedMs); }
-    const ctx = surface.context; ctx.setTransform(surface.dpr, 0, 0, surface.dpr, 0, 0); ctx.save(); background.draw(ctx, elapsedMs, layout, session.state.stage); ctx.restore(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    pointer.advance(frame.realDt, reducedForFrame);
+    if (pointer.snapChanged) vibrate('snap', save.settings.haptics);
+    if (demoThemes) background.setTheme(THEME_KEYS[Math.floor(frame.worldNow / 2400) % THEME_KEYS.length]!, frame.worldNow);
+    else if (backgroundTheme !== save.equipped.theme) { backgroundTheme = save.equipped.theme; background.setTheme(backgroundTheme as keyof typeof PALETTE.theme, frame.worldNow); }
+    const ctx = surface.context; ctx.setTransform(surface.dpr, 0, 0, surface.dpr, 0, 0); ctx.save(); background.draw(ctx, frame.worldNow, layout, session.state.stage); ctx.restore(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     const today = dayKeyFromMs(Date.now()); const pill = save.daily.records[today] ? S.dailyPillDone : save.streak.current >= 2 && new Date().getUTCHours() >= 18 ? S.dailyKeepStreak(dayNumber(today), save.streak.current) : S.daily(dayNumber(today)); if (topBar.dailyPill.textContent !== pill) topBar.dailyPill.textContent = pill;
     // Design §23.9: the Daily is offered after the tutorial and the first Classic run, never before.
     const isPlay = router.current === 'play'; const hideHint = !isPlay || save.ui.runsFinished >= 3; if (controlsHint.hidden !== hideHint) controlsHint.hidden = hideHint; topBar.element.style.display = isPlay ? 'flex' : 'none'; topBar.element.classList.toggle('is-tutorial', tutorialActive); topBar.dailyPill.hidden = tutorialActive || save.ui.runsFinished < 1; topBar.muteButton.hidden = tutorialActive; topBar.pauseButton.hidden = tutorialActive; topBar.tutorialSkip.style.display = tutorialActive ? 'block' : 'none';
@@ -144,9 +147,9 @@ export function bootApp(): void {
     if (isPlay && !demoBg) {
       const reduced = reducedForFrame;
       const shake = director.shakeOffset(); const shakeScale = layout.portrait ? 1 : 1.4; ctx.save(); ctx.translate(shake.x * shakeScale, shake.y * shakeScale);
-      view.draw(ctx, layout, session.state, elapsedMs, paused ? undefined : pointer.drag ?? keyboard.drag(), demoBoard ? 'board' : demoFaces ? 'faces' : '', gameOverAt); director.draw(ctx, layout, elapsedMs, reduced); ctx.restore();
+      view.draw(ctx, layout, session.state, frame.worldNow, paused ? undefined : pointer.drag ?? keyboard.drag(), demoBoard ? 'board' : demoFaces ? 'faces' : '', gameOverAt, frame.boardNow, frame.realNow, pointer.returning); director.draw(ctx, layout, frame.boardNow, frame.worldNow, frame.worldDt, reduced, frame.realNow, renderLoop.hitStopScale); ctx.restore();
       if (paused) { ctx.fillStyle = PALETTE.ui.scrim; ctx.fillRect(0, 0, layout.width, layout.height); }
-      shownScore = drawHud(ctx, layout, session.state, session.best, elapsedMs, shownScore, comboLostAt, activeChallenge?.score, candyFlameUntil, candyFlameFlavour, reduced, scoreAnimFrom, scoreAnimStart, scoreAnimDuration, newBestAt, flameBreakAt, comboPulseAt, scoreSparkleAt);
+      shownScore = drawHud(ctx, layout, session.state, session.best, frame.realNow, shownScore, comboLostAt, activeChallenge?.score, candyFlameUntil, candyFlameFlavour, reduced, scoreAnimFrom, scoreAnimStart, scoreAnimDuration, newBestAt, flameBreakAt, comboPulseAt, scoreSparkleAt);
       if (tutorialActive && tutorialStep < 4 && !tutorialTouched) { const target = tutorialStep === 1 ? { row: 6, col: 6, width: 2 } : tutorialStep === 2 ? { row: 6, col: 3, width: 1 } : { row: 4, col: 6, width: 2 }; const cells = tutorialStep === 2 ? [[0, 0], [1, 0]] as const : [[0, 0], [0, 1]] as const; const hand = tutorialHandPoints(layout.board, layout.tray, layout.cellSize, target.row, target.col, target.width); drawGhostHand(ctx, elapsedMs, hand.from, hand.to, layout.cellSize, cells); }
       if (debug && query.get('overlay') !== '0') drawDebug(ctx, layout, surface.dpr, dtMs, surface);
     }
@@ -155,13 +158,13 @@ export function bootApp(): void {
     }, (elapsed) => { surface.reportFrame(elapsed); if (autoplay && router.current === 'play' && !paused && session.state.status === 'rescueOffer') { if (rescueOfferAt < 0) rescueOfferAt = renderElapsed; if (renderElapsed - rescueOfferAt >= 600) { rescueOfferAt = -1; apply({ type: 'useRescue' }); } } else if (session.state.status !== 'rescueOffer') rescueOfferAt = -1; if (autoplay && router.current === 'play' && !paused && session.state.status === 'playing' && renderElapsed >= autoplayAt) { autoplayAt = renderElapsed + autoplayInterval; enableAudio(); const move = demoMega && session.state.moves === 0 ? { slot: 0 as const, row: 3, col: 3 } : chooseBotMove(session.state, botRng); if (move) apply({ type: 'place', slot: move.slot, row: move.row, col: move.col }); } });
 
   function apply(action: Action): void {
-    if (renderLoop.isHitStopped()) { queuedActions.push(action); return; }
+    if (action.type === 'place') renderLoop.requestSlowMo(renderLoop.timeScale, 0, 0, 60);
     const filledBeforeResolve = action.type === 'place' ? session.state.board.filter((cell) => cell > 0).length + (PIECES[session.state.tray[action.slot]?.defId ?? -1]?.cells.length ?? 0) : 0;
-    const scoreBefore = session.state.score; const events = session.dispatch(action); if (events.some((event) => event.type === 'cleared' || event.type === 'popped' || event.type === 'allClear' || event.type === 'gameOver')) live.textContent = `${S.score} ${new Intl.NumberFormat('en-US').format(session.state.score)}${session.state.status === 'over' ? ` · ${S.noRoom}` : ''}`; if (action.type === 'place' && tutorialActive && events.some((event) => event.type === 'placed')) advanceTutorial(); if (session.state.score > scoreBefore) { scoreAnimFrom = shownScore; scoreAnimStart = renderElapsed; scoreAnimDuration = Math.min(600, 150 + (session.state.score - scoreBefore) / 10); if (session.state.score - scoreBefore >= 1000) scoreSparkleAt = scoreAnimStart + scoreAnimDuration; } if (action.type === 'place' && filledBeforeResolve >= 52 && events.some((event) => event.type === 'cleared')) closeCall = true; runEvents.push(...events);
+    const scoreBefore = session.state.score; const events = action.type === 'place' ? dispatchImmediately(() => renderLoop.endNow(), () => session.dispatch(action)) : session.dispatch(action); if (events.some((event) => event.type === 'cleared' || event.type === 'popped' || event.type === 'allClear' || event.type === 'gameOver')) live.textContent = `${S.score} ${new Intl.NumberFormat('en-US').format(session.state.score)}${session.state.status === 'over' ? ` · ${S.noRoom}` : ''}`; if (action.type === 'place' && tutorialActive && events.some((event) => event.type === 'placed')) advanceTutorial(); if (session.state.score > scoreBefore) { scoreAnimFrom = shownScore; scoreAnimStart = renderElapsed; scoreAnimDuration = Math.min(600, 150 + (session.state.score - scoreBefore) / 10); if (session.state.score - scoreBefore >= 1000) scoreSparkleAt = scoreAnimStart + scoreAnimDuration; } if (action.type === 'place' && filledBeforeResolve >= 52 && events.some((event) => event.type === 'cleared')) closeCall = true; runEvents.push(...events);
     const reduced = shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion());
-    if (events.length) { const passedBest = runBest > 0 && scoreBefore <= runBest && session.state.score > runBest; playGameEvents(events, { combo: session.state.combo, newBest: passedBest }); director.receive(events, renderElapsed, reduced, session.state, layout); view.receive(events, renderElapsed, session.state); if (action.type === 'place') { const lineCount = events.reduce((sum, event) => sum + (event.type === 'cleared' ? event.rows.length + event.cols.length : 0), 0); const peak = events.reduce((size, event) => event.type === 'popped' ? Math.max(size, ...event.gloops.map((gloop) => gloop.size)) : size, 0); const stuck = events.some((event) => event.type === 'stuck'); const mega = events.some((event) => event.type === 'allClear') || peak >= 24; vibrate(stuck ? 'stuck' : mega ? 'mega' : peak >= 8 ? 'big' : lineCount >= 2 ? 'line2' : lineCount === 1 ? 'line1' : 'place', save.settings.haptics); }
+    if (events.length) { const passedBest = runBest > 0 && scoreBefore <= runBest && session.state.score > runBest; playGameEvents(events, { combo: session.state.combo, newBest: passedBest }); director.receive(events, currentFrame.boardNow, reduced, session.state, layout, currentFrame.worldNow, (at, duration) => renderLoop.scheduleHitStop(at, duration)); view.receive(events, currentFrame.boardNow, session.state, currentFrame.worldNow); if (action.type === 'place') { const lineCount = events.reduce((sum, event) => sum + (event.type === 'cleared' ? event.rows.length + event.cols.length : 0), 0); const peak = events.reduce((size, event) => event.type === 'popped' ? Math.max(size, ...event.gloops.map((gloop) => gloop.size)) : size, 0); const stuck = events.some((event) => event.type === 'stuck'); const mega = events.some((event) => event.type === 'allClear') || peak >= 24; vibrate(stuck ? 'stuck' : mega ? 'mega' : peak >= 8 ? 'big' : lineCount >= 2 ? 'line2' : lineCount === 1 ? 'line1' : 'place', save.settings.haptics); }
       const scored = events.find((event) => event.type === 'scored'); if (scored?.type === 'scored' && scored.points >= 2000) candyFlameUntil = renderElapsed + 1500;
-      if (!newBestShown && runBest > 0 && scoreBefore <= runBest && session.state.score > runBest) { newBestShown = true; newBestAt = renderElapsed; director.banner(S.newBest, renderElapsed, 0, 0, 40); triggerSlowMo(reduced); }
+      if (!newBestShown && runBest > 0 && scoreBefore <= runBest && session.state.score > runBest) { newBestShown = true; newBestAt = renderElapsed; director.banner(S.newBest, currentFrame.worldNow, 0, 0, 40); triggerSlowMo(reduced); }
       const clearedForFlame = events.find((event) => event.type === 'cleared'); if (clearedForFlame?.type === 'cleared' && clearedForFlame.flavoursByCell.length) candyFlameFlavour = clearedForFlame.flavoursByCell[clearedForFlame.flavoursByCell.length - 1] ?? candyFlameFlavour;
       const poppedGroup = events.find((event) => event.type === 'popped')?.type === 'popped' ? events.find((event) => event.type === 'popped') : undefined;
       if (poppedGroup?.type === 'popped' && poppedGroup.gloops.length) candyFlameFlavour = poppedGroup.gloops[poppedGroup.gloops.length - 1]!.flavour;
@@ -172,11 +175,10 @@ export function bootApp(): void {
       for (const discovery of discoveries) { save.firsts[discovery.key] = true; save.profile.coins += discovery.coins; save.profile.coinsEarned += discovery.coins; discoveryCoins += discovery.coins; }
       // spec-note: simultaneous firsts share the strongest moment's banner; all earned coin bonuses are still paid.
       const bannerOrder = ['allClear', 'megaPop', 'hugePop', 'bigPop', 'double', 'combo10', 'combo5', 'line']; const banner = bannerOrder.map((key) => discoveries.find((item) => item.key === key)).find((item) => item !== undefined);
-      if (banner) { const text = banner.key === 'line' ? S.firstLine : banner.key === 'double' ? S.firstDouble : banner.key === 'bigPop' ? S.firstBigPop : banner.key === 'hugePop' ? S.firstHugePop : banner.key === 'megaPop' ? S.firstMegaPop : banner.key === 'allClear' ? S.firstAllClear : banner.key === 'combo5' ? S.firstCombo5 : S.firstCombo10; const placement = events.find((event) => event.type === 'placed'); const bannerFlavour = placement?.type === 'placed' ? placement.piece.flavour : 0; director.banner(text, renderElapsed, discoveries.reduce((sum, item) => sum + item.coins, 0), bannerFlavour); if (!reduced) renderLoop.hitStop(70); }
-      if (!reduced && (events.some((event) => event.type === 'allClear') || events.some((event) => event.type === 'popped' && event.gloops.some((gloop) => gloop.size >= 15)) || events.filter((event) => event.type === 'cleared').reduce((sum, event) => sum + event.rows.length + event.cols.length, 0) >= 3)) renderLoop.hitStop(events.some((event) => event.type === 'allClear') || events.some((event) => event.type === 'popped' && event.gloops.some((gloop) => gloop.size >= 15)) ? 70 : 50);
-      if (events.some((event) => event.type === 'allClear') || events.some((event) => event.type === 'popped' && event.gloops.some((gloop) => gloop.size >= 24))) triggerSlowMo(reduced, true);
+      if (banner) { const text = banner.key === 'line' ? S.firstLine : banner.key === 'double' ? S.firstDouble : banner.key === 'bigPop' ? S.firstBigPop : banner.key === 'hugePop' ? S.firstHugePop : banner.key === 'megaPop' ? S.firstMegaPop : banner.key === 'allClear' ? S.firstAllClear : banner.key === 'combo5' ? S.firstCombo5 : S.firstCombo10; const placement = events.find((event) => event.type === 'placed'); const bannerFlavour = placement?.type === 'placed' ? placement.piece.flavour : 0; director.banner(text, currentFrame.worldNow, discoveries.reduce((sum, item) => sum + item.coins, 0), bannerFlavour); }
+      if (events.some((event) => event.type === 'allClear') || events.some((event) => event.type === 'popped' && event.gloops.some((gloop) => gloop.size >= 24))) triggerSlowMo(reduced);
     }
-    if (activeChallenge && scoreBefore <= activeChallenge.score && session.state.score > activeChallenge.score) { challengeBeaten = true; toast.show(S.youBeatFriend); director.banner(S.youBeatFriend, renderElapsed, 0, 0, 40); }
+    if (activeChallenge && scoreBefore <= activeChallenge.score && session.state.score > activeChallenge.score) { challengeBeaten = true; toast.show(S.youBeatFriend); director.banner(S.youBeatFriend, currentFrame.worldNow, 0, 0, 40); }
     const claimedBefore = save.weekly.claimed; save = addWeeklyProgress(save, session.state, events, weekIndexFromMs(Date.now())); save = claimWeeklyReward(save);
     if (!claimedBefore && save.weekly.claimed) toast.show(S.weeklyDone);
     for (const event of events) if (event.type === 'popped') save.achievements.bigPopCount = (save.achievements.bigPopCount ?? 0) + event.gloops.filter((gloop) => gloop.size >= 8).length;
@@ -211,7 +213,7 @@ export function bootApp(): void {
     else if (pauseStartedAt > 0) { runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; }
     paused = false; setAudioPaused(false); if (audioStarted) startMusic(); ui.hide(); router.open('play'); persist(false);
   }
-  function restart(): void { if (challengeBeaten) { activeChallenge = null; challengeBeaten = false; } runBest = bestFor(save, session.state.mode); session = createSession({ best: runBest, mode: session.state.mode }); runStartedAt = performance.now(); runEvents = []; closeCall = false; pauseStartedAt = 0; shownScore = 0; scoreAnimFrom = 0; scoreAnimStart = renderElapsed; scoreAnimDuration = 600; newBestAt = -1; flameBreakAt = -1; comboPulseAt = -1; scoreSparkleAt = -1; shownStatus = ''; runRecorded = false; comboLostAt = -1; gameOverAt = -1; newBestShown = false; discoveryCoins = 0; director.receive([], renderElapsed); paused = false; ui.hide(); pointer.cancel(); persist(false); }
+  function restart(): void { renderLoop.resetEffects(); director.reset(); if (challengeBeaten) { activeChallenge = null; challengeBeaten = false; } runBest = bestFor(save, session.state.mode); session = createSession({ best: runBest, mode: session.state.mode }); runStartedAt = performance.now(); runEvents = []; closeCall = false; pauseStartedAt = 0; shownScore = 0; scoreAnimFrom = 0; scoreAnimStart = renderElapsed; scoreAnimDuration = 600; newBestAt = -1; flameBreakAt = -1; comboPulseAt = -1; scoreSparkleAt = -1; shownStatus = ''; runRecorded = false; comboLostAt = -1; gameOverAt = -1; newBestShown = false; discoveryCoins = 0; paused = false; ui.hide(); pointer.cancel(); persist(false); }
   function showPause(): void {
     if (router.current !== 'play' || session.state.status !== 'playing') return;
     paused = true; setAudioPaused(true); if (pauseStartedAt === 0) pauseStartedAt = performance.now(); persist(true); const mode = session.state.mode; const label = mode === 'daily' ? S.giveUp : mode === 'zen' ? S.endRun : S.restart;
@@ -243,7 +245,7 @@ export function bootApp(): void {
       countedDailyThisRun = true;
       save = recordDaily(save, completed, todayKey, runEvents); const streakUpdate = updateStreak(save, todayKey); save = streakUpdate.save; save.daily.records[todayKey]!.freezeUsed = streakUpdate.freezeUsed;
       if (streakUpdate.freezeUsed > 0) toast.show(S.freezeSaved(save.streak.current)); else if (streakUpdate.endedAt > 0) toast.show(S.streakEnded(streakUpdate.endedAt));
-      if (streakMilestone(save.streak.current) && save.settings.reducedMotion !== 'on') { renderLoop.setTimeScale(0); window.setTimeout(() => renderLoop.setTimeScale(1), 70); }
+      if (streakMilestone(save.streak.current) && !shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion())) renderLoop.scheduleHitStop(currentFrame.boardNow, 70);
       save.profile.xp += 100; save.profile.coins += 30; save.profile.coinsEarned += 30;
     }
     save.inProgress = null; if (completed.mode === 'daily') save.dailyInProgress = null; controlsHint.hidden = save.ui.runsFinished >= 3;
@@ -280,10 +282,10 @@ export function bootApp(): void {
     const writeLater = (): void => saveNow(save);
     window.clearTimeout(saveTimer); if (immediate) writeLater(); else saveTimer = window.setTimeout(writeLater, 300);
   }
-  function triggerSlowMo(reduced: boolean, afterHitStop = false): void {
+  function triggerSlowMo(reduced: boolean): void {
     const now = performance.now(); if (!canStartSlowMo(lastSlowMoAt, now, reduced)) return; lastSlowMoAt = now;
-    const startSlow = (): void => { renderLoop.setTimeScale(0.35); window.setTimeout(() => renderLoop.rampTimeScale(1, 200), 450); };
-    if (afterHitStop) window.setTimeout(startSlow, 70); else startSlow();
+    if (reduced) return;
+    renderLoop.requestSlowMo(0.35, 40, 300, 200);
   }
   function renderScreen(screen: 'home' | 'stats' | 'play' | 'collection' | 'achievements' | 'dailyResult' | 'settings' | 'howToPlay'): void {
     homeHost.replaceChildren(); ui.hide();

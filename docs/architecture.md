@@ -83,7 +83,7 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   │   ├─ easing.ts          # SG §9.0
 │   │   ├─ canvas.ts          # DPR setup, resize, adaptive DPR
 │   │   ├─ layout.ts          # SG §15 (pure, tested)
-│   │   ├─ loop.ts            # rAF loop, dt, timeScale (slow-mo)
+│   │   ├─ loop.ts            # rAF loop; reused R/W/B clock frame (§9.13.a)
 │   │   ├─ background.ts      # SG §7, themes §14
 │   │   ├─ silhouette.ts      # SG §5.1 path builder (pure geometry, tested)
 │   │   ├─ gloopRenderer.ts   # SG §5.2–5.4 into caches
@@ -92,7 +92,8 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   │   ├─ trayView.ts        # tray slots, deal animation, dragged piece
 │   │   ├─ hudView.ts         # score, best, combo meter (canvas parts)
 │   │   ├─ director.ts        # turns GameEvents into timed animations/fx/sfx cues (SG §9)
-│   │   ├─ fx/particles.ts, fx/shake.ts, fx/texts.ts, fx/tweens.ts, fx/hitStop.ts, fx/pool.ts
+│   │   ├─ heldPiece.ts       # pure pickup and drag spring transforms (§9.13.b–c)
+│   │   ├─ fx/particles.ts, fx/shake.ts, fx/texts.ts, fx/tweens.ts, fx/hitStop.ts, fx/slowMo.ts, fx/spring.ts, fx/pool.ts
 │   │   ├─ ghostHand.ts       # tutorial hand (SG §11.10)
 │   │   ├─ miniGloop.ts       # small gloop illustrations for DOM cards/badges
 │   │   └─ shareCard.ts       # SG §12
@@ -243,6 +244,7 @@ pointer/keyboard ─► input model ─► session.dispatch(action)
 - Zen shake and the stuck → game-over delay (450 ms) are timed in `app` with the loop's real clock, not `setTimeout`, so pausing freezes them.
 
 ## 6. Rendering and performance budget (R22)
+- The render loop advances one reused frame object with real (`R`), world (`W`) and board-effects (`B`) deltas and timestamps. Input, held-piece motion and HUD read R; particles and ambient effects read W; placement and clear cues read B. Hitstop scales B only and slow motion scales W and B, so input remains immediate (§9.13.a).
 - **One main canvas** (`#game`) covering the viewport; `canvas.width = cssW × dpr`. `dpr = min(devicePixelRatio, 2)`. **Adaptive:** track a 120-frame moving average of frame time; if > 20 ms for 2 s, drop dpr to 1.5 (and to 1.25 below that); never raise it again during the session. Log in debug overlay.
 - **Layers via caches, not multiple canvases:** background cache (SG §7.1), board layer cache (SG §5.3), per-gloop caches, per-tray-slot caches, text sprite caches (pop labels), particle sprite caches (SG §9.12).
 - **Per-frame draw order:** background cache → animated background bits → board layer → animated cells → ghost/previews → faces/toppers (all gloops, live) → tray → dragged piece → particles → texts → HUD → vignette/flash overlays → ghost hand.
