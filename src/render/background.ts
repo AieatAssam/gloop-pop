@@ -158,7 +158,7 @@ export function createBackground(themeId: ThemeKey = 'midnight'): Background {
 function drawJarRimFlicker(ctx: CanvasRenderingContext2D, width: number, height: number, age: number, colours: ThemeColours): void {
   const scale = Math.min(width, height); const desktop = width >= 900 && height / width < 1.25; const rows = desktop ? [height * 0.57, height * 0.72] : [height * 0.30, height * 0.48];
   ctx.save(); ctx.globalAlpha = (1 - age / 400) * (0.55 + 0.45 * Math.sin(age / 34)); ctx.strokeStyle = colours.silhouetteRim; ctx.lineWidth = 2;
-  for (const jar of jars) { if (desktop && jar.x < 0.28) continue; const jarWidth = Math.min(desktop ? jar.width * width * 0.72 : jar.width * width, width * (desktop ? 0.11 : 0.16)); const jarHeight = Math.min(jar.height * scale, height * 0.11); const top = rows[jar.row]! - jarHeight; const x = jar.x * width - jarWidth / 2; ctx.beginPath(); ctx.moveTo(x + jarWidth * 0.18, top + 1); ctx.quadraticCurveTo(x + jarWidth / 2, top - 2, x + jarWidth * 0.82, top + 1); ctx.stroke(); }
+  for (const jar of jars) { if (desktop && jar.x > 0.24 && jar.x < 0.76) continue; const jarWidth = Math.min(desktop ? jar.width * width * 0.72 : jar.width * width, width * (desktop ? 0.11 : 0.16)); const jarHeight = Math.min(jar.height * scale, height * 0.11); const top = rows[jar.row]! - jarHeight; const x = jar.x * width - jarWidth / 2; ctx.beginPath(); ctx.moveTo(x + jarWidth * 0.18, top + 1); ctx.quadraticCurveTo(x + jarWidth / 2, top - 2, x + jarWidth * 0.82, top + 1); ctx.stroke(); }
   ctx.restore();
 }
 
@@ -258,15 +258,15 @@ function drawShelves(ctx: CanvasRenderingContext2D, width: number, height: numbe
   const rows = desktop ? [height * 0.57, height * 0.72] : [height * 0.30, height * 0.48];
   for (let i = 0; i < jars.length; i += 1) {
     const jar = jars[i]!; const row = jar.row;
-    if (desktop && jar.x < 0.28) continue;
+    if (desktop && jar.x > 0.24 && jar.x < 0.76) continue;
     const bottom = rows[row]!;
     const jarHeight = Math.min(jar.height * scale, height * 0.11);
     drawJar(ctx, jar.x * width, bottom, desktop ? jar.width * width * 0.72 : jar.width * width, jarHeight, Math.min(jar.lid * scale, jarHeight * 0.13), colours, desktop ? (row ? 0.38 : 0.32) : (row ? 0.85 : 1));
   }
   for (const y of rows) {
-    const start = desktop ? width * 0.27 : 0;
-    ctx.fillStyle = withAlpha(colours.silhouette, desktop ? 0.46 : 1); ctx.fill(roundedRect(ctx, start, y, width - start, Math.max(6, height * (desktop ? 0.009 : 0.018)), height * 0.009));
-    ctx.strokeStyle = withAlpha(colours.silhouetteRim, desktop ? 0.46 : 0.95); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(start, y + 1); ctx.lineTo(width, y + 1); ctx.stroke();
+    ctx.fillStyle = withAlpha(colours.silhouette, desktop ? 0.46 : 1); ctx.strokeStyle = withAlpha(colours.silhouetteRim, desktop ? 0.46 : 0.95); ctx.lineWidth = 1.5;
+    const segments: [number, number][] = desktop ? [[0, width * 0.24], [width * 0.76, width]] : [[0, width]];
+    for (const [start, end] of segments) { ctx.fill(roundedRect(ctx, start, y, end - start, Math.max(6, height * (desktop ? 0.009 : 0.018)), height * 0.009)); ctx.beginPath(); ctx.moveTo(start, y + 1); ctx.lineTo(end, y + 1); ctx.stroke(); }
   }
   if (desktop) {
     // Soft foreground haze preserves a quiet reading area behind the left score panel.

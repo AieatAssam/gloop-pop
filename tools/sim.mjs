@@ -15,11 +15,14 @@ const stats = runSimulation(runs, mode, seed, cap);
 const fmt = (values) => `median ${values.median.toFixed(1)} / mean ${values.mean.toFixed(1)} / p10 ${values.p10.toFixed(1)} / p90 ${values.p90.toFixed(1)}`;
 // The CLI times representative solver workloads; gameplay core has no wall-clock dependency.
 let maxSolverTimeMs = 0;
+const solverTimesMs = [];
 for (const sample of solverProbeCases()) {
   const start = globalThis.performance.now();
   canPlaceAll(sample.board, sample.pieces, 200_000);
-  maxSolverTimeMs = Math.max(maxSolverTimeMs, globalThis.performance.now() - start);
+  const elapsed = globalThis.performance.now() - start; solverTimesMs.push(elapsed); maxSolverTimeMs = Math.max(maxSolverTimeMs, elapsed);
 }
+const sortedSolverTimes = solverTimesMs.toSorted((a, b) => a - b);
+const solverP99Ms = sortedSolverTimes[Math.ceil(sortedSolverTimes.length * 0.99) - 1] ?? 0;
 console.log(`Gloop Pop simulation (${mode}, ${stats.runs} runs, seed ${seed})`);
 console.log(`placements: ${fmt(stats.placements)}`);
 console.log(`score: ${fmt(stats.scores)}`);
@@ -27,4 +30,5 @@ console.log(`stage reached: ${fmt(stats.stages)}`);
 console.log(`runs under 25 placements: ${stats.under25Percent.toFixed(1)}%`);
 console.log(`F2 fallback trays: ${stats.f2FallbackPercent.toFixed(1)}%`);
 console.log(`max solver time: ${maxSolverTimeMs.toFixed(2)} ms`);
+console.log(`solver p99: ${solverP99Ms.toFixed(2)} ms`);
 console.log(`runs reaching safety cap (${cap} placements): ${stats.truncatedRuns}`);

@@ -431,7 +431,7 @@ owner.github.io/gloop-pop
 | # | id | On-screen text | Target |
 |---|---|---|---|
 | 0 | lines | Clear 150 lines | 150 |
-| 1 | pops | Pop 300 extra cells | 300 |
+| 1 | pops | Pop 300 popped cells | 300 |
 | 2 | score | Score 60,000 points in total | 60,000 |
 | 3 | combo6 | Reach combo 6 in 5 different runs | 5 |
 | 4 | bigpops | Make 10 Big Pops (8+ cells) | 10 |
@@ -570,8 +570,8 @@ Coins: E = 25, M = 50, H = 100. Conditions use run stats or lifetime totals as n
 | 26 | lines100 | Line Worker | Clear 100 lines in total. | lifetime lines ≥ 100 | E |
 | 27 | lines1000 | Line Boss | Clear 1,000 lines in total. | ≥ 1,000 | M |
 | 28 | lines5000 | Line Legend | Clear 5,000 lines in total. | ≥ 5,000 | H |
-| 29 | pops500 | Popper | Pop 500 extra cells in total. | lifetime \|P\| ≥ 500 | E |
-| 30 | pops5000 | Pop Star | Pop 5,000 extra cells in total. | ≥ 5,000 | H |
+| 29 | pops500 | Popper | Pop 500 popped cells in total. | lifetime \|P\| ≥ 500 | E |
+| 30 | pops5000 | Pop Star | Pop 5,000 popped cells in total. | ≥ 5,000 | H |
 | 31 | runs10 | Regular | Finish 10 runs. | finished runs (any mode, Zen ended counts) ≥ 10 | E |
 | 32 | runs100 | Hundred Runs | Finish 100 runs. | ≥ 100 | M |
 | 33 | daily1 | Daily Player | Finish a daily challenge. | counted daily finished | E |
@@ -651,6 +651,7 @@ Home:
 - Big button "Play" (resumes or starts Classic)
 - Mode cards: "Classic", "Endless. How long can you last?"; "Daily #12", "Same board for everyone today." / done: "Done · 8,450 · Next in 05:12:33"; "Zen", "No game over. Relax and pop." / locked "Reach Level 3"; "Expert", "Bigger pieces, all 7 flavours, no rescue." / locked "Reach Level 8"
 - Weekly card: "This week: Clear 150 lines", "87 / 150", "Resets in 3 days", reward line "Reward: 200 coins, 150 XP, 1 freeze"
+- Game-over XP bar labels: "Level 7" at the left end and "8" at the right end.
 - Streak: "🔥 5-day streak", freezes "❄️ 1 freeze" ; no streak: "Play today's daily to start a streak."
 - Row buttons: "Collection", "Achievements", "Stats"; footer: "Settings", "How to play"
 Daily result: "Daily #12", score, "Best combo 7", "Biggest pop 18", the emoji grid, legend "⬜ no clear · 🟩 1 line · 🟨 2–3 · 🟧 4–5 · 🟥 6+ · 🟪 all clear or huge pop", buttons "Share", "Share image", "Practice (not counted)", "Home", countdown "Next daily in 05:12:33".
@@ -668,7 +669,7 @@ Stats: see §18.
 6. **The game ends when none of your pieces fit.** In Classic you have one rescue per run: clear 10 lines to charge it.
 7. **Daily challenge:** the same board and pieces for everyone, every day. Your first try counts. Share your result with friends.
 Controls (desktop): "Drag with the mouse, or press 1, 2, 3 to pick a piece, arrow keys to move it, Space to place. Esc pauses. M mutes."
-Scoring table (shown under the text): "Each cell placed: 1 · 1 line: 100 · 2 lines: 300 · 3 lines: 600 · 4 lines: 1,000 · Each extra popped cell: 20 · Big Pop: +200 · Huge Pop: +600 · Mega Pop: +1,500 · Empty board: +2,000 · Combo multiplies everything except placing."
+Scoring table (shown under the text): "Each cell placed: 1 · 1 line: 100 · 2 lines: 300 · 3 lines: 600 · 4 lines: 1,000 · Each popped cell: 20 · Big Pop: +200 · Huge Pop: +600 · Mega Pop: +1,500 · Empty board: +2,000 · Combo multiplies everything except placing."
 
 ---
 
@@ -698,7 +699,7 @@ Daily card ──► Play (Daily) ──► Daily result: Share · Share image �
 ---
 
 ## 18. Stats screen
-Lifetime: Runs played (per mode), Best score (Classic, Expert), Average score (last 20 Classic), Lines cleared, Extra cells popped, Biggest pop, Best combo, All clears, Pieces placed, Time played (h m), Dailies finished, Best daily score, Current streak, Best streak, Achievements "17 / 40". Chart: last 20 Classic scores as bars (best bar highlighted), drawn on a small canvas.
+Lifetime: Runs played (per mode), Best score (Classic, Expert), Average score (last 20 Classic), Lines cleared, Popped cells, Biggest pop, Best combo, All clears, Pieces placed, Time played (h m), Dailies finished, Best daily score, Current streak, Best streak, Achievements "17 / 40". Chart: last 20 Classic scores as bars (best bar highlighted), drawn on a small canvas.
 
 ---
 

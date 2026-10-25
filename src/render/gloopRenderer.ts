@@ -11,12 +11,12 @@ const bodySprites = new Map<string, HTMLCanvasElement>();
 let colourBlindPatterns = false;
 export function setColourBlindPatterns(enabled: boolean): void { if (colourBlindPatterns !== enabled) { colourBlindPatterns = enabled; bodySprites.clear(); } }
 
-export function drawGloop(context: CanvasRenderingContext2D, gloop: Gloop, cell: number, ox: number, oy: number, elapsed: number, expression = 'idle', alpha = 1): void {
+export function drawGloop(context: CanvasRenderingContext2D, gloop: Gloop, cell: number, ox: number, oy: number, elapsed: number, expression = 'idle', alpha = 1, muted = false): void {
   const rows = gloop.cells.map((i) => Math.floor(i / 8)); const cols = gloop.cells.map((i) => i % 8);
   const minRow = Math.min(...rows); const minCol = Math.min(...cols); const maxRow = Math.max(...rows); const maxCol = Math.max(...cols); const padding = cell * 0.25;
-  const key = `${gloop.flavour}|${cell}|${colourBlindPatterns ? 1 : 0}|${gloop.cells.slice().sort((a, b) => a - b).join(',')}`;
+  const key = `${gloop.flavour}|${cell}|${colourBlindPatterns ? 1 : 0}|${muted ? 1 : 0}|${gloop.cells.slice().sort((a, b) => a - b).join(',')}`;
   let sprite = bodySprites.get(key);
-  if (!sprite) { sprite = createBodySprite(gloop, cell, minRow, minCol, maxRow, maxCol, padding); if (bodySprites.size >= 96) bodySprites.delete(bodySprites.keys().next().value!); bodySprites.set(key, sprite); }
+  if (!sprite) { sprite = createBodySprite(gloop, cell, minRow, minCol, maxRow, maxCol, padding, muted); if (bodySprites.size >= 96) bodySprites.delete(bodySprites.keys().next().value!); bodySprites.set(key, sprite); }
   context.save(); context.translate(ox, oy); context.globalAlpha *= alpha;
   context.drawImage(sprite, minCol * cell - padding, minRow * cell - padding, sprite.width / 2, sprite.height / 2);
   drawFace(context, gloop, cell, elapsed, expression);
@@ -25,17 +25,18 @@ export function drawGloop(context: CanvasRenderingContext2D, gloop: Gloop, cell:
   context.restore();
 }
 
-function createBodySprite(gloop: Gloop, cell: number, minRow: number, minCol: number, maxRow: number, maxCol: number, padding: number): HTMLCanvasElement {
+function createBodySprite(gloop: Gloop, cell: number, minRow: number, minCol: number, maxRow: number, maxCol: number, padding: number, muted = false): HTMLCanvasElement {
   const dpr = 2; const sprite = document.createElement('canvas'); sprite.width = Math.ceil(((maxCol - minCol + 1) * cell + padding * 2) * dpr); sprite.height = Math.ceil(((maxRow - minRow + 1) * cell + padding * 2) * dpr);
   const ctx = sprite.getContext('2d'); if (!ctx) return sprite; ctx.scale(dpr, dpr); ctx.translate(padding - minCol * cell, padding - minRow * cell);
-  const key = FLAVOUR_KEYS[gloop.flavour - 1]!; const colour = PALETTE.flavour[key]; const path = silhouettePath(gloop.cells, cell);
+  const key = FLAVOUR_KEYS[gloop.flavour - 1]!; const flavourColour = PALETTE.flavour[key]; const path = silhouettePath(gloop.cells, cell);
   const left = minCol * cell; const top = minRow * cell; const right = (maxCol + 1) * cell; const bottom = (maxRow + 1) * cell;
   ctx.save(); ctx.translate(0, cell * 0.07); ctx.fillStyle = PALETTE.light.shadow; ctx.shadowColor = PALETTE.light.shadow; ctx.shadowBlur = cell * 0.16; ctx.fill(path, 'evenodd'); ctx.restore();
-  const base = ctx.createLinearGradient(0, top, 0, bottom); base.addColorStop(0, colour.light); base.addColorStop(0.38, colour.base); base.addColorStop(1, colour.dark); ctx.fillStyle = base; ctx.fill(path, 'evenodd');
-  ctx.save(); ctx.clip(path, 'evenodd'); const glow = ctx.createRadialGradient((left + right) / 2, (top + bottom) / 2, 0, (left + right) / 2, (top + bottom) / 2, Math.max(right - left, bottom - top) * 0.45); glow.addColorStop(0, withAlpha(colour.light, 0.55)); glow.addColorStop(1, withAlpha(colour.light, 0)); ctx.fillStyle = glow; ctx.fillRect(left, top, right - left, bottom - top);
-  ctx.lineWidth = cell * 0.18; ctx.strokeStyle = withAlpha(colour.dark, 0.5); ctx.lineCap = 'round'; ctx.stroke(path); ctx.save(); ctx.beginPath(); ctx.rect(left, (top + bottom) / 2, right - left, bottom - top); ctx.clip(); ctx.translate(cell * 0.03, -cell * 0.04); ctx.lineWidth = cell * 0.06; ctx.strokeStyle = withAlpha(PALETTE.theme.midnight.rim, 0.35); ctx.stroke(path); ctx.restore(); ctx.restore();
-  ctx.lineWidth = cell * 0.05; ctx.lineJoin = 'round'; ctx.strokeStyle = colour.outline; ctx.stroke(path);
-  if (colourBlindPatterns) drawColourPattern(ctx, gloop, cell, minRow, minCol, path, mix(colour.dark, PALETTE.face.ink, 0.25));
+  const light = muted ? PALETTE.ui.disabledText : flavourColour.light; const baseColour = muted ? PALETTE.ui.disabled : flavourColour.base; const dark = muted ? PALETTE.theme.midnight.well : flavourColour.dark; const outline = muted ? PALETTE.theme.midnight.well : flavourColour.outline;
+  const base = ctx.createLinearGradient(0, top, 0, bottom); base.addColorStop(0, light); base.addColorStop(0.38, baseColour); base.addColorStop(1, dark); ctx.fillStyle = base; ctx.fill(path, 'evenodd');
+  ctx.save(); ctx.clip(path, 'evenodd'); const glow = ctx.createRadialGradient((left + right) / 2, (top + bottom) / 2, 0, (left + right) / 2, (top + bottom) / 2, Math.max(right - left, bottom - top) * 0.45); glow.addColorStop(0, withAlpha(light, 0.55)); glow.addColorStop(1, withAlpha(light, 0)); ctx.fillStyle = glow; ctx.fillRect(left, top, right - left, bottom - top);
+  ctx.lineWidth = cell * 0.18; ctx.strokeStyle = withAlpha(dark, 0.5); ctx.lineCap = 'round'; ctx.stroke(path); ctx.save(); ctx.beginPath(); ctx.rect(left, (top + bottom) / 2, right - left, bottom - top); ctx.clip(); ctx.translate(cell * 0.03, -cell * 0.04); ctx.lineWidth = cell * 0.06; ctx.strokeStyle = withAlpha(PALETTE.theme.midnight.rim, 0.35); ctx.stroke(path); ctx.restore(); ctx.restore();
+  ctx.lineWidth = cell * 0.05; ctx.lineJoin = 'round'; ctx.strokeStyle = outline; ctx.stroke(path);
+  if (colourBlindPatterns) drawColourPattern(ctx, gloop, cell, minRow, minCol, path, mix(dark, PALETTE.face.ink, 0.25));
   for (const index of gloop.cells) { const row = Math.floor(index / 8); const col = index % 8; if (gloop.cells.includes(index - 8)) continue; ctx.save(); ctx.translate(col * cell, row * cell); ctx.fillStyle = PALETTE.light.specularSoft; ctx.beginPath(); ctx.ellipse(cell * 0.32, cell * 0.26, cell * 0.15, cell * 0.085, -0.35, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = withAlpha(PALETTE.light.specular, 0.9); ctx.beginPath(); ctx.arc(cell * 0.56, cell * 0.2, cell * 0.045, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
   return sprite;
 }
@@ -65,9 +66,9 @@ export function drawJellyCell(context: CanvasRenderingContext2D, flavour: number
   context.restore();
 }
 
-export function drawPiece(context: CanvasRenderingContext2D, flavour: number, cells: readonly (readonly [number, number])[], cell: number, x: number, y: number, elapsed: number, expression = 'idle', alpha = 1): void {
+export function drawPiece(context: CanvasRenderingContext2D, flavour: number, cells: readonly (readonly [number, number])[], cell: number, x: number, y: number, elapsed: number, expression = 'idle', alpha = 1, muted = false): void {
   const gloop: Gloop = { flavour: flavour as Gloop['flavour'], cells: cells.map(([r, c]) => r * 8 + c), bfs: [], largestSquare: { row: 0, col: 0, size: 1 } };
-  drawGloop(context, gloop, cell, x, y, elapsed, expression, alpha);
+  drawGloop(context, gloop, cell, x, y, elapsed, expression, alpha, muted);
 }
 
 function drawFace(ctx: CanvasRenderingContext2D, gloop: Gloop, cell: number, elapsed: number, expression: string): void {

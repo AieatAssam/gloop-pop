@@ -10,7 +10,7 @@ export async function generateIcons(outputDirectory = defaultOutput) {
   const palette = JSON.parse(await readFile(join(root, '..', 'docs/art/palette.json'), 'utf8'));
   await mkdir(outputDirectory, { recursive: true });
   const midnight = palette.theme.midnight;
-  const colors = { sky: midnight.skyTop, skyLow: midnight.skyBottom, ink: palette.face.ink, cherry: palette.flavour.cherry, lemon: palette.flavour.lemon, orange: palette.flavour.orange, blueberry: palette.flavour.blueberry, grape: palette.flavour.grape, bubblegum: palette.flavour.bubblegum, apple: palette.flavour.apple, white: palette.face.eyeWhite, blush: palette.face.blush, mouth: palette.face.mouthInside, gold: palette.ui.gold, topperStem: palette.topper.stem, topperLeaf: palette.topper.leaf };
+  const colors = { sky: midnight.skyTop, skyLow: midnight.skyBottom, ink: palette.face.ink, cherry: palette.flavour.cherry, lemon: palette.flavour.lemon, orange: palette.flavour.orange, blueberry: palette.flavour.blueberry, grape: palette.flavour.grape, bubblegum: palette.flavour.bubblegum, apple: palette.flavour.apple, white: palette.face.eyeWhite, blush: palette.face.blush, mouth: palette.face.mouthInside, gold: palette.ui.gold, topperStem: palette.topper.stem, topperLeaf: palette.topper.leaf, topperLeafDark: palette.topper.leafDark };
   for (const size of [192, 512]) await writePNG(join(outputDirectory, `icon-${size}.png`), renderAppIcon(size, colors, false));
   await writePNG(join(outputDirectory, 'icon-maskable-512.png'), renderAppIcon(512, colors, true));
   await writePNG(join(outputDirectory, 'apple-touch-icon.png'), renderAppIcon(180, colors, false));
@@ -53,9 +53,7 @@ function drawGloop(image, cx, cy, width, height, c, flavour = 'lemon') {
   }
   image.strokeCapsule(cx - bodyWidth * .10, cy + bodyHeight * .15, cx, cy + bodyHeight * .23, width * .025, c.mouth);
   image.strokeCapsule(cx, cy + bodyHeight * .23, cx + bodyWidth * .10, cy + bodyHeight * .15, width * .025, c.mouth);
-  image.strokeCapsule(cx - width * .02, y + height * .02, cx + width * .01, y - height * .08, width * .045, c.topperStem);
-  image.fillEllipse(cx + width * .09, y - height * .075, width * .11, height * .045, c.topperLeaf, -.35);
-  image.fillEllipse(cx + width * .08, y - height * .09, width * .07, height * .018, '#FFFFFF99', -.35);
+  drawFlavourTopper(image, cx, y, width, height, c, 'cherry');
 }
 
 function renderOgImage(c) {
@@ -81,12 +79,39 @@ function renderOgImage(c) {
     const f = .78 * k * cell; const fx = x + bw / 2; const fy = y + bh / 2 - f * .04;
     for (const side of [-1, 1]) { image.fillEllipse(fx + side * f * .2, fy - f * .06, f * .075, f * .095, c.ink); image.fillCircle(fx + side * f * .2 - f * .025, fy - f * .095, f * .028, c.white); image.fillEllipse(fx + side * f * .31, fy + f * .1, f * .08, f * .05, c.blush); }
     image.strokeCapsule(fx - f * .085, fy + f * .1, fx, fy + f * .16, f * .045, c.ink); image.strokeCapsule(fx, fy + f * .16, fx + f * .085, fy + f * .1, f * .045, c.ink);
+    drawFlavourTopper(image, fx, y, bw, bh, c, flavour);
   };
-  boardGloop(0, 0, 2, 2, 'cherry'); boardGloop(2, 5, 2, 2, 'blueberry'); boardGloop(3, 2, 3, 3, 'lemon'); boardGloop(6, 5, 3, 1, 'apple'); boardGloop(7, 0, 2, 1, 'orange');
+  boardGloop(0, 0, 2, 2, 'cherry'); boardGloop(0, 3, 2, 1, 'grape'); boardGloop(0, 7, 1, 2, 'bubblegum'); boardGloop(2, 5, 2, 2, 'blueberry'); boardGloop(3, 2, 3, 3, 'lemon'); boardGloop(6, 5, 3, 1, 'apple'); boardGloop(7, 0, 2, 1, 'orange');
   drawLogo(image, 880, 132, c);
   drawGloop(image, 855, 423, 325, 325, c, 'cherry');
   image.fillEllipse(855, 572, 180, 14, '#10082466');
   return image.encodePNG();
+}
+
+function drawFlavourTopper(image, cx, top, width, height, c, flavour) {
+  const stemTop = top - height * .08; const stemBase = top + height * .06;
+  if (flavour === 'bubblegum') { image.fillCircle(cx, stemTop - height * .025, width * .075, c.bubblegum.light); image.fillCircle(cx - width * .02, stemTop - height * .045, width * .018, '#FFFFFFCC'); return; }
+  if (flavour === 'blueberry') {
+    const points = []; for (let i = 0; i < 10; i += 1) { const angle = -Math.PI / 2 + i * Math.PI / 5; const radius = width * (i % 2 ? .035 : .075); points.push([cx + Math.cos(angle) * radius, stemTop + Math.sin(angle) * radius]); }
+    image.fillPolygon(points, c.blueberry.dark); image.strokeCapsule(cx, stemTop + width * .04, cx, stemBase, width * .022, c.topperStem); return;
+  }
+  image.strokeCapsule(cx, stemBase, cx - width * .025, stemTop, width * .035, c.topperStem);
+  if (flavour === 'apple') {
+    image.fillEllipse(cx - width * .055, stemTop + height * .015, width * .07, height * .035, c.topperLeaf, -.55);
+    image.fillEllipse(cx + width * .06, stemTop, width * .065, height * .032, c.topperLeaf, .45);
+  } else if (flavour === 'grape') {
+    image.strokeCapsule(cx - width * .02, stemTop, cx + width * .07, stemTop - height * .055, width * .02, c.topperLeafDark);
+    image.fillCircle(cx + width * .075, stemTop - height * .06, width * .035, c.grape.light);
+  } else if (flavour === 'lemon') {
+    image.fillEllipse(cx + width * .045, stemTop, width * .11, height * .035, c.topperLeaf, -.4);
+    image.strokeCapsule(cx - width * .02, stemTop + height * .005, cx + width * .09, stemTop - height * .01, width * .009, c.topperLeafDark);
+  } else if (flavour === 'orange') {
+    image.fillEllipse(cx - width * .055, stemTop, width * .075, height * .035, c.topperLeaf, -.6);
+    image.fillEllipse(cx + width * .055, stemTop + height * .005, width * .075, height * .035, c.topperLeaf, .55);
+  } else {
+    image.fillEllipse(cx + width * .075, stemTop - height * .015, width * .11, height * .045, c.topperLeaf, -.35);
+    image.strokeCapsule(cx + width * .015, stemTop - height * .015, cx + width * .13, stemTop - height * .02, width * .01, c.topperLeafDark);
+  }
 }
 
 // Rounded "Gloop Pop" lettering built from capsule strokes (SG §10 logo: each letter a flavour, ink outline).

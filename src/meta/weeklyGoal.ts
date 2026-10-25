@@ -3,10 +3,6 @@ import type { GameEvent, GameState } from '../core/types';
 import type { SaveV1 } from './saveSchema';
 
 export const WEEKLY_TARGETS: Readonly<Record<WeeklyGoalId, number>> = { lines: 150, pops: 300, score: 60_000, combo6: 5, bigpops: 10, dailies: 4, allclear: 2, multi: 25 };
-export const WEEKLY_COPY: Readonly<Record<WeeklyGoalId, string>> = {
-  lines: 'Clear 150 lines', pops: 'Pop 300 extra cells', score: 'Score 60,000 points in total', combo6: 'Reach combo 6 in 5 different runs', bigpops: 'Make 10 Big Pops (8+ cells)', dailies: 'Finish 4 daily challenges', allclear: 'Empty the board 2 times', multi: 'Clear 2+ lines with one piece 25 times',
-};
-
 export function syncWeek(save: SaveV1, weekIndex: number): SaveV1 {
   if (save.weekly.weekIndex === weekIndex) return save;
   const next = structuredClone(save); next.weekly = { weekIndex, progress: 0, claimed: false, runsWithCombo6: 0 }; return next;

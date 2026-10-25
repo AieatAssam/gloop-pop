@@ -69,7 +69,7 @@ export function bootApp(): void {
   const beginTutorial = !savedRun && !save.tutorialDone;
   let session = createSession({ state: savedRun ?? (beginTutorial ? tutorialGame(1) : null), best: bestFor(save, savedRun?.mode ?? 'classic'), mode: 'classic' });
   canvas.setAttribute('aria-label', `${S.logo}. ${S.howToControls}`);
-  let runBest = session.best; let runStartedAt = performance.now(); let pauseStartedAt = 0; let runReward = { xp: 0, coins: 0, progress: 0, progressMax: xpToNext(save.profile.level), level: undefined as number | undefined };
+  let runBest = session.best; let runStartedAt = performance.now(); let pauseStartedAt = 0; let runReward = { xp: 0, coins: 0, progress: 0, progressMax: xpToNext(save.profile.level), currentLevel: save.profile.level, level: undefined as number | undefined };
   const router = createRouter('play'); const surface = createCanvasSurface(canvas); const background = createBackground(save.equipped.theme as keyof typeof PALETTE.theme); const view = createBoardView(); const director = createDirector();
   setColourBlindPatterns(save.settings.cbPatterns);
   let backgroundTheme = save.equipped.theme; const ui = createGameUi(uiRoot); const toast = createToasts(uiRoot); const homeHost = document.createElement('div'); uiRoot.append(homeHost);
@@ -240,7 +240,7 @@ export function bootApp(): void {
     save.inProgress = null; if (completed.mode === 'daily') save.dailyInProgress = null; controlsHint.hidden = save.ui.runsFinished >= 3;
     if (save.ui.seenTips.includes('tutorialTipPending')) { save.ui.seenTips = save.ui.seenTips.filter((tip) => tip !== 'tutorialTipPending'); tutorialTipForGameOver = true; }
     const achievementResult = grantAchievements(save, { mode: completed.mode, score: completed.score, rescueUsed: completed.rescue.used, closeCall, rescuedLine: rescueClearWithinThree(runEvents), events: runEvents, friendBeaten: challengeBeaten }); save = achievementResult.save;
-    const lastLevel = reward.levels[reward.levels.length - 1]; runReward = { xp: reward.xp, coins: reward.coins, progress: Math.max(0, save.profile.xp - totalXpForLevel(save.profile.level)), progressMax: xpToNext(save.profile.level), level: lastLevel };
+    const lastLevel = reward.levels[reward.levels.length - 1]; runReward = { xp: reward.xp, coins: reward.coins, progress: Math.max(0, save.profile.xp - totalXpForLevel(save.profile.level)), progressMax: xpToNext(save.profile.level), currentLevel: save.profile.level, level: lastLevel };
     runReward.coins += discoveryCoins;
     saveNow(save); if (lastLevel) toast.show(S.levelUp(lastLevel)); for (const item of reward.unlocked) toast.show(S.unlocked(item)); for (const achievement of achievementResult.unlocked) toast.show(S.achievementUnlock(S.achievementName(achievement.id), achievement.coins));
   }

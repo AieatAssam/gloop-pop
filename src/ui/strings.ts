@@ -1,8 +1,23 @@
 // Player-facing strings are copied from design §16.4.
+function weeklyTitle(id: string): string {
+  switch (id) {
+    case 'lines': return 'This week: Clear 150 lines';
+    case 'pops': return 'This week: Pop 300 popped cells';
+    case 'score': return 'This week: Score 60,000 points in total';
+    case 'combo6': return 'This week: Reach combo 6 in 5 different runs';
+    case 'bigpops': return 'This week: Make 10 Big Pops (8+ cells)';
+    case 'dailies': return 'This week: Finish 4 daily challenges';
+    case 'allclear': return 'This week: Empty the board 2 times';
+    case 'multi': return 'This week: Clear 2+ lines with one piece 25 times';
+    default: return 'This week: Clear 150 lines';
+  }
+}
+const number = (value: number): string => new Intl.NumberFormat('en-US').format(value);
+// spec-note: The achievement total is 41 per design §23.5 (#41 Rivals), despite §15 and §18 still saying 40.
 export const S = {
   score: 'Score',
   best: (n: string): string => `Best ${n}`,
-  combo: (count: number, multiplier: string): string => `Combo ${count} ×${multiplier}`,
+  combo: (count: number, multiplier: string): string => `Combo ${number(count)} ×${multiplier}`,
   comboLost: 'Combo lost',
   pop: 'Pop!',
   bigPop: 'Big Pop!',
@@ -18,7 +33,7 @@ export const S = {
   firstLine: 'Nice!', firstDouble: 'Double!', firstBigPop: 'First Big Pop!', firstHugePop: 'First Huge Pop!', firstMegaPop: 'First Mega Pop!', firstAllClear: 'First All Clear!', firstCombo5: 'Combo 5! Keep clearing.', firstCombo10: 'Combo 10!',
   nearNewBest: (d: number): string => `New best! ${new Intl.NumberFormat('en-US').format(d)} more than before.`, nearBestShort: (d: number): string => `Only ${new Intl.NumberFormat('en-US').format(d)} points short of your best.`,
   lineCount: (n: number): string => `${new Intl.NumberFormat('en-US').format(n)} lines!`,
-  nearPiece: (piece: string): string => `Your ${piece} needed just 1 more empty cell.`, nearLine: (kind: string, index: number): string => `${kind === 'row' ? 'Row' : 'Column'} ${index} was 1 cell from clearing.`,
+  nearPiece: (piece: string): string => `Your ${piece} needed just 1 more empty cell.`, nearLine: (kind: string, index: number): string => `${kind === 'row' ? 'Row' : 'Column'} ${number(index)} was 1 cell from clearing.`,
   nearXp: (x: number, level: number): string => `${new Intl.NumberFormat('en-US').format(x)} XP to Level ${new Intl.NumberFormat('en-US').format(level)}.`, nearWeekly: (k: number): string => `${new Intl.NumberFormat('en-US').format(k)} more to finish your weekly goal.`, nearAchievement: (k: number, unit: string, name: string): string => `${new Intl.NumberFormat('en-US').format(k)} more ${unit} for "${name}".`,
   pointsPop: (points: number): string => `+${new Intl.NumberFormat('en-US').format(points)}`, coinBonus: (coins: number): string => `+${new Intl.NumberFormat('en-US').format(coins)} coins`,
   shapeName: (shape: string): string => ({ dot: 'dot', bar2: '2-bar', bar3: '3-bar', bar4: '4-bar', bar5: '5-bar', squareSmall: 'small square', squareBig: 'big square', rectangle: 'rectangle', cornerSmall: 'small corner', cornerL: 'L', tee: 'T', zigzag: 'S', cornerBig: 'big corner' }[shape] ?? 'piece'),
@@ -32,24 +47,25 @@ export const S = {
   dailyGiveUpConfirm: "End today's run? It will count as your daily.",
   rescueReady: 'Rescue ready', rescueUsed: 'Rescue used',
   logo: 'Gloop Pop', level: (n: number): string => `Lv ${new Intl.NumberFormat('en-US').format(n)}`, coins: (n: number): string => new Intl.NumberFormat('en-US').format(n), play: 'Play',
-  classic: 'Classic', classicDescription: 'Endless. How long can you last?', daily: (n: number): string => `Daily #${n}`, dailyDescription: 'Same board for everyone today.',
+  classic: 'Classic', classicDescription: 'Endless. How long can you last?', daily: (n: number): string => `Daily #${number(n)}`, dailyDescription: 'Same board for everyone today.',
   zen: 'Zen', zenDescription: 'No game over. Relax and pop.', expert: 'Expert', expertDescription: 'Bigger pieces, all 7 flavours, no rescue.',
-  reachLevel: (n: number): string => `Reach Level ${n}`, weekly: 'This week: Clear 150 lines', weeklyProgress: '87 / 150', weeklyResets: 'Resets in 3 days', weeklyReward: 'Reward: 200 coins, 150 XP, 1 freeze',
-  streak: (n: number): string => `🔥 ${n}-day streak`, freeze: (n: number): string => `❄️ ${n} freeze`, streakStart: "Play today's daily to start a streak.",
+  reachLevel: (n: number): string => `Reach Level ${number(n)}`, weeklyTitle, weeklyProgress: '87 / 150', weeklyResets: 'Resets in 3 days', weeklyReward: 'Reward: 200 coins, 150 XP, 1 freeze',
+  streak: (n: number): string => `🔥 ${number(n)}-day streak`, freeze: (n: number): string => `❄️ ${number(n)} freeze`, streakStart: "Play today's daily to start a streak.",
   collection: 'Collection', achievements: 'Achievements', stats: 'Stats', howToPlay: 'How to play', back: 'Back', statsTitle: 'Stats',
   runsPlayed: 'Runs played', bestClassic: 'Best score (Classic)', bestExpert: 'Best score (Expert)', averageClassic: 'Average of last 20 Classic runs', linesCleared: 'Lines cleared',
   runsClassic: 'Classic runs', runsExpert: 'Expert runs', runsZen: 'Zen runs', runsDaily: 'Daily runs',
-  extraCellsPopped: 'Extra cells popped', biggestPop: 'Biggest pop', bestCombo: 'Best combo', allClears: 'All clears', piecesPlaced: 'Pieces placed', timePlayed: 'Time played',
+  poppedCells: 'Popped cells', biggestPop: 'Biggest pop', bestCombo: 'Best combo', allClears: 'All clears', piecesPlaced: 'Pieces placed', timePlayed: 'Time played',
   dailiesFinished: 'Dailies finished', bestDaily: 'Best daily score', currentStreak: 'Current streak', bestStreak: 'Best streak', achievementsLabel: 'Achievements', achievementsFraction: (count: number): string => `${new Intl.NumberFormat('en-US').format(count)} / 41`, statsChart: 'Last 20 Classic scores',
   debugXp: 'Give 5,000 XP',
   weekdayInitials: ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as readonly string[],
   controlsHint: 'Drag pieces, or press 1 2 3, arrows and Space',
-  giveUp: 'Give up', endRun: 'End run', levelUp: (level: number): string => `Level ${level}! +50 coins`, unlocked: (item: string): string => `Unlocked: ${item}`,
+  giveUp: 'Give up', endRun: 'End run', levelUp: (level: number): string => `Level ${number(level)}! +50 coins`, unlocked: (item: string): string => `Unlocked: ${item}`,
   rewardRow: (xp: number, coins: number): string => `+${new Intl.NumberFormat('en-US').format(xp)} XP · +${new Intl.NumberFormat('en-US').format(coins)} coins`, lock: '🔒',
-  gameOverNote: (fallback: string, level?: number): string => level ? `${fallback} · Level ${level}!` : fallback,
-  streakStatus: (days: number, freezes: number): string => `🔥 ${days}-day streak · ❄️ ${freezes} freeze`,
-  rescueCharge: (charge: number): string => `${charge}/10`, rescueLabel: (charge: number): string => `Rescue ${charge}/10`, stageLabel: (stage: number): string => `Stage ${stage}`, extraPopCount: (count: number): string => `+${new Intl.NumberFormat('en-US').format(count)}`,
-  statsTime: (hours: number, minutes: number): string => hours > 0 ? `${hours} h ${minutes} m` : `${minutes} m`,
+  levelBarCurrent: (level: number): string => `Level ${new Intl.NumberFormat('en-US').format(level)}`, levelBarNext: (level: number): string => new Intl.NumberFormat('en-US').format(level + 1),
+  gameOverNote: (fallback: string, level?: number): string => level ? `${fallback} · Level ${number(level)}!` : fallback,
+  streakStatus: (days: number, freezes: number): string => `🔥 ${number(days)}-day streak · ❄️ ${number(freezes)} freeze`,
+  rescueCharge: (charge: number): string => `${number(charge)}/10`, rescueLabel: (charge: number): string => `Rescue ${number(charge)}/10`, stageLabel: (stage: number): string => `Stage ${number(stage)}`, extraPopCount: (count: number): string => `+${number(count)}`,
+  statsTime: (hours: number, minutes: number): string => hours > 0 ? `${number(hours)} h ${number(minutes)} m` : `${number(minutes)} m`,
   catalogueName: (id: string): string => ({ midnight: 'Midnight Candy Shop', sunset: 'Strawberry Sunset', aquarium: 'Mint Aquarium', observatory: 'Starlight Observatory', kitchen: 'Cinnamon Kitchen', snowglobe: 'Snow Globe', dawn: 'Golden Dawn', plain: 'Plain', googly: 'Googly Eyes', freckles: 'Freckles', catears: 'Cat Ears', glasses: 'Round Glasses', mustache: 'Mustaches', bowtie: 'Bow Ties', crown: 'Crowns', sparkles: 'Sugar Sparkles', hearts: 'Hearts', stars: 'Stars', bubbles: 'Bubbles', confetti: 'Confetti', fireworks: 'Fireworks' }[id] ?? id),
   coinBalance: (n: number): string => `${new Intl.NumberFormat('en-US').format(n)} coins`,
   collectionTitle: 'Collection', collectionThemes: 'Themes', collectionSkins: 'Skins', collectionPops: 'Pop effects',
@@ -73,16 +89,16 @@ export const S = {
   freezeSaved: (days: number): string => `A freeze saved your ${new Intl.NumberFormat('en-US').format(days)}-day streak.`, streakEnded: (days: number): string => `Your streak ended at ${new Intl.NumberFormat('en-US').format(days)} days. Play today to start a new one.`,
   toBeatBest: (n: number): string => `${new Intl.NumberFormat('en-US').format(n)} to beat your best`, toBeatFriend: (n: number): string => `${new Intl.NumberFormat('en-US').format(n)} to beat your friend's score`,
   weeklyShort: (n: number): string => `${new Intl.NumberFormat('en-US').format(n)} more to finish your weekly goal.`,
-  dailyTray: (tray: number): string => `Tray ${tray} / 30`, fodDouble: (name: string): string => `${name} pops ×2`,
-  dailyResult: (n: number): string => `Daily #${n}`, dailyCombo: (n: number): string => `Best combo ${n}`, dailyBiggest: (n: number): string => `Biggest pop ${n}`,
+  dailyTray: (tray: number): string => `Tray ${number(tray)} / 30`, fodDouble: (name: string): string => `${name} pops ×2`,
+  dailyResult: (n: number): string => `Daily #${number(n)}`, dailyCombo: (n: number): string => `Best combo ${number(n)}`, dailyBiggest: (n: number): string => `Biggest pop ${number(n)}`,
   share: 'Share', shareImage: 'Share image', practice: 'Practice (not counted)', nextDaily: (time: string): string => `Next daily in ${time}`,
   dailyLegend: '⬜ no clear · 🟩 1 line · 🟨 2–3 · 🟧 4–5 · 🟥 6+ · 🟪 all clear or huge pop',
   // On screen the legend uses colour swatches that match the tiles exactly; the emoji version is for the share text.
   dailyLegendItems: ['no clear', '1 line', '2–3', '4–5', '6+', 'all clear or huge pop'] as readonly string[],
   tutorialSkip: 'Skip', tutorialStep1: 'Drag this piece into the gap.', tutorialClear: 'Full rows clear!', tutorialStep2: 'Fill a row and a column at once for more points.', tutorialTwo: 'Two at once!', tutorialStep3: 'Same colours join into one gloop. Clear this row to pop the whole green gloop!', tutorialBig: 'Big Pop! Bigger gloops score more.', tutorialStep4: 'You get 3 pieces. Place all 3 to get new ones.', tutorialEnd: 'The game ends when nothing fits. Good luck!', tutorialTip: 'Tip: keep clearing to grow your combo.',
   tutorialChallenge: (score: number): string => `Now beat your friend's ${new Intl.NumberFormat('en-US').format(score)}!`,
-  settingSfx: 'Sound effects', settingMusic: 'Music', settingVibration: 'Vibration', settingReduceMotion: 'Reduce motion', settingMatchDevice: 'Match device', settingOn: 'On', settingOff: 'Off', settingPatterns: 'Colour-blind patterns', showTutorial: 'Show tutorial again', resetProgress: 'Reset all progress', resetConfirm: "Delete all progress? Your level, coins, unlocks, stats and streak will be gone. This can't be undone.", deleteEverything: 'Delete everything', howToRule1: 'Drag pieces onto the board. Pieces can\'t be rotated.', howToRule2: 'Fill a whole row or column to clear it. Clearing several at once scores much more.', howToRule3: 'Same colours join into one gloop. Clear a line through any part of a gloop and the whole gloop pops for bonus points. Gloops of 8+ cells give a Big Pop bonus.', howToRule4: 'Keep your combo going. Clear a line at least once every 3 pieces. Each clear in a row raises your multiplier.', howToRule5: 'You get 3 pieces at a time. Place all 3 to get new ones. New pieces always include at least one that fits.', howToRule6: 'The game ends when none of your pieces fit. In Classic you have one rescue per run: clear 10 lines to charge it.', howToRule7: 'Daily challenge: the same board and pieces for everyone, every day. Your first try counts. Share your result with friends.', howToControls: 'Drag with the mouse, or press 1, 2, 3 to pick a piece, arrow keys to move it, Space to place. Esc pauses. M mutes.', howToScoring: 'Each cell placed: 1 · 1 line: 100 · 2 lines: 300 · 3 lines: 600 · 4 lines: 1,000 · Each extra popped cell: 20 · Big Pop: +200 · Huge Pop: +600 · Mega Pop: +1,500 · Empty board: +2,000 · Combo multiplies everything except placing.',
-  weeklyReset: (days: number): string => `Resets in ${days} days`, weeklyResetHours: (hours: number): string => `Resets in ${hours} hours`,
+  settingSfx: 'Sound effects', settingMusic: 'Music', settingVibration: 'Vibration', settingReduceMotion: 'Reduce motion', settingMatchDevice: 'Match device', settingOn: 'On', settingOff: 'Off', settingPatterns: 'Colour-blind patterns', showTutorial: 'Show tutorial again', resetProgress: 'Reset all progress', resetConfirm: "Delete all progress? Your level, coins, unlocks, stats and streak will be gone. This can't be undone.", deleteEverything: 'Delete everything', howToRule1: 'Drag pieces onto the board. Pieces can\'t be rotated.', howToRule2: 'Fill a whole row or column to clear it. Clearing several at once scores much more.', howToRule3: 'Same colours join into one gloop. Clear a line through any part of a gloop and the whole gloop pops for bonus points. Gloops of 8+ cells give a Big Pop bonus.', howToRule4: 'Keep your combo going. Clear a line at least once every 3 pieces. Each clear in a row raises your multiplier.', howToRule5: 'You get 3 pieces at a time. Place all 3 to get new ones. New pieces always include at least one that fits.', howToRule6: 'The game ends when none of your pieces fit. In Classic you have one rescue per run: clear 10 lines to charge it.', howToRule7: 'Daily challenge: the same board and pieces for everyone, every day. Your first try counts. Share your result with friends.', howToControls: 'Drag with the mouse, or press 1, 2, 3 to pick a piece, arrow keys to move it, Space to place. Esc pauses. M mutes.', howToScoring: 'Each cell placed: 1 · 1 line: 100 · 2 lines: 300 · 3 lines: 600 · 4 lines: 1,000 · Each popped cell: 20 · Big Pop: +200 · Huge Pop: +600 · Mega Pop: +1,500 · Empty board: +2,000 · Combo multiplies everything except placing.',
+  weeklyReset: (days: number): string => `Resets in ${number(days)} ${days === 1 ? 'day' : 'days'}`, weeklyResetHours: (hours: number): string => `Resets in ${number(hours)} ${hours === 1 ? 'hour' : 'hours'}`,
   rivalCard: (emoji: string, score: string): string => `${emoji} A friend scored ${score}. Beat it!`,
   achievementTitle: 'Achievements', achievementProgress: (current: number, total: number): string => `${new Intl.NumberFormat('en-US').format(current)} / ${new Intl.NumberFormat('en-US').format(total)}`,
   achievementUnlock: (name: string, coins: number): string => `Achievement: ${name} · +${new Intl.NumberFormat('en-US').format(coins)} coins`,
@@ -95,6 +111,6 @@ export const ACHIEVEMENT_COPY: Readonly<Record<string, { name: string; descripti
  first_pop:{name:'Pop!',description:'Pop a gloop by clearing a line through it.'}, big_pop:{name:'Big Pop',description:'Pop a gloop of 8 or more cells.'}, huge_pop:{name:'Huge Pop',description:'Pop a gloop of 15 or more cells.'}, mega_pop:{name:'Mega Pop',description:'Pop a gloop of 24 or more cells. Unlocks Crowns.'}, big_pop_pro:{name:'Big Pop Pro',description:'Make 50 Big Pops in total.'}, long_gloop:{name:'Long Gloop',description:'Grow a gloop to 12 cells.'},
  one_flavour:{name:'One Flavour',description:'Clear a line where all 8 cells are the same flavour.'}, spotless:{name:'Spotless',description:'Empty the whole board.'}, clean_freak:{name:'Clean Freak',description:'Empty the whole board 10 times.'}, combo5:{name:'On a Roll',description:'Reach combo 5.'}, combo10:{name:'Ten in a Row',description:'Reach combo 10.'}, combo20:{name:'Twenty in a Row',description:'Reach combo 20.'},
  score5k:{name:'5,000 Club',description:'Score 5,000 in one Classic run.'}, score20k:{name:'20,000 Club',description:'Score 20,000 in one Classic run.'}, score50k:{name:'50,000 Club',description:'Score 50,000 in one Classic run.'}, score100k:{name:'100,000 Club',description:'Score 100,000 in one Classic run.'}, expert25k:{name:'Expert 25,000',description:'Score 25,000 in one Expert run.'}, close_call:{name:'Close Call',description:'Clear a line when 52 or more cells are filled.'}, no_help:{name:'No Help Needed',description:'Score 20,000 in Classic without using the rescue.'}, saved:{name:'Saved!',description:'Use a rescue, then clear a line with the next 3 pieces.'},
- lines100:{name:'Line Worker',description:'Clear 100 lines in total.'}, lines1000:{name:'Line Boss',description:'Clear 1,000 lines in total.'}, lines5000:{name:'Line Legend',description:'Clear 5,000 lines in total.'}, pops500:{name:'Popper',description:'Pop 500 extra cells in total.'}, pops5000:{name:'Pop Star',description:'Pop 5,000 extra cells in total.'}, runs10:{name:'Regular',description:'Finish 10 runs.'}, runs100:{name:'Hundred Runs',description:'Finish 100 runs.'},
+ lines100:{name:'Line Worker',description:'Clear 100 lines in total.'}, lines1000:{name:'Line Boss',description:'Clear 1,000 lines in total.'}, lines5000:{name:'Line Legend',description:'Clear 5,000 lines in total.'}, pops500:{name:'Popper',description:'Pop 500 popped cells in total.'}, pops5000:{name:'Pop Star',description:'Pop 5,000 popped cells in total.'}, runs10:{name:'Regular',description:'Finish 10 runs.'}, runs100:{name:'Hundred Runs',description:'Finish 100 runs.'},
  daily1:{name:'Daily Player',description:'Finish a daily challenge.'}, daily30:{name:'Daily Regular',description:'Finish 30 daily challenges.'}, streak7:{name:'One Week',description:'Reach a 7-day streak.'}, streak30:{name:'One Month',description:'Reach a 30-day streak.'}, weekly1:{name:'Weekly Winner',description:'Finish a weekly goal.'}, level10:{name:'Level 10',description:'Reach Level 10.'}, level50:{name:'Level 50',description:'Reach Level 50.'}, collector:{name:'Collector',description:'Own every theme, skin and pop effect.'}, rivals:{name:'Rivals',description:"Beat a friend's challenge score."},
 };

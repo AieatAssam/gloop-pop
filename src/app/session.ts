@@ -16,7 +16,13 @@ export function createSession(options: { state?: GameState | null; best?: number
     get state() { return state; }, get best() { return best; },
     dispatch(action) { const next = step(state, action); state = next.state; return next.events; },
     replace(nextState) { state = nextState; mode = nextState.mode; },
-    restart(nextMode = mode) { mode = nextMode; result = newGame(mode, seed(mode, state.moves + state.score)); state = result.state; },
+    restart(nextMode = mode) { mode = nextMode; result = newGame(mode, seed(mode)); state = result.state; },
   };
 }
-function seed(mode: ModeId, salt = 0): string { return mode === 'daily' ? `gloop-pop/daily/v1/${dayKeyFromMs(Date.now())}` : `gloop-pop/${mode}/session-${salt}`; }
+function seed(mode: ModeId): string {
+  if (mode === 'daily') return `gloop-pop/daily/v1/${dayKeyFromMs(Date.now())}`;
+  // spec-note: Non-Daily runs use four crypto random words; GameState.seed persists the exact seed for deterministic resume.
+  const words = new Uint32Array(4);
+  globalThis.crypto.getRandomValues(words);
+  return `gloop-pop/${mode}/${Array.from(words, (word) => word.toString(16).padStart(8, '0')).join('')}`;
+}
