@@ -254,3 +254,31 @@ Every C level after M14 (cubes = sugar + hard on the start board; targets C firs
 **M14 forecast** (`level:seedIndex:targets`, C first on two-goal levels). If design §24.6 (M14) is implemented exactly, `npm run levels -- --write` must produce these 120 values; a difference means the code and the spec disagree, and the spec wins. 48 entries differ from the M13 table: the 44 C levels' targets or seeds, and Levels 50, 65, 70 and 115, whose seeds move because the neighbour rule now compares them with changed C neighbours.
 
 1:16:3 2:0:700 3:8:3 4:0:2300 5:10:4 6:1:8 7:0:6500 8:2:5 9:0:9 10:1:3600 11:2:16 12:0:5 13:0:2700 14:0:20 15:0:4 16:0:2200 17:0:11 18:2:5 19:0:2100 20:14:25 21:1:3 22:0:5 23:0:2000 24:0:3 25:6:5 26:1:13 27:0:4 28:0:2100 29:0:5 30:1:5 31:1:2200 32:1:4 33:0:11 34:0:5 35:0:11 36:4:3 37:0:3700 38:0:5 39:0:5 40:0:4 41:2:5 42:0:5 43:0:3 44:2:4 45:0:2300 46:0:1 47:16:1 48:0:3 49:1:7 50:1:20 51:1:6 52:0:2 53:0:4300 54:0:4 55:1:3 56:0:12 57:26:1 58:0:6 59:0:4 60:3:8 61:5:4 62:3:5 63:0:2 64:0:4 65:3:20 66:7:5 67:3:1 68:0:3000 69:0:4 70:1:4 71:11:4 72:0:8 73:23:1 74:3:5 75:0:2500 76:0:4 77:0:5 78:0:4 79:9:1 80:0:5 81:1:4/6 82:0:2700 83:2:4/13 84:0:4 85:1:6 86:25:1 87:1:5/3500 88:2:8 89:7:4/4 90:1:4 91:1:2400 92:5:4/20 93:0:3 94:6:4/7 95:5:5/20 96:1:12 97:5:4/3700 98:12:1 99:5:5/3 100:2:4/6 101:2:5/4200 102:0:4 103:0:5/14 104:2:1 105:0:4/5 106:1:12 107:0:4/2 108:0:2000 109:0:5/2500 110:21:4 111:0:5 112:16:5/19 113:0:1 114:5:5/2900 115:0:3000 116:0:6/5 117:0:9 118:2:5/17 119:51:1 120:3:4/2
+
+## 2026-10-25 · M14 levels (M14.1 implementation)
+
+`timeout 900 npm run levels -- --write` run twice produced byte-identical `src/core/levels.data.ts` (SHA-256 `3f8b9c1be9a2e40e3f77c8d25169a59d12d00d7f98d1d963cce517f7ffc8a4b1`). `timeout 900 npm run levels -- --verify` passed in 14.3 s. The generated `level:seedIndex:targets` rows match the M14 forecast above exactly: **120 of 120 match**. The real table has 0 band failures, 0 neighbour failures and 0 C targets below the floor.
+
+| Ch | Tier | W mean (min–max) | m mean | Band failures |
+|---|---|---:|---:|---:|
+| 1 | intro | 12.00 (12–12) | 4.00 | 0 |
+| 1 | easy | 10.67 (10–11) | 9.00 | 0 |
+| 1 | normal | 8.20 (7–10) | 3.40 | 0 |
+| 1 | hard | 4.75 (4–7) | 0.75 | 0 |
+| 2 | easy | 11.50 (11–12) | 14.25 | 0 |
+| 2 | normal | 8.25 (7–10) | 5.75 | 0 |
+| 2 | hard | 4.75 (4–6) | 0.50 | 0 |
+| 3 | easy | 11.25 (10–12) | 14.50 | 0 |
+| 3 | normal | 7.75 (7–9) | 9.75 | 0 |
+| 3 | hard | 4.50 (4–5) | 1.25 | 0 |
+| 4 | easy | 10.75 (10–12) | 12.25 | 0 |
+| 4 | normal | 8.33 (7–10) | 10.42 | 0 |
+| 4 | hard | 5.50 (4–7) | 0.75 | 0 |
+| 5 | easy | 10.75 (10–12) | 11.25 | 0 |
+| 5 | normal | 7.42 (7–8) | 6.33 | 0 |
+| 5 | hard | 4.75 (4–6) | 1.50 | 0 |
+| 6 | easy | 10.50 (10–11) | 8.75 | 0 |
+| 6 | normal | 7.58 (7–10) | 8.75 | 0 |
+| 6 | hard | 4.25 (4–5) | 2.00 | 0 |
+
+C target histogram: **3 ×4, 4 ×19, 5 ×16, 6 ×3, 7 ×1, 8 ×1**. All validation checks use the frozen M13 bot and the real Adventure reducer.

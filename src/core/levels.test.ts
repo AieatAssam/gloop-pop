@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { calibrate, validate } from './levelGen';
-import { harderThan, inBand, levelParams } from './levels';
+import { C_MOVE_LIMITS, cubeFloor, harderThan, inBand, levelParams, placeCubesInLanes } from './levels';
 import { LEVELS } from './levels.data';
+import { makeBoard } from './board';
+import { seededRng } from './rng';
 
 describe('generated Adventure levels', () => {
   it('rebuilds and revalidates all 120 definitions against twelve reducer runs', () => {
@@ -38,9 +40,13 @@ describe('generated Adventure levels', () => {
     for (const level of LEVELS) {
       const params = levelParams(level.n);
       const cubeGoal = level.goals.find((goal) => goal.kind === 'C');
-      if (cubeGoal) expect(cubeGoal.target).toBeGreaterThanOrEqual(1);
+      if (cubeGoal) expect(cubeGoal.target).toBeGreaterThanOrEqual(cubeFloor(params.chapter));
       if (cubeGoal) expect(cubeGoal.target).toBeLessThanOrEqual([...level.board].filter((cell) => cell === '8' || cell === '9').length);
+      if (cubeGoal) expect(level.moves).toBe(C_MOVE_LIMITS[params.chapter - 2]?.[params.band === 'easy' || params.band === 'intro' ? 0 : params.band === 'normal' ? 1 : 2]);
+      else expect(level.moves).toBe(params.n <= 3 ? 20 : [[30, 26, 18], [28, 25, 14], [28, 24, 16], [27, 24, 16], [26, 23, 15], [26, 22, 14]][params.chapter - 1]?.[params.band === 'easy' || params.band === 'intro' ? 0 : params.band === 'normal' ? 1 : 2]);
+      expect(level.goals.some((goal) => goal.kind === 'C') && level.goals.some((goal) => goal.kind === 'M')).toBe(false);
       if (params.band === 'hard') expect(level.goals.some((goal) => goal.kind === 'M')).toBe(false);
+      expect([...level.board].filter((cell) => cell === '9').length).toBeLessThanOrEqual(1);
     }
     expect(inBand('hard', 4, 3, 15)).toBe(true);
     expect(inBand('hard', 7, 3, 15)).toBe(true);
@@ -84,7 +90,9 @@ describe('generated Adventure levels', () => {
     expect(levelParams(47).goals.map((goal) => goal.kind)).toEqual(['M']);
     expect(levelParams(50).goals.map((goal) => goal.kind)).toEqual(['F']);
     expect(levelParams(115).goals.map((goal) => goal.kind)).toEqual(['S']);
-    expect(levelParams(118).goals.map((goal) => goal.kind)).toEqual(['C', 'M']);
+    expect(levelParams(92).goals.map((goal) => goal.kind)).toEqual(['C', 'F']);
+    expect(levelParams(109).goals.map((goal) => goal.kind)).toEqual(['C', 'S']);
+    expect(levelParams(118).goals.map((goal) => goal.kind)).toEqual(['C', 'F']);
     expect(levelParams(119).goals.map((goal) => goal.kind)).toEqual(['M']);
     expect(levelParams(120).goals.map((goal) => goal.kind)).toEqual(['C', 'B']);
   });
@@ -93,9 +101,35 @@ describe('generated Adventure levels', () => {
     expect([21, 24, 25, 26, 61, 64, 65, 81, 83, 85, 101, 103, 105].map((n) => {
       const params = levelParams(n);
       return [n, params.sugar, params.hardCubes];
-    })).toEqual([[21, 3, 0], [24, 5, 0], [25, 6, 0], [26, 0, 0], [61, 1, 1], [64, 1, 2], [65, 0, 0], [81, 2, 1], [83, 2, 1], [85, 0, 4], [101, 1, 0], [103, 1, 0], [105, 1, 0]]);
-    expect([levelParams(25).moves, levelParams(25).startPieces]).toEqual([14, 1]);
-    expect([levelParams(120).sugar, levelParams(120).hardCubes]).toEqual([1, 0]);
+    })).toEqual([[21, 5, 0], [24, 7, 0], [25, 8, 0], [26, 0, 0], [61, 6, 1], [64, 7, 1], [65, 0, 0], [81, 6, 1], [83, 6, 1], [85, 9, 1], [101, 7, 0], [103, 7, 0], [105, 7, 0]]);
+    expect([levelParams(25).moves, levelParams(25).startPieces]).toEqual([16, 1]);
+    expect([levelParams(120).sugar, levelParams(120).hardCubes]).toEqual([7, 0]);
+  });
+
+  it('places cubes across eligible lanes without completing a line', () => {
+    const board = makeBoard();
+    const lanes = placeCubesInLanes(board, 6, 1, seededRng('m14-seven-cubes'));
+    expect(lanes).toHaveLength(3);
+    const laneCounts = lanes?.map((line) => board.reduce((count, cell, index) => count + (cell && (line < 8 ? Math.floor(index / 8) === line : index % 8 === line - 8) ? 1 : 0), 0));
+    expect(laneCounts).toEqual([3, 2, 2]);
+    expect(board.filter((cell) => cell === 9)).toHaveLength(1);
+    const hardIndex = board.findIndex((cell) => cell === 9);
+    const firstLane = lanes?.[0];
+    expect(firstLane !== undefined && (firstLane < 8 ? Math.floor(hardIndex / 8) === firstLane : hardIndex % 8 === firstLane - 8)).toBe(true);
+    expect(hasFullLine(board)).toBe(false);
+
+    const tooFull = makeBoard();
+    for (let row = 0; row < 6; row += 1) for (let col = 0; col < 8; col += 1) tooFull[row * 8 + col] = 1;
+    const before = tooFull.slice();
+    expect(placeCubesInLanes(tooFull, 6, 1, seededRng('m14-ineligible'))).toBeUndefined();
+    expect(tooFull).toEqual(before);
+
+    const restricted = makeBoard();
+    for (let row = 3; row < 8; row += 1) for (let col = 0; col < 8; col += 1) if (col !== row - 3) restricted[row * 8 + col] = 1;
+    const selected = placeCubesInLanes(restricted, 6, 1, seededRng('m14-eligible-only'));
+    expect(selected).toHaveLength(3);
+    expect(selected?.every((line) => line < 3)).toBe(true);
+    expect(hasFullLine(restricted)).toBe(false);
   });
 
   it('applies the intro caps and the 20-move limit', () => {
@@ -109,6 +143,12 @@ describe('generated Adventure levels', () => {
 function findFirst(predicate: (params: ReturnType<typeof levelParams>) => boolean): number {
   const selected = LEVELS.find((level) => predicate(levelParams(level.n)));
   return selected?.n ?? -1;
+}
+
+function hasFullLine(board: ArrayLike<number>): boolean {
+  for (let row = 0; row < 8; row += 1) if (Array.from({ length: 8 }, (_, col) => board[row * 8 + col] ?? 0).every(Boolean)) return true;
+  for (let col = 0; col < 8; col += 1) if (Array.from({ length: 8 }, (_, row) => board[row * 8 + col] ?? 0).every(Boolean)) return true;
+  return false;
 }
 
 function mean(values: number[]): number { return values.reduce((total, value) => total + value, 0) / values.length; }

@@ -39,7 +39,7 @@ describe('Adventure level start card', () => {
   it('shows the assist toggle only after three losses and updates displayed moves', () => {
     const save = defaultSave(); const card = createLevelCard(LEVELS[24]!, { play: vi.fn(), back: vi.fn() }, { save, lossRun: 3 });
     const assist = card.querySelector<HTMLInputElement>('.adventure-assist-row input'); expect(assist).not.toBeNull();
-    assist!.checked = true; assist!.dispatchEvent(new Event('change', { bubbles: true })); expect(card.querySelector('.adventure-moves-row strong')?.textContent).toBe('14 +5');
+    assist!.checked = true; assist!.dispatchEvent(new Event('change', { bubbles: true })); expect(card.querySelector('.adventure-moves-row strong')?.textContent).toBe('16 +5');
     const clean = createLevelCard(LEVELS[24]!, { play: vi.fn(), back: vi.fn() }, { save, lossRun: 2 });
     expect(clean.querySelector('.adventure-assist-row')).toBeNull();
   });

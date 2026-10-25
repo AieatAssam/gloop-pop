@@ -33,17 +33,22 @@ const GOAL_ROTATION = [
   'C L S C C F C S L C S C F L F C S C L C',
   'B L C B S M M B C F L B S C B F M C B C',
   'C L B C F C M S C B C F M C S L C B M C',
-  'C+L S C+F B C M C+S F C+B L S C+M B C+L C+F F C+S M C+B C+L',
-  'C+S B C+F M C+L F C+B S C+M C L C+F B C+S S C+L F C+M M C+B',
+  'C+L S C+F B C M C+S F C+B L S C+F B C+L C+F F C+S M C+B C+L',
+  'C+S B C+F M C+L F C+B S C+S C L C+F B C+S S C+L F C+F M C+B',
 ].map((row) => row.split(' '));
 const MOVE_LIMITS = [[30, 26, 18], [28, 25, 14], [28, 24, 16], [27, 24, 16], [26, 23, 15], [26, 22, 14]];
+// spec-note: M14 cube lanes/counts and C move limits follow the measured forecast in docs/balance-log.md.
+export const CUBE_COUNTS = [[0, 0, 0, 0, 0, 0], [5, 7, 8, 0, 0, 0], [6, 8, 10, 0, 0, 0], [7, 8, 9, 1, 1, 1], [7, 9, 10, 1, 1, 1], [7, 9, 10, 0, 1, 1]] as const;
+export const C_MOVE_LIMITS = [[30, 28, 16], [30, 27, 18], [31, 28, 18], [30, 27, 18], [30, 26, 18]] as const;
 // spec-note: 2026-10-25 Chapter 2 hard levels use 1 start piece; 14 moves with 3 pieces left their mean win rate equal to normal.
 // spec-note: 2026-10-25 Chapter 3 easy levels use 10 start pieces; the specified 2 left Level 46 below 10/12 wins for all 64 seeds.
 const START_PIECES = [[0, 2, 3], [1, 2, 1], [10, 3, 4], [2, 3, 4], [2, 4, 5], [3, 4, 5]];
-// spec-note: 2026-10-25 Chapter 6's easy cube column for two-goal levels uses 1 sugar cube; 3 cubes left Level 109 at 1/12 completed.
-const CUBE_COUNTS = [[0, 0, 0, 0, 0, 0], [3, 5, 6, 0, 0, 0], [4, 6, 8, 0, 0, 0], [2, 3, 4, 1, 2, 3], [3, 4, 4, 1, 2, 4], [1, 4, 5, 0, 3, 4]];
 const STAGES = [1, 2, 3, 3, 4, 4];
 const START_PIECE_IDS = [1, 2, 4, 5, 8, 9, 10, 11];
+
+export function cubeFloor(chapter: number): number {
+  return chapter >= 4 ? 4 : chapter >= 2 ? 3 : 1;
+}
 
 export function levelParams(n: number): LevelParams {
   if (!Number.isInteger(n) || n < 1 || n > 120) throw new RangeError('level must be 1..120');
@@ -63,10 +68,13 @@ export function levelParams(n: number): LevelParams {
   const cubeCount = hasCubeGoal ? cubeTable[cubeColumn] ?? 0 : 0;
   const hardCubes = hasCubeGoal ? cubeTable[cubeColumn + 3] ?? 0 : 0;
   const sugar = cubeCount - hardCubes;
+  const moves = hasCubeGoal
+    ? C_MOVE_LIMITS[chapter - 2]?.[bandColumn] ?? MOVE_LIMITS[chapter - 1]?.[bandColumn] ?? 20
+    : intro ? 20 : MOVE_LIMITS[chapter - 1]?.[bandColumn] ?? 20;
   return {
     n, chapter, position, band,
     k: intro ? 12 : band === 'easy' ? 10 : band === 'hard' ? 4 : 7,
-    moves: intro ? 20 : MOVE_LIMITS[chapter - 1]?.[bandColumn] ?? 20,
+    moves,
     stage: intro ? 1 : chapter === 1 ? band === 'hard' ? 2 : 1 : STAGES[chapter - 1] ?? 1,
     flavours: flavourCount, f2: intro || chapter < 3 || band === 'easy' ? 1 : chapter < 5 ? 0.5 : 0,
     startPieces: intro ? 0 : START_PIECES[chapter - 1]?.[bandColumn] ?? 0,
@@ -92,23 +100,44 @@ export function buildLevel(n: number, s: number): { board: string; flavour?: Fla
     }
     if (!success) throw new Error(`Level ${n}, seed ${s}: could not place start piece`);
   }
-  for (const [value, count] of [[9, params.hardCubes], [8, params.sugar]] as const) {
-    for (let placedCount = 0; placedCount < count; placedCount += 1) {
-      const empty = Array.from(board.keys()).filter((index) => board[index] === 0);
-      let success = false;
-      while (empty.length > 0) {
-        const index = empty.splice(nextInt(rng, empty.length), 1)[0]!;
-        board[index] = value;
-        if (!hasFullLine(board)) { success = true; break; }
-        board[index] = 0;
-      }
-      if (!success) throw new Error(`Level ${n}, seed ${s}: could not place cube`);
-    }
+  if (placeCubesInLanes(board, params.sugar, params.hardCubes, rng) === undefined) {
+    throw new Error(`Level ${n}, seed ${s}: could not place cubes in lanes`);
   }
   const flavourGoal = params.goals.some((goal) => goal.kind === 'F')
     ? (1 + nextInt(seededRng(`${seed}/goal`), params.flavours)) as Flavour
     : undefined;
   return { board: Array.from(board).join(''), ...(flavourGoal ? { flavour: flavourGoal } : {}), rng: seededRng(`${seed}/trays`), params };
+}
+
+/** Places hard cubes first, then sugar cubes, balanced over randomly selected eligible lines. */
+export function placeCubesInLanes(board: Uint8Array, sugar: number, hardCubes: number, rng: ReturnType<typeof seededRng>): number[] | undefined {
+  const total = sugar + hardCubes;
+  if (total === 0) return [];
+  const laneCount = Math.ceil(total / 3);
+  const perLane = Math.ceil(total / laneCount);
+  const eligible = Array.from({ length: 16 }, (_, line) => line).filter((line) => laneCells(board, line).filter((index) => board[index] === 0).length >= perLane + 2);
+  if (eligible.length < laneCount) return undefined;
+  const lanes: number[] = [];
+  for (let index = 0; index < laneCount; index += 1) lanes.push(eligible.splice(nextInt(rng, eligible.length), 1)[0]!);
+  const values = [...Array.from({ length: hardCubes }, () => 9), ...Array.from({ length: sugar }, () => 8)];
+  for (let index = 0; index < values.length; index += 1) {
+    const line = lanes[index % laneCount];
+    if (line === undefined) return undefined;
+    const cells = laneCells(board, line).filter((cell) => board[cell] === 0);
+    let placed = false;
+    while (cells.length > 0) {
+      const cell = cells.splice(nextInt(rng, cells.length), 1)[0]!;
+      board[cell] = values[index] ?? 8;
+      if (!hasFullLine(board)) { placed = true; break; }
+      board[cell] = 0;
+    }
+    if (!placed) return undefined;
+  }
+  return lanes;
+}
+
+function laneCells(board: ArrayLike<number>, line: number): number[] {
+  return Array.from({ length: 8 }, (_, offset) => line < 8 ? line * 8 + offset : offset * 8 + line - 8);
 }
 
 function hasFullLine(board: ArrayLike<number>): boolean {

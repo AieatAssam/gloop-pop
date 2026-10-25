@@ -2,7 +2,7 @@ import { pathToFileURL } from 'node:url';
 import { readFile, writeFile } from 'node:fs/promises';
 
 const moduleUrl = pathToFileURL(new URL('../.sim/levelGen.js', import.meta.url).pathname).href;
-const { generateLevel, diagnoseLevelOne, diagnoseLevelRuns, inBand, harderThan } = await import(moduleUrl);
+const { generateLevel, diagnoseLevelOne, diagnoseLevelRuns, inBand, harderThan, levelParams, cubeFloor } = await import(moduleUrl);
 const verify = process.argv.includes('--verify');
 const write = process.argv.includes('--write');
 const diagnose = process.argv.includes('--diagnose');
@@ -46,6 +46,18 @@ function printSummary(definitions) {
   console.log(`Levels failing a band or neighbour rule: ${definitions.filter((def) => !inBand(bandFor(def.n), def.wins, def.margin, def.moves)).length + neighbourFailures} (band ${definitions.filter((def) => !inBand(bandFor(def.n), def.wins, def.margin, def.moves)).length}, neighbour ${neighbourFailures})`);
   const retried = definitions.filter((def) => def.s > 0).map((def) => `${def.n}:${def.s}`);
   console.log(`Seeds needing more than one try: ${retried.length ? retried.join(', ') : 'none'}`);
+  const cubeLevels = definitions.filter((def) => def.goals.some((goal) => goal.kind === 'C'));
+  const belowFloor = cubeLevels.filter((def) => {
+    const chapter = levelParams(def.n).chapter;
+    return def.goals.find((goal) => goal.kind === 'C').target < cubeFloor(chapter);
+  }).length;
+  const histogram = new Map();
+  for (const def of cubeLevels) {
+    const target = def.goals.find((goal) => goal.kind === 'C').target;
+    histogram.set(target, (histogram.get(target) ?? 0) + 1);
+  }
+  console.log(`C targets below floor: ${belowFloor}`);
+  console.log(`C target histogram: ${[...histogram].sort(([a], [b]) => a - b).map(([target, count]) => `${target} ×${count}`).join(', ')}`);
 }
 
 function mean(values) { return values.reduce((sum, value) => sum + value, 0) / values.length; }

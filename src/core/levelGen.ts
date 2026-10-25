@@ -1,10 +1,11 @@
-import { buildLevel, harderThan, inBand, levelParams, type LevelDef, type LevelGoal, type GoalKind } from './levels';
+import { buildLevel, cubeFloor, harderThan, inBand, levelParams, type LevelDef, type LevelGoal, type GoalKind } from './levels';
 import { newAdventureGame, stepAdventure } from './adventure';
 import { chooseLevelMove } from './levelBot';
 import { seededRng } from './rng';
 import type { GameEvent } from './types';
 
 export { harderThan, inBand } from './levels';
+export { cubeFloor, levelParams };
 
 export interface BotRun { won: boolean; movesLeft: number; movesUsed: number; stars: number; progress: number[]; trace: number[][]; linesPerMove: number[] }
 export interface Calibration { def: LevelDef; runs: BotRun[]; rawRuns: BotRun[] }
@@ -51,7 +52,7 @@ export function validate(def: LevelDef): boolean {
     const params = levelParams(def.n);
     if (def.board.length !== 64 || !/^[0-9]{64}$/.test(def.board) || def.s < 0 || def.s >= 64) return false;
     if (def.moves !== params.moves || def.goals.length !== params.goals.length || !inBand(params.band, def.wins, def.margin, def.moves) || def.s3 < 2 || def.s2 < 1 || def.s2 > def.s3) return false;
-    if (def.goals.some((goal, index) => goal.kind !== params.goals[index]?.kind || goal.target < minimum(goal.kind))) return false;
+    if (def.goals.some((goal, index) => goal.kind !== params.goals[index]?.kind || goal.target < minimum(goal.kind, params.chapter))) return false;
     return def.goals.every((goal) => goal.kind !== 'F' || goal.flavour !== undefined);
   } catch {
     return false;
@@ -117,7 +118,8 @@ export function orderedTargetVectors(goals: readonly LevelGoal[], runProgress: r
 
 export function candidateTargets(goal: LevelGoal, progress: readonly number[], n: number): number[] {
   const cap = n === 1 && goal.kind === 'L' ? 4 : n === 2 && goal.kind === 'S' ? 1500 : n === 3 && goal.kind === 'L' ? 6 : Number.POSITIVE_INFINITY;
-  return [...new Set(progress.map((value) => Math.min(cap, roundDown(value, goal.kind))).filter((value) => value >= minimum(goal.kind)))].sort((a, b) => b - a);
+  const chapter = levelParams(n).chapter;
+  return [...new Set(progress.map((value) => Math.min(cap, roundDown(value, goal.kind))).filter((value) => value >= minimum(goal.kind, chapter)))].sort((a, b) => b - a);
 }
 
 function evaluate(runs: readonly BotRun[], goals: readonly LevelGoal[], moves: number): Evaluation {
@@ -173,7 +175,7 @@ function lowerMedian(values: readonly number[]): number {
   return [...values].sort((a, b) => a - b)[Math.floor((values.length - 1) / 2)] ?? 0;
 }
 
-function minimum(kind: GoalKind): number { return kind === 'L' ? 3 : kind === 'S' ? 500 : kind === 'F' ? 8 : 1; }
+function minimum(kind: GoalKind, chapter: number): number { return kind === 'C' ? cubeFloor(chapter) : kind === 'L' ? 3 : kind === 'S' ? 500 : kind === 'F' ? 8 : 1; }
 function roundDown(value: number, kind: GoalKind): number {
   if (kind === 'F') return value >= 20 ? Math.floor(value / 5) * 5 : Math.floor(value);
   if (kind === 'S') return Math.floor(value / 100) * 100;

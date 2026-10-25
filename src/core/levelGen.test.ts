@@ -28,12 +28,11 @@ describe('Adventure level calibration helpers', () => {
   it('orders C targets outside X targets and limits X candidates to runs reaching C', () => {
     const vectors = orderedTargetVectors(
       [{ kind: 'C', target: 0 }, { kind: 'F', flavour: 2, target: 0 }],
-      [[3, 20], [3, 15], [2, 25], [1, 20], [1, 8]], 83,
+      [[5, 20], [5, 15], [4, 25], [3, 20], [4, 8]], 83,
     );
     expect(vectors).toEqual([
-      [3, 20], [3, 15],
-      [2, 25], [2, 20], [2, 15],
-      [1, 25], [1, 20], [1, 15], [1, 8],
+      [5, 20], [5, 15],
+      [4, 25], [4, 20], [4, 15], [4, 8],
     ]);
   });
 
@@ -41,5 +40,7 @@ describe('Adventure level calibration helpers', () => {
     expect(candidateTargets({ kind: 'L', target: 0 }, [9, 4, 4, 3, 2], 1)).toEqual([4, 3]);
     expect(candidateTargets({ kind: 'S', target: 0 }, [2550, 2500, 1490, 499], 2)).toEqual([1500, 1400]);
     expect(candidateTargets({ kind: 'F', flavour: 1, target: 0 }, [28, 24, 20, 19, 8, 7], 83)).toEqual([25, 20, 19, 8]);
+    expect(candidateTargets({ kind: 'C', target: 0 }, [8, 5, 4, 3, 1], 83)).toEqual([8, 5, 4]);
+    expect(candidateTargets({ kind: 'C', target: 0 }, [5, 4, 3, 2], 25)).toEqual([5, 4, 3]);
   });
 });
