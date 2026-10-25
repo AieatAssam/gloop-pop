@@ -4,6 +4,7 @@ import { withAlpha } from './colour';
 import { silhouettePath } from './silhouette';
 import { faceBoxFor } from './face';
 import type { Gloop } from '../core/types';
+import { getEquippedSkin } from './themes';
 
 const bodySprites = new Map<string, HTMLCanvasElement>();
 
@@ -17,6 +18,7 @@ export function drawGloop(context: CanvasRenderingContext2D, gloop: Gloop, cell:
   context.drawImage(sprite, minCol * cell - padding, minRow * cell - padding, sprite.width / 2, sprite.height / 2);
   drawFace(context, gloop, cell, elapsed, expression);
   drawTopper(context, gloop, cell, elapsed);
+  drawAccessory(context, gloop, cell, elapsed);
   context.restore();
 }
 
@@ -43,10 +45,16 @@ function drawFace(ctx: CanvasRenderingContext2D, gloop: Gloop, cell: number, ela
   const box = faceBoxFor(gloop, cell); const size = box.size; const x = box.x; const y = box.y;
   const f = size; ctx.save(); ctx.translate(x, y);
   const ink = PALETTE.face.ink; const blueberry = gloop.flavour === 5; const bubble = gloop.flavour === 7; const blinkPhase = (elapsed + (gloop.cells[0] ?? 0) * 83) % 4300; const blink = expression === 'idle' && blinkPhase > 4140 && blinkPhase < 4250;
+  const skin = getEquippedSkin();
   const eyeHeight = expression === 'sad' ? 0.058 : blink || expression === 'popping' || expression === 'sleep' ? 0.012 : expression === 'dizzy' ? 0.085 : gloop.flavour === 6 ? 0.12 : 0.095;
   const eyes = expression === 'excited' ? 1.15 : expression === 'worried' ? 1.04 : 1;
   for (const side of [-1, 1]) {
     const ex = side * f * (gloop.flavour === 2 ? 0.23 : 0.2); const ey = -f * 0.06; const er = bubble ? 0.1 : gloop.flavour === 3 ? 0.06 : 0.075;
+    if (skin === 'googlyEyes') {
+      const wobbleX = Math.sin(elapsed / 145 + side * 0.8) * f * 0.025; const wobbleY = Math.cos(elapsed / 170 + side) * f * 0.018;
+      ctx.fillStyle = PALETTE.accessory.googlyWhite; ctx.beginPath(); ctx.arc(ex, ey, f * 0.12, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = PALETTE.accessory.googlyRim; ctx.lineWidth = f * 0.02; ctx.stroke();
+      ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(ex + wobbleX, ey + wobbleY, f * 0.055, 0, Math.PI * 2); ctx.fill(); continue;
+    }
     if (expression === 'starEyes') { star(ctx, ex, ey, f * 0.11, PALETTE.face.starEye); continue; }
     if (expression === 'dizzy') { ctx.strokeStyle = ink; ctx.lineWidth = f * 0.025; ctx.beginPath(); ctx.arc(ex, ey, f * 0.07, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(ex, ey, f * 0.045, 0, Math.PI * 1.6); ctx.stroke(); continue; }
     if (expression === 'happy' || expression === 'popping' || expression === 'sleep') { ctx.strokeStyle = ink; ctx.lineWidth = f * (expression === 'popping' ? 0.045 : 0.035); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(ex - f * 0.07, ey + f * 0.02); ctx.quadraticCurveTo(ex, ey - f * 0.08, ex + f * 0.07, ey + f * 0.02); ctx.stroke(); continue; }
@@ -66,6 +74,29 @@ function drawFace(ctx: CanvasRenderingContext2D, gloop: Gloop, cell: number, ela
   else ctx.arc(0, f * 0.08, f * (gloop.flavour === 3 ? 0.12 : 0.09), 0.32, Math.PI - 0.32);
   ctx.stroke();
   ctx.fillStyle = PALETTE.face.blush; for (const side of [-1, 1]) { ctx.beginPath(); ctx.ellipse(side * f * 0.31, f * 0.1, f * 0.08, f * 0.05, 0, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+}
+
+function drawAccessory(ctx: CanvasRenderingContext2D, gloop: Gloop, cell: number, elapsed: number): void {
+  const skin = getEquippedSkin(); if (skin === 'plain' || skin === 'googlyEyes') return;
+  const box = faceBoxFor(gloop, cell); const f = box.size; ctx.save(); ctx.translate(box.x, box.y);
+  if (skin === 'freckles') {
+    ctx.fillStyle = colourFor(gloop.flavour).dark;
+    for (const side of [-1, 1]) for (let i = 0; i < 3; i += 1) { ctx.beginPath(); ctx.arc(side * f * (0.31 + (i % 2) * 0.035), f * (0.09 + Math.floor(i / 2) * 0.05), f * 0.014, 0, Math.PI * 2); ctx.fill(); }
+  } else if (skin === 'catEars') {
+    const twitch = Math.sin(elapsed / 414 + (gloop.cells[0] ?? 0)) * 0.06;
+    for (const side of [-1, 1]) { ctx.save(); ctx.translate(side * f * 0.32, -f * 0.42); ctx.rotate(side * twitch); ctx.fillStyle = colourFor(gloop.flavour).light; ctx.beginPath(); ctx.moveTo(-f * 0.11, f * 0.04); ctx.lineTo(0, -f * 0.24); ctx.lineTo(f * 0.11, f * 0.04); ctx.closePath(); ctx.fill(); ctx.fillStyle = PALETTE.accessory.catEarInner; ctx.beginPath(); ctx.moveTo(-f * 0.055, 0); ctx.lineTo(0, -f * 0.14); ctx.lineTo(f * 0.055, 0); ctx.closePath(); ctx.fill(); ctx.restore(); }
+  } else if (skin === 'glasses') {
+    ctx.strokeStyle = PALETTE.accessory.glassesFrame; ctx.lineWidth = f * 0.03; ctx.fillStyle = PALETTE.accessory.glassesLens;
+    for (const side of [-1, 1]) { ctx.beginPath(); ctx.arc(side * f * 0.2, -f * 0.06, f * 0.13, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(-f * 0.07, -f * 0.06); ctx.quadraticCurveTo(0, -f * 0.11, f * 0.07, -f * 0.06); ctx.stroke();
+  } else if (skin === 'mustache') {
+    ctx.fillStyle = PALETTE.accessory.mustache; ctx.beginPath(); ctx.moveTo(0, f * 0.02); ctx.bezierCurveTo(-f * 0.1, -f * 0.01, -f * 0.16, f * 0.02, -f * 0.18, f * 0.09); ctx.bezierCurveTo(-f * 0.1, f * 0.15, -f * 0.04, f * 0.11, 0, f * 0.07); ctx.bezierCurveTo(f * 0.04, f * 0.11, f * 0.1, f * 0.15, f * 0.18, f * 0.09); ctx.bezierCurveTo(f * 0.16, f * 0.02, f * 0.1, -f * 0.01, 0, f * 0.02); ctx.fill();
+  } else if (skin === 'bowtie') {
+    ctx.fillStyle = PALETTE.accessory.bowtie; ctx.beginPath(); ctx.moveTo(-f * 0.04, f * 0.3); ctx.lineTo(-f * 0.17, f * 0.23); ctx.lineTo(-f * 0.17, f * 0.37); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(f * 0.04, f * 0.3); ctx.lineTo(f * 0.17, f * 0.23); ctx.lineTo(f * 0.17, f * 0.37); ctx.closePath(); ctx.fill(); ctx.fillStyle = PALETTE.accessory.bowtieKnot; ctx.beginPath(); ctx.arc(0, f * 0.3, f * 0.04, 0, Math.PI * 2); ctx.fill();
+  } else if (skin === 'crown') {
+    ctx.save(); ctx.translate(-f * 0.22, -f * 0.42); ctx.rotate(-0.21); ctx.fillStyle = PALETTE.accessory.crown; ctx.beginPath(); ctx.moveTo(-f * 0.14, f * 0.04); ctx.lineTo(-f * 0.13, -f * 0.12); ctx.lineTo(-f * 0.04, -f * 0.04); ctx.lineTo(0, -f * 0.16); ctx.lineTo(f * 0.04, -f * 0.04); ctx.lineTo(f * 0.13, -f * 0.12); ctx.lineTo(f * 0.14, f * 0.04); ctx.closePath(); ctx.fill(); ctx.fillStyle = PALETTE.accessory.crownShade; ctx.fillRect(-f * 0.14, f * 0.025, f * 0.28, f * 0.035); ctx.fillStyle = PALETTE.accessory.crownGem; ctx.beginPath(); ctx.arc(0, -f * 0.03, f * 0.025, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  }
   ctx.restore();
 }
 

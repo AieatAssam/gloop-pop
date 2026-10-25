@@ -8,3 +8,23 @@ describe('catalogue', () => {
     expect(CATALOGUE.find((item) => item.id === 'crown')?.achievement).toBe('mega_pop');
   });
 });
+
+import { buyItem, equipItem, requirement } from './catalogue';
+import { defaultSave } from './saveSchema';
+
+describe('collection purchases and equipment', () => {
+  it('deducts coins once, refuses overspending, and equips owned items', () => {
+    const save = defaultSave(); save.profile.coins = 600;
+    const bought = buyItem(save, 'theme', 'sunset'); expect(bought.ok).toBe(true); expect(bought.save.profile.coins).toBe(0);
+    expect(buyItem(bought.save, 'theme', 'sunset').ok).toBe(false);
+    expect(buyItem(save, 'theme', 'aquarium').ok).toBe(false);
+    expect(equipItem(bought.save, 'theme', 'sunset').equipped.theme).toBe('sunset');
+    expect(equipItem(save, 'theme', 'sunset')).toBe(save);
+  });
+  it('reports level and achievement requirements', () => {
+    const save = defaultSave();
+    expect(requirement(CATALOGUE.find((item) => item.id === 'snowglobe')!, save)).toEqual({ kind: 'level', level: 20 });
+    expect(requirement(CATALOGUE.find((item) => item.id === 'crown')!, save)).toEqual({ kind: 'achievement', achievement: 'mega_pop' });
+    save.profile.level = 20; expect(requirement(CATALOGUE.find((item) => item.id === 'snowglobe')!, save)).toBeNull();
+  });
+});
