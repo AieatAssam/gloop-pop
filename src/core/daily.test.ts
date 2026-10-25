@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { cyrb128 } from './hash';
 import { createDailyDeal, dayKeyFromMs, dayNumber, flavourForDay, msToNextUtcMidnight, seedStringForDay } from './daily';
 
 describe('daily UTC helpers', () => {
@@ -26,5 +27,14 @@ describe('daily UTC helpers', () => {
     expect(deal.board.filter((cell) => cell !== 0).length).toBeGreaterThanOrEqual(8);
     expect(deal.board.filter((cell) => cell !== 0).length).toBeLessThanOrEqual(16);
     expect(deal.trays).toHaveLength(30);
+  });
+  it('produces byte-identical deals for 400 days (golden captured before the Classic balance pass)', () => {
+    const lines: string[] = [];
+    for (let day = 0; day < 400; day += 1) {
+      const key = dayKeyFromMs(1_792_886_400_000 + day * 86_400_000);
+      lines.push(`${key} ${JSON.stringify(createDailyDeal(key))}`);
+    }
+    expect(lines[0]?.slice(0, 112)).toBe('2026-10-25 {"board":[2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,3,0,0,0,0,0,5,5,3,0,0,0,0,0,0,0,3,0,0,0,1,1,0,0,0');
+    expect(cyrb128(lines.join('\n'))).toEqual([4097234419, 1309468576, 1419882381, 2336083159]);
   });
 });

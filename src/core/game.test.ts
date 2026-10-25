@@ -23,12 +23,13 @@ describe('game reducer', () => {
     expect(canPlace(state, 1, 6, 6)).toBe(true); expect(previewPlacement(state, 1, 6, 6)?.rows).toEqual([6]);
     expect(fitsAnywhere(makeBoard(), 10)).toBe(true);
     const result = step(state, { type: 'place', slot: 1, row: 6, col: 6 });
-    expect(result.state.score).toBe(2102);
-    expect(result.events.map((event) => event.type)).toEqual(['placed', 'cleared', 'scored', 'comboUp', 'allClear', 'stageUp', 'dealt']);
+    expect(result.state.score).toBe(102); expect(result.state.board.every((cell) => cell === 0)).toBe(true);
+    expect(result.events.map((event) => event.type)).toEqual(['placed', 'cleared', 'scored', 'comboUp', 'dealt']);
     const second = step(tutorialGame(2), { type: 'place', slot: 1, row: 6, col: 3 });
-    expect(second.state.score).toBe(5554);
+    expect(second.state.score).toBe(554); expect(second.events.some((event) => event.type === 'allClear')).toBe(false);
     const third = step(tutorialGame(3), { type: 'place', slot: 1, row: 4, col: 6 });
-    expect(third.state.score).toBe(10_476);
+    expect(third.state.score).toBe(1476); expect(third.state.stage).toBe(1);
+    expect(third.events.find((event) => event.type === 'scored')).toMatchObject({ points: 922, parts: { allClear: 0 } });
   });
   it('charges rescue at ten cleared lines and offers it only when stuck', () => {
     const state = newGame('classic', 'rescue').state;

@@ -57,6 +57,8 @@ export function step(state: GameState, action: Action): { state: GameState; even
   for (const group of components(placedBoard)) if (group.cells.length >= 12 && group.cells.some((index) => cells.includes(index))) events.push({ type: 'bigGloop', size: group.cells.length });
 
   const resolved = resolveBoard(placedBoard);
+  // design §16.2: tutorial steps 1–3 empty their scripted boards on purpose; they never award All Clear.
+  if (state.mode === 'tutorial') resolved.allClear = false;
   if (resolved.cells.length > 0) events.push({ type: 'cleared', rows: resolved.rows, cols: resolved.cols, cells: resolved.cells, flavoursByCell: resolved.cells.map((index) => placedBoard[index] ?? 0) });
   if (resolved.popped.length > 0) events.push({ type: 'popped', gloops: resolved.popped });
   const comboResult = advanceCombo(next, resolved.rows.length + resolved.cols.length);

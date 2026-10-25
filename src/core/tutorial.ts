@@ -11,13 +11,13 @@ export function tutorialGame(step: 1 | 2 | 3, seed = 'tutorial'): GameState {
   } else if (step === 2) {
     set(state, 0, 3, 2); set(state, 1, 3, 2); set(state, 2, 3, 5); set(state, 3, 3, 5); set(state, 4, 3, 1); set(state, 5, 3, 1);
     set(state, 7, 0, 3); set(state, 7, 1, 3); set(state, 7, 2, 3); set(state, 7, 4, 4); set(state, 7, 5, 4); set(state, 7, 6, 2); set(state, 7, 7, 2);
-    state.tray[1] = { defId: 2, flavour: 1 }; state.score = 2102; state.combo = 1; state.fuse = 3; state.bestCombo = 1; state.linesCleared = 1; state.stage = 2;
+    state.tray[1] = { defId: 2, flavour: 1 }; state.score = 102; state.combo = 1; state.fuse = 3; state.bestCombo = 1; state.linesCleared = 1; state.stage = 1;
   } else {
     for (const [row, col] of [[1,1],[1,2],[2,1],[2,2],[2,3],[3,1],[3,2],[3,3],[4,1],[4,2]]) set(state, row ?? 0, col ?? 0, 4);
     set(state, 4, 0, 1); set(state, 4, 3, 3); set(state, 4, 4, 5); set(state, 4, 5, 2);
-    state.tray[1] = { defId: 1, flavour: 1 }; state.score = 5554; state.combo = 2; state.fuse = 3; state.bestCombo = 2; state.linesCleared = 3; state.stage = 3;
+    state.tray[1] = { defId: 1, flavour: 1 }; state.score = 554; state.combo = 2; state.fuse = 3; state.bestCombo = 2; state.linesCleared = 3; state.stage = 1;
   }
-  // spec-note: Tutorial step score captions omit All Clear, but each scripted board empties; apply design §5's 2,000-point award and carry it forward.
+  // design §16.2: no All Clear in steps 1–3 (the reducer skips it in tutorial mode), so the steps score 102 + 452 + 922 = 1,476.
   return state;
 }
 
