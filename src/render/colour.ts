@@ -8,7 +8,9 @@ export function mix(a: string, b: string, amount: number): string {
   const second = parseHex(b);
   const t = clamp(amount);
   const channel = (x: number, y: number): number => Math.round(x + (y - x) * t);
-  return `rgb(${channel(first.r, second.r)}, ${channel(first.g, second.g)}, ${channel(first.b, second.b)})`;
+  const hex = (value: number): string => value.toString(16).padStart(2, '0');
+  // spec-note: Keep mixed colours in the same hex format accepted by withAlpha; colour-blind body patterns compose both helpers.
+  return `#${hex(channel(first.r, second.r))}${hex(channel(first.g, second.g))}${hex(channel(first.b, second.b))}`;
 }
 
 export function hexToRgba(colour: string, alpha = 1): string {
