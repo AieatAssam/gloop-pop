@@ -801,6 +801,24 @@ Top-centre, below the top bar. Pill, height 40, padding 0 18 px, `ui.panelSolid`
 ### 11.12 Top bar (play screen)
 Left: menu button. Centre: daily pill (height 36, radius 18, `ui.panelSolid`, text Nunito 800 15 px; dot `ui.danger` 8 px when not played). Right: mute button, then pause button. On desktop the top bar spans the full width with 24 px side padding.
 
+### 11.13 Credits screen (M11)
+- **Entry points:** a secondary button "Credits" in Settings, under "Show tutorial again". A text button "Credits" in the Home footer row, after "How to play".
+- **Layout:** a full screen like Settings (§11.3): the screen header with "Back" and the title "Credits", then one scrolling panel (`overflow-y: auto`; the header stays fixed).
+  - Intro line: Body style.
+  - Groups in this order: "Music", "Sound effects", "Code and art". Group headings use the Button secondary style (Nunito 800 18 px).
+  - One line per credit: Body style, `ui.textPrimary`, 12 px between lines. The line is "{title} by {author} · {licence} · " followed by a link whose text is the site name. Long titles wrap; there is no truncation.
+  - The CC0 note: Small/caption style, `ui.textSecondary`, at the end.
+- **Links:** real `<a href>` to the asset's own page, `target="_blank"`, `rel="noopener noreferrer"`, `aria-label` from the design §16.4 string "Open {title} on {site}". Colour `ui.textPrimary`, underlined, 3 px `ui.focusRing` on focus. Minimum touch target 44 px tall (padding on the link).
+- **Data:** the lines are generated from `src/audio/credits.ts`, the same data that `CREDITS.md` is checked against (SG §13.12 item 13), so the screen and the file can't drift. No strings are written by hand in the screen.
+- No sound except the normal uiTap on Back. The music keeps the menu rule (§13.7: silent in menus).
+
+### 11.14 Volume sliders (Settings, M11)
+- A row under each of the "Sound effects" and "Music" toggles: the label ("Effects volume" / "Music volume", Body style) on the left, then a native `<input type="range" min="0" max="100" step="10">` that is 160 px wide (desktop 200), then the value "{n}%" in Small style with tabular numbers.
+- Track: height 8 px, radius 4, `ui.track`, filled part `ui.toggleOn`. Thumb: 24 px circle, `ui.toggleKnob`, with the toggle's shadow. Style it with `accent-color` plus the `::-webkit-slider-*` / `::-moz-range-*` pseudo-elements, using CSS variables only.
+- When its toggle is off, the slider is `disabled` (alpha 0.5) and keeps its value.
+- `input` applies the gain live (at most every 50 ms). `change` saves, and for Effects plays one `place` preview at the new volume (§13.9).
+- Keyboard: arrow keys move by 10. `aria-valuetext` is "{n}%".
+
 ---
 
 ## 12. Share card (1080 × 1350 PNG)
@@ -816,53 +834,353 @@ Drawn by `src/render/shareCard.ts` into an offscreen canvas at scale 1 (no DPR).
 
 ---
 
-## 13. Sound direction (WebAudio, all synthesized)
+## 13. Sound direction v2 (samples + synth)
 
-### 13.1 Mix and bus
-- Graph: voices → `sfxBus` (gain 0.9) / `musicBus` (gain 0.32) → `master` (gain 0.8) → `DynamicsCompressor` (threshold −14 dB, knee 12, ratio 4, attack 3 ms, release 120 ms) → destination.
-- AudioContext is created on the first `pointerdown`/`keydown` (R21). Before that, nothing plays and nothing errors. Sound and music are on by default.
-- Voice limit: 24 simultaneous SFX voices; the oldest is stopped first. Each SFX call schedules at `ctx.currentTime + 0.005`.
-- Pitch ladder (C major pentatonic, Hz): `[523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1174.66, 1318.51, 1567.98, 1760.00, 2093.00]` (C5 … C7). `noteFor(C) = ladder[min(C − 1, 10)]`.
-- ADSR notation below: A attack, D decay to sustain S (fraction of peak), R release; times in ms. "Peak" is the voice gain.
+Sources: `research/audio.md`, tags A1–A27. Every number cites a tag or says *(tuning)*. "Measured" means measured on 25 Oct 2026 with ffmpeg/numpy from the files in `/workspace/night-game/audio-src/` (no listening). **Nobody has listened to any of these choices.** Everything that depends on how a sound actually sounds is listed in §13.13 for a human ear check. This section replaces v1 (all-synth) completely. It also replaces the "Audio" column of §9.6, the music lines of §9.8, and the audio line of §9.9. Timing words (R, W, B, L, F, first burst, face burst, last burst) are from §9.13.
 
-### 13.2 SFX recipes
-| SFX | Recipe |
+### 13.1 Direction
+- **Wet, candy, in key.** Gloops sound like real wet pops and squishes (A19). Line clears are a pitched, bell-like instrument that climbs a scale in the key of the music (A1, A2). Coins, UI and the ladder each get their own timbre so they can't be confused (A7).
+- **Samples for texture, synth for pitch.** Recorded CC0 one-shots give the real "wet" and "candy" texture that pure oscillators lack (audit). Synthesis stays where we need exact pitch over two octaves (the ladder body), sweeps that follow the game (swells, toggles), and as a fallback while samples load.
+- **Quiet by default.** Most moves make one short sound. Only Mega Pop, All Clear and New best are big, and only they duck the music (A16).
+- **Sound fires on the visual impact frame**, never at input, except for direct-manipulation sounds (pickup, snap, return) (A9, §9.13.k).
+- **Every cue carries energy in 400 Hz–4 kHz** (A14, A15). Below 200 Hz is an optional extra. Keep 4–5 kHz tame (A14).
+
+### 13.2 Sample set (sprite segments)
+One SFX sprite holds 28 segments. Every segment is mono, 48 kHz, and peak-normalised to −1 dBFS after its edits. The gains in §13.4 set the balance. Full edits are in §13.11; sources and licences are in `CREDITS.md`.
+
+| Segment | Source | Used for | Length (measured) | Root pitch |
+|---|---|---|---|---|
+| `pop1`–`pop6` | Freesound 325583 "mouth pops - wet - room.flac" (cbenci), 6 slices | gloop pop per cell, rescue | 141–215 ms; 97–99 % of energy in 400 Hz–4 kHz | unpitched foley (f0 about 830–950 Hz) |
+| `place1`–`place5` | mix: Freesound 802606 "Pops - Mouth" slice (dry "tock"), Kenney Impact Sounds `impactSoft_medium_000`–`004` (weight), Freesound 442772 "Slime Squish" 90 ms window (wet) | place | 140–180 ms; 62–77 % in band | unpitched |
+| `goo` | Freesound 500912 "Squish impact" (Bertsz), first 450 ms | Big/Huge/Mega first burst | 450 ms; 51 % in band | unpitched |
+| `sub` | Kenney `impactSoft_heavy_000`, saturated | Mega low layer (optional extra) | 350 ms; 99 % under 200 Hz | — |
+| `tink` | Kenney Interface Sounds `glass_002`, retuned −4 cents | ladder transient, sparkle, music twinkles | 122 ms; 98 % in band | MIDI 95 (B6) |
+| `tap` | Kenney `click_003` | UI tap | 7 ms | — |
+| `deal1`–`deal3` | Kenney Casino Audio `card-place-1`, `-2`, `-4` slices | tray deal | 114–183 ms; 62–69 % in band | — |
+| `coin1`–`coin4` | Kenney `chips-collide-1`–`4` slices | coin tick (clack layer) | 69–97 ms; 5–10 % in band, so a synth body is added (§13.4) | — |
+| `chime` | Kenney `confirmation_003`, −2 semitones (D7+F♯7 → C7+E7) | rescue, rescue ready | 332 ms | fixed |
+| `stage` | Kenney `confirmation_002`, −2 semitones (D6+A6 → C6+G6) | stage up | 556 ms | fixed |
+| `ach` | Kenney `confirmation_004`, −4 semitones (E6+G♯6 → C6+E6) | achievement | 568 ms | fixed |
+| `best` | Kenney Music Jingles `jingles_STEEL10`, +484 cents (D E F♯ G → G A B C, ends on C5) | New best stinger | 687 ms | fixed |
+| `level` | Kenney `jingles_PIZZI10`, +496 cents (same motif, pizzicato, ends on C5) | level up | 587 ms | fixed |
+| `swell` | Freesound 442772 "Slime Squish", reversed | rescue | 350 ms | — |
+
+Why these (measured): the 325583 slices have 97–99 % of their energy in the phone band and similar f0, so they work as one variant pool (A7, A9, A11). The Kenney confirmation chimes and jingles were retuned so that every pitched sample lands on C-major notes (A1). Pitches were measured by spectral peaks and a harmonic-product pitch track; the jingles were about +4 to +18 cents sharp, which the cents offsets correct. Candidates not used: 221091, 611642, 741368, 202230, 323740, 536765, 589612, 96124 (redundant, or most of their energy is above 4 kHz or below 200 Hz), the UI Audio pack, the other jingles (whole-tone or out-of-key runs), Hit jingles (unpitched).
+
+### 13.3 Pitch ladder
+- **Scale and key:** C major pentatonic, 11 rungs, C5–C7 (A7: a fixed, reachable top). The bed (§13.7) measures as C major / A minor, with a two-chord vamp Fmaj7 → Em7 (8 bars each). Every pentatonic note is diatonic to that. Rung r → MIDI `R = [72, 74, 76, 79, 81, 84, 86, 88, 91, 93, 96]`, so Hz `[523.25, 587.33, 659.26, 783.99, 880.00, 1046.50, 1174.66, 1318.51, 1567.98, 1760.00, 2093.00]` (unchanged from v1). `freq(m) = 440 · 2^((m − 69)/12)`.
+- **Climb with combo:** the move's first line uses rung `r0 = clamp(C − 1, 0, 10)`, where C is the combo *after* the move (as v1 `noteFor`).
+- **Climb with lines in one move:** line i (0-based) uses rung `min(r0 + i, 10)`, 45 ms apart on the audio clock. That is one scale step per extra line, the in-scale version of Candy Crush's "a semitone higher" per row (A6). It replaces v1's +2 semitones, which left the scale (E + 2 = F♯). At most 5 lines are voiced; a 6th line or more adds nothing.
+- **Cap:** rung 10 (C7). Above the cap a note repeats C7 (A7).
+- **Reset:** the ladder has no state of its own. It follows C, so it drops to rung 0 when the combo resets. Within a move it always ascends (A1).
+- **Sampled tone, repitched:** the ladder instrument is one note in two layers (A12): a sampled transient `tink` (a glass "tink" recorded at B6, MIDI 95) and a synth body that carries the exact pitch.
+  - Body: the "candy bar" recipe (tuned-bar partials 1 : 4 : 10). Sine at f, peak 0 dB, attack 2 ms, exponential decay to −60 dB in 260 ms. Sine at 4f, −12 dB, decay 90 ms. Sine at 10f, −22 dB, decay 35 ms, only if 10f < 12 kHz. *(recipe tuning)*
+  - Tink: `playbackRate = 2^(Δ′/12)`, where `Δ = (m + 24) − 95` (two octaves above the body) and `Δ′ = Δ − 12·round(Δ/12)`, so |Δ′| ≤ 6. The tink follows the rung's pitch class while its rate stays between 0.71 and 1.41, so it never turns chipmunk or slow (A2's "one sampled tone repitched"). For rungs 0–10 the rates are `[1.0595, 1.1892, 1.3348, 0.7937, 0.8909, 1.0595, 1.1892, 1.3348, 0.7937, 0.8909, 1.0595]`.
+  - Why not repitch one sample over the whole ladder: no candidate is a clean single note in C5–C7 (measured: the Kenney chimes are dyads or chords, the jingle notes sit in octave 4). Two octaves of `playbackRate` would change the length 4× and the timbre with it.
+- **Variation:** the ladder is never detuned beyond ±3 cents (A8). Gain ±1 dB.
+- **Gloop pops use their own ladder** (§13.4 gloopPop): a smooth rise, not the scale, because they are fast, unpitched foley.
+- **Bug fix (audit):** `comboUp` makes **no sound**. It only sets C and the tier that the move's single `lineClear` uses at F. v1 played a line chord at input and again at F.
+
+### 13.4 Per-event table
+Gains are dB relative to the SFX bus (samples are peaked at −1 dBFS; synth "peak" is the envelope peak, so −16 dB = 0.16 linear). "Rate" is `playbackRate`. "±%" is a uniform random rate factor per call, "±dB" a uniform random gain. Variants are picked with no immediate repeat (§13.5). Randomness comes from the cosmetic RNG (arch §5), injectable in tests. Every trigger schedules at `ctx.currentTime + 0.005`. Offsets inside a cue (for example the 45 ms between line notes) are scheduled on the audio clock from that start (A22), never with timers.
+
+| Event | Trigger | Layers | Gain dB | Pitch / rate | Variation | Voices / limit | Sample, synth or both: why |
+|---|---|---|---|---|---|---|---|
+| pickUp | R frame 0 (pointerdown on a slot) | synth sine E5 → A5 (659 → 880 Hz) exponential, 70 ms, A 3 ms | −16 | fixed | ±2 % | 1; ≥ 60 ms apart | synth: a rising "lift" sweep that must be exact and instant; already in band |
+| snap tick (new) | R, when the ghost target changes to a valid cell; same rules as the snap haptic (§9.13.d: ≥ 120 ms apart, not while \|v\| > 8 c/s); all input types | synth sine G6 1568 Hz, 12 ms, A 1 ms | −30 | fixed | none | 1; ≥ 120 ms | synth: tiny and frequent. Gives the snap feel on iOS, which has no haptics (§9.13.k gap) |
+| place | L (land frame, B) via `onPlaceLand` | `place1`–`5` (pre-mixed tock + weight + wet) | −8 | `2^(−0.6·(cells − 1)/12)` (9 cells → 0.76, as v1) | ±4 %, ±1.5 dB, 5 variants | 1 (a new place cuts the old with a 10 ms fade); ≥ 40 ms | sample: the most frequent sound needs real wet texture and variants (A9, A11). Pre-mixed offline so it costs one voice |
+| returnToTray | R t0 (invalid release) | synth triangle A4 → D4 (440 → 294 Hz) 120 ms, A 5 ms; plus sine one octave up at −8 dB re the triangle | −20 | fixed | none | 1 | synth: a soft "no" glide. The octave layer keeps it audible on phones (A14) |
+| invalidHover | — | none (silent; the face shows it) | | | | | |
+| deal | R: slot k at `dealt` + k × 60 ms (§9.1) | `deal1`–`3` | −20 | 1 | ±5 %, ±1 dB | 3 per deal | sample: cards being dealt are a direct match, with real texture |
+| lineClear (1–5 lines) | F (impact frame) via `onImpact` | per line i at F + 45·i ms: ladder note (§13.3) = body −10 + `tink` −14; plus one "fizz" per move at F: noise bandpass 3 kHz Q 0.7, 120 ms, −24 | see layers | rung `min(r0 + i, 10)` | ±3 cents, ±1 dB | ≤ 5 notes per move | both: sampled tink for "real" attack, synth body for exact in-key pitch (§13.3) |
+| combo ladder (`comboUp`, tiers §9.6) | no sound of its own; sets C and tier for the move's lineClear at F | tier ≥ 1: harmony on the last line, body only at rung `min(r_last + 2, 10)` (a pentatonic third/fourth), −20. Tier ≥ 2: sparkle, 4 tinks at rungs r_last … r_last + 3 (capped), 30 ms apart starting F + 45·i_last + 30 ms, −22. Tier 3/4: music only (§13.7) | see layers | in scale | ±1 dB | 1 harmony + 4 tinks | both. Fixes the double play (§13.3). Harmony and sparkle are now actually called (audit) |
+| gloopPop (per cell) | each popped cell's **burst frame** (B) via a new director `onBurst` callback (§13.4 note 1) | `pop1`–`6` | −12 | `2^((base + min(0.5·k, 10))/12)`; k = burst order in the move (all gloops, by burst time); base by the move's largest gloop: < 8 → +2, Big 0, Huge −2, Mega −4 semitones (A19: bigger is lower) | ±3 %, ±1.5 dB, 6 variants | ≥ 25 ms apart; skipped bursts still advance k; ≤ 6 live pop voices (oldest stolen) | sample: real wet pops (A19); the rise is a rate ramp |
+| bigPop (≥ 8) | gloop's first burst (`onPopFirst('big')`); rise at its last burst (`onBurst`, last = true) | first burst: `goo` −12. Last burst: 2 ladder notes, rungs s, s + 2 with s = min(r0, 8), 90 ms apart, body −14 + tink −18 | see layers | goo rate 1; notes in scale | goo ±3 % | 1 goo | both: goo gives weight; the in-scale rise replaces v1's square wave |
+| hugePop (≥ 15) | first burst: `goo`; face burst (`onClimax('huge')`): arpeggio | `goo` −9; arpeggio rungs s, s + 2, s + 4 with s = min(r0, 6), 70 ms apart, body −12 + tink −16 | see layers | goo rate 0.944 (−1 st) | goo ±3 % | 1 goo, 3 notes | both. No slow-mo for Huge, so no duck |
+| megaPop (≥ 24) | first burst: `goo` + `sub`; face burst (`onClimax('mega')`, the slow-mo start): **stinger** (§13.6) | `goo` −6, scheduled 25 ms after the first pop voice (A12: a 20–30 ms "crack then bloom" offset reads as explosive); `sub` −10 (optional; inaudible on most phones, A14) | see layers | goo 0.891 (−2 st) | goo ±3 % | stinger is never stolen | both |
+| allClear | last burst of the move (`onClimax('allClear')`): **stinger** (§13.6); a swell rides from F to the climax | swell: noise from the shared buffer, bandpass 1.5 → 5 kHz (linear sweep over 800 ms), gain 0 → −22 dB, cut with a 30 ms release on the climax (max 800 ms) | see layers | — | none (rare, A11) | stinger never stolen | both: synth swell has to follow a climax time that is only known on B |
+| comboLost | L of the move that lost it | synth sine A4 → E4 (440 → 330 Hz) 160 ms | −24 | fixed | none | 1 | synth. It must be quieter than place (design §6) |
+| stageUp | F of the move (L if it clears nothing) | `stage` (C6 + G6) | −12 | 1 | none | 1 | sample: chime in key |
+| newBest | F of the move that first passes the best (L if it clears nothing): the same frame as the banner and slow-mo (§9.13.g.6) | `best` **stinger** (§13.6) | −6 | 1 | none (A11) | 1; one stinger per move | sample: a real instrument motif that rises to C. v1 played it at input; fixed |
+| stuck | R t0 of `stuck`, with the tray shake (§9.8) | synth triangle G4, E4, C4 (392, 330, 262 Hz), 180 ms each; plus sines an octave up at −10 dB re the triangle | −16 | fixed | none | 1 | synth: falling in key, quiet. Octave layer for phones (A14). Music game-over ramp starts here (§13.7) |
+| gameOver | — (panel) | no SFX; music settles (§13.7) | | | | | |
+| rescueReady | F of the move that fills the ring | `chime` | −18 | 1 | none | 1 | sample |
+| rescueOffered | — | none (the panel's buttons tap) | | | | | v1 played the rescue cue here; removed |
+| rescued | R t0 (rescue action) | `swell` −12 at t0; at t0 + 350 ms: a `pop` variant −10 and `chime` −10. Cells popped by the rescue use the gloopPop path if the director animates them; otherwise 3 pops 40 ms apart from t0 + 350 ms | see layers | 1 | pop variant | 3 | sample: reversed squish as the "suck back" (A19) |
+| zenShake | the popped cells' bursts (gloopPop path); if not animated, 3 pops 40 ms apart at R t0 | `pop` | −12 | as gloopPop | as gloopPop | as gloopPop | sample |
+| uiTap | DOM `click` on any `<button>` except the mute button and toggles | `tap` | −18 | 1 | ±3 % | ≥ 50 ms apart | sample: crisp 7 ms click, in band |
+| toggle on / off | the toggle's `click` | synth sine A5 → E6 (880 → 1319 Hz) / E6 → A5, 60 ms; plus `tap` −18 | −22 | fixed | none | 1 | both. Turning "Sound effects" on plays toggleOn after the bus opens. Turning it off is silent |
+| coinTick | each coin increment shown (toast or count-up) | `coin1`–`4` −20 (clack) + synth sines G6 + C7 (1568 + 2093 Hz), 40 ms, −26 each (body in band) | see layers | clack ±4 % | 4 variants, ±1 dB | ≤ 12 ticks per count, 50 ms apart | both: the clack measures 90 %+ above 4 kHz, so the in-key synth ping carries it on phones (A14) |
+| levelUp | when the level-up toast shows | `level` | −8 | 1 | none | 1 | sample |
+| achievement | when the achievement toast shows (the toast queue keeps it ≥ 600 ms from levelUp) | `ach` (C6 + E6 bell) | −10 | 1 | none | 1 | sample |
+
+Notes:
+1. **New director callbacks** (§9.13): `onBurst(order, gloopTier, isLastOfGloop)`, called on the B frame each popped (non-line) cell starts its burst. Pop sounds are not pre-scheduled at F, because slow-mo (New best starts at F) and `endNow()` change B's speed after F. Frame quantisation (≤ 17 ms) is fine: picture and sound read as one event without exact sync (A9).
+2. **Not slowed:** SFX ignore hitstop and slow-mo (v1 §9.9 rule kept). Only their trigger frames move.
+3. **Latency:** no `outputLatency` compensation *(tuning)*. The display adds one or two frames of delay too, which roughly matches typical output buffers (A22, A25). The `?debug=1` overlay shows `outputLatency` so this can be checked.
+4. **Fallback:** if a segment is not decoded yet (first seconds, offline, decode error), the event plays its v1 synth recipe at the same gain (v1 recipes kept in `src/audio/fallback.ts`). The first tap is never silent.
+5. **Move plan:** at release, `planMove(events, ctx)` (pure, `src/audio/movePlan.ts`) decides everything the move will play: place cells, lines and rungs, tier layers, pop base, which stinger (§13.6), comboLost, stageUp, rescueReady, newBest. The frame callbacks only execute the plan. Nothing in `playForEvents` plays at input except pickUp, snap, returnToTray, deal, stuck, rescued and UI sounds.
+
+### 13.5 Layering, variation and voices
+- **Layers** (A12): transient 0–10 ms (tink, tap, the tock of `place`), body 10–100 ms (synth bar, wet pop, squish), tail 100 ms+ (goo, bar decay, stinger bloom). Sub < 80 Hz only as an optional extra (`sub`, the weight layer inside `place` at −20 dB).
+- **Simultaneous vs offset:** place layers are simultaneous (punchy). Mega's goo is 25 ms after the first pop voice (explosive) (A12).
+- **Mobile-speaker rule** (A14, A15): every cue, summed, must have ≥ 50 % of its energy in 400 Hz–4 kHz, measured on the mixed cue. The build script prints this for every segment (§13.11). The test fixtures check the synth recipes. Pure low or pure high layers (`sub`, coin clack) always come with an in-band layer. 4–5 kHz is tamed with a −4 dB high shelf at 5 kHz on bright sources.
+- **Variant pick, no immediate repeat:** `pickVariant(n, last, u)`, with u ∈ [0, 1). n = 1 → 0. Otherwise `i = floor(u·(n − 1))`, and if `i ≥ last` then `i + 1`. Uniform over the n − 1 others (A7, A9, A11).
+- **Random ranges:** foley ±3 to ±5 % rate (A8 allows up to ±10 % for non-pitched sounds), ±1 to ±1.5 dB. Pitched (ladder, chimes, stingers): ±3 cents at most, or none (A8).
+- **Voice cap:** 24 SFX voices (v1). A 25th voice steals the oldest voice in the lowest class: ui/deal/coin < pop < place < ladder < stinger. Stinger voices are never stolen. Music voices are separate (§13.8).
+- **No allocation per call** beyond the source and gain nodes: one 1 s white-noise buffer is made at init and played with random offsets (v1 made a new buffer per noise call).
+
+### 13.6 Big moments: stingers and ducking
+- **One stinger per move.** Priority: All Clear > Mega Pop > New best. The lower ones in the same move are dropped; their banners still show. A stinger within 3 s of the last one is dropped too (same rule as slow-mo, §9.13.g.6).
+- **Stinger timing rides the slow-mo:** it starts on the same frame as the slow-mo request (Mega: face burst; All Clear: last burst; New best: F). Its musical length is ≈ 40 + 300 + 200 = 540 ms (the slow-mo ramp in, hold and ramp out), plus a tail.
+  - **Mega Pop stinger:** a run of 6 ladder notes, rungs `s … s + 5` with `s = min(r0, 5)`, 45 ms apart (body −10 + tink −14). The last note is held: body decay 600 ms with a 5 Hz, ±15 % tremolo. At +270 ms a bloom: body notes at the top rung and the rung 2 below, −16 each, 600 ms decay. Total about 870 ms.
+  - **All Clear stinger:** the full ladder, rungs 0 → 10, 30 ms apart (body −10 + tink −14), then at +330 ms a C-major bloom, rungs 5, 7, 8 (C6, E6, G6), body −14 each, 900 ms decay, 5 Hz tremolo ±15 %.
+  - **New best:** the `best` sample (687 ms).
+- **Ducking** (A12, A16), only for the stinger that plays (never on ordinary moves, lines, Big or Huge):
+  - The music `duck` gain goes to **−8 dB** with a linear **40 ms attack** from the stinger start (A12: fast attack; A16 ducked −9 dB). It **holds until start + 540 ms**, then returns to 0 dB with a linear **900 ms release** (A16: about 1000 ms back).
+  - In the same envelope the bed low-pass dips to 1,800 Hz (v1 §9.9 "whoomp", kept) and returns with the release.
+  - A new duck while one is running extends the hold (`end = max(end, new end)`). It never goes deeper than −8 dB.
+- **Reduced motion:** slow-mo is skipped, but the stinger and the duck still fire on the same frame (§13.10).
+
+### 13.7 Music: one sampled bed + synth layers
+**Bed: "Lofi Hip Hop Loop" by omfgdude (OpenGameArt, CC0).**
+
+Why this one:
+- Measured key C major (r 0.87), with a two-chord vamp Fmaj7 → Em7, 8 bars each (chroma per 4 s). Our ladder is C pentatonic, so every SFX note sits inside the harmony with no retuning (A1).
+- It has no lead melody. The SFX ladder can be the melody (A2), and nothing else fights it in the 400 Hz–4 kHz band (A14).
+- −20.4 LUFS with LRA 3.8: soft and steady, so it sits under the SFX (A16).
+- It is already mono, 22.05 kHz, so encoding loses nothing and the file is small.
+
+Rejected:
+- "Cozy Puzzle In-Game 1" (MintoDog): G major bossa at 118 BPM with a clean 64-bar loop, but its sax and flute lead fights the ladder, and it is mastered at −12 LUFS. Kept as the fallback bed if the listening check (§13.13) fails.
+- The v1 generative synth loop: thin, and its 4 chords never change (audit). It is removed; synth survives only as layers.
+
+**Bed processing** (exact recipe in §13.11):
+- Source `LofiLoop_2.ogg` as downloaded: Vorbis mono 22,050 Hz, 2,819,906 samples (127.887 s).
+- Tempo (measured by onset grid fit): 120.04 BPM, 4/4, 256 beats = 64 bars, felt half-time. The file is 70 ms shorter than 256 beats, so it is padded with silence to **L = 2,821,460 samples = 127.957 s**. The tail is already decayed to about −36 dB there.
+  - Cross-correlating 8-bar cycles gave estimates of 127.93–127.99 s, so the pad is uncertain by about ±30 ms. It is a build constant (`LOOP_PAD_SAMPLES = 1554`) and an ear-check item (§13.13).
+- High-pass 40 Hz. 58 % of the bed's energy is under 200 Hz (measured); the sub rumble is inaudible on phones and only pumps the limiter (A14).
+- Static gain −0.59 dB, so true peak is −2.0 dBTP and integrated loudness is −21.2 LUFS. There is no dynamic loudnorm: the bed's mix stays as made.
+- **Seamless loop whatever the decoder's delay:** the file is `[last 250 ms of the loop] + [loop] + [first 250 ms of the loop]`. The manifest gives `loopStart = 0.250`, `loopEnd = 0.250 + L`. The audio around both points is identical, so a decoder that adds or trims a few ms at the file start (MP3 encoder delay, Opus pre-skip) shifts both points together and the seam stays seamless.
+- Mono. Encodings in §13.9.
+
+**Music clock:** `pos = ((ctx.currentTime − bedStart) · rate) mod L`. `bar = 4 × 60 / 120.04 = 1.99933 s`. The downbeat is at pos 0 *(tuning; the measured grid phase is uncertain by about ±50 ms)*. Changes "at the next bar" happen at the next `pos ≡ 0 (mod bar)`.
+
+**Safe if the tempo estimate is off:** every layer is non-rhythmic (held pads, randomly timed twinkles). Only the *moment a layer starts or stops* is snapped to the bar, and every change is a 0.6–2 s ramp. A grid that is off by 50 ms or 0.1 BPM therefore can't produce a flam or a clash (A9 quantises entries; A17 needs every layer to work alone).
+
+**Layers and states** (vertical layering, A17). The bed always plays (unless resting). The other layers come and go:
+
+| State | Bed low-pass (Q 0.7) | Pad | Twinkles | Music bus offset |
+|---|---|---|---|---|
+| tier 0 (C 0–2) | 3,000 Hz | off | off | 0 dB |
+| tier 1 (C 3–4) | 4,500 Hz | off | off | 0 |
+| tier 2 (C 5–7) | 7,000 Hz | on | off | 0 |
+| tier 3 (C 8–11) | open (filter bypassed at 11,000 Hz) | on | off | 0 |
+| tier 4 (C 12+) | open | on | on | 0 |
+| danger (overrides tiers) | min(tier value, 1,600 Hz) | off | off | −2 dB |
+| idle ≥ 30 s without input (A1) | 900 Hz | off | off | −4 dB |
+| paused | 400 Hz | off | off | −6 dB |
+| game over | 600 Hz, rate → 0.5 | off | off | −6 dB, then rest |
+| menus (not the play screen) | — | — | — | silent: fade out 600 ms; on return, resume from the last bar line with a 1 s fade-in |
+
+- **Pad:** E4, A4 and E5 (329.63, 440, 659.26 Hz). These are the tones that are safe over both Fmaj7 and Em7 (E is in both; A is the 3rd of F and the 11th of Em). Each voice is a sine plus a triangle at 2f (−12 dB), with a 0.2 Hz amplitude LFO of 20 % depth, −24 dB each re the music bus. It fades in or out over 1 bar.
+- **Twinkles:** `tink` at pitch classes D, E, G or A only (no C, which is a ♭6 over Em7). Same fold rule as the ladder. −22 dB ± 3 dB. Onsets are random, 0.30–0.70 s apart (cosmetic RNG). They go to the music bus after the duck and are not low-passed.
+- **Transitions:**
+  - Tier rises take effect at the next bar line. The filter moves with `setTargetAtTime`, τ 0.2 s (≈ 600 ms).
+  - After a combo loss, the state drops to tier 0 at the first bar line ≥ 3 s later (v1 rule).
+  - Danger enters at the next bar line and leaves one bar after its exit condition holds.
+  - Idle restores over 600 ms on any input (no bar wait).
+- **Danger** (pure `musicState()` in `src/audio/musicState.ts`):
+  - On: filled cells ≥ 40, or at most 1 of the remaining tray pieces fits anywhere.
+  - Off: filled ≤ 34 and ≥ 2 pieces fit. Zen never enters danger.
+- **Game over** (A7):
+  - On `stuck` (R t0), the bed's `playbackRate` ramps linearly 1 → 0.5 over 450 ms, which also drops it an octave, ending as the panel slides up (§9.8). The low-pass goes to 600 Hz over 400 ms (§9.8). Layers fade out over 300 ms.
+  - 4 s after the panel shows, the bed fades to silence over 3 s and stops.
+  - Play again, restart or a rescue: a new bed source at `loopStart`, rate 1, 300 ms fade-in, filter to tier 0 over 300 ms (§9.8 "reopens over 300 ms"). Restart stays instant; audio never blocks input.
+- **Pause:** see the table, 200 ms ramps; resume over 300 ms.
+- **Hidden tab:** `ctx.suspend()` on `visibilitychange` hidden, `resume()` on visible (this stops SFX too and saves battery).
+- **Rest against fatigue** (A6, A18):
+  - After the bed has played 3 full loops (6 min 24 s) without a pause, menu or rest, it fades out over 4 s, ending exactly at the end of the 3rd loop.
+  - It then stays silent for 60 s; SFX continue. Then it restarts at `loopStart` with a 4 s fade-in. *(tuning)*
+  - A pause, menu visit or game over resets the loop count.
+- **The ladder key never changes**, since the bed never modulates. A1's phrase-synced key change is not needed.
+- **Start:** the bed is fetched only after the first interaction on the play screen, and only if "Music" is on (§13.9). Once decoded, it starts at `loopStart` with a 2 s fade-in. Until then there is no music (A18: silence is fine).
+
+### 13.8 Mix and buses
+```
+sample/synth SFX voices → voice gain → sfxBus ───────────────────────┐
+bed source → bedFilter (low-pass) → bedGain ──┐                      │
+pad + twinkle voices → layerGain ─────────────┴→ duck → musicBus ────┴→ master → limiter → destination
+```
+- `sfxBus` = 1.0 × effectsVolume², or 0 when "Sound effects" is off.
+- `musicBus` = 0.71 (−3 dB) × musicVolume², or 0 when "Music" is off. With the bed file at −21.2 LUFS this puts the bed at about −24 LUFS, under the SFX *(tuning)*.
+- `master` = 1.0, or 0 when muted (top-bar button, M key).
+- **Limiter** (replaces v1's −14 dB / 4:1 glue compressor, which pumped on the bed): `DynamicsCompressorNode`, threshold −6 dB, knee 0, ratio 20, attack 2 ms, release 150 ms. It is a safety net; levels are set offline.
+- **Loudness target:** −18 LUFS integrated ± 2 over ≥ 5 min of gameplay, true peak ≤ −1 dBTP (A13: −18 portable; A14: phones gain nothing above about −16). Measure it by recording the tab's output during a 5-minute session and running `ffmpeg -af ebur128=peak=true` on the recording. **Not measured yet** (§13.13).
+- **Asset normalisation (offline):**
+  - One-shots: sample peak −1 dBFS after edits. Short sounds are under the 400 ms EBU gating block, so peak is the reliable measure. The §13.4 gains set the loudness balance.
+  - Bed: static gain to `min(−18 LUFS, −2 dBTP)`, which gives −21.2 LUFS (above).
+- **Voice cap:** 24 SFX voices (§13.5). Music voices: 1 bed (2 for 300 ms during a restart crossfade), 6 pad oscillators, ≤ 3 twinkles.
+- **Volume curve:** sliders 0–100 % in steps of 10. Gain = v², so 50 % ≈ −12 dB.
+
+### 13.9 Loading, formats, service worker, settings
+- **Files** (`public/audio/`, content-hashed names written by the pipeline; prototype sizes measured on 25 Oct):
+
+| File | Codec | Budget | Prototype |
+|---|---|---|---|
+| `sfx.<hash8>.ogg` | Opus 48 kbps, mono, 48 kHz | ≤ 96 KB | 66 KB |
+| `sfx.<hash8>.mp3` | MP3 96 kbps CBR, mono, 44.1 kHz | ≤ 144 KB | 100 KB |
+| `music.<hash8>.ogg` | Opus 40 kbps, mono, 48 kHz | ≤ 760 KB | 706 KB |
+| `music.<hash8>.mp3` | MP3 48 kbps CBR, mono, 22.05 kHz (the source is 22.05 kHz, so nothing is lost) | ≤ 820 KB | 753 KB |
+
+  Per device, one format only: ≤ 856 KB (Opus) or ≤ 964 KB (MP3). Both are under the 1.5 MB cap. `tools/check-size.mjs` enforces the per-file budgets and the per-device total during `npm run check`.
+- **Format choice** (A23):
+  - `pickFormat(canPlayType)`: `'ogg'` only if `canPlayType('audio/ogg; codecs="opus"') === 'probably'`, else `'mp3'`.
+  - "maybe" counts as no, because Safari 17.4–18.3 has only partial Ogg support (A23).
+  - If decoding the `.ogg` fails, fetch the `.mp3` once and use that for the session.
+- **Manifest:** `src/audio/manifest.ts`, generated (§13.11), typed and committed:
+  - `files: { sfx: { ogg, mp3 }, music: { ogg, mp3 } }`, with paths relative to `import.meta.env.BASE_URL`
+  - `markerAt: 0.100`
+  - `segments: Record<SegmentId, { start, dur, rootMidi?, sources: CreditId[] }>`
+  - `music: { loopStart, loopEnd, bpm: 120.04, beatsPerBar: 4, downbeat: 0, sources }`
+  - `durations` of each encoded file (from ffprobe, for the tests)
+- **Sprite sync marker:** the sprite has a 2-sample click (+0.9, −0.9) at exactly 0.100 s and silence everywhere else before 0.200 s.
+  - After decoding, `findSpriteOffset(data, rate)` takes the position of the largest |sample| in [0, 0.3 s] and subtracts 0.100. That gives δ, the decoder's added or trimmed delay.
+  - Every segment is copied into its own `AudioBuffer` from `start + δ`, and the big buffer is dropped. This works on every decoder and both formats without trusting gapless metadata.
+- **Order and timing:**
+  1. No `AudioContext`, no fetch and no decode before the first `pointerdown`/`keydown` (R21, A20).
+  2. Boot sets `navigator.audioSession.type = 'ambient'` where supported (A24), before any context exists. Declare a small local interface for the type; no `any`.
+  3. First gesture: create the context, resume it, then fetch and decode the SFX sprite at once. Synth fallbacks cover the gap (§13.4 note 4).
+  4. Music: fetch on the first interaction *on the play screen*, after the SFX sprite is decoded or 2 s after the gesture, whichever is first. Use `{ priority: 'low' }` where supported. Never fetch it while "Music" is off; fetch when it is turned on.
+- **Service worker:**
+  - The Vite plugin's precache list excludes every path under `audio/`, via an exported pure `precacheFilter(file)`.
+  - It injects `AUDIO_FILES` (all four current audio paths) into the template.
+  - `sw.template.js`: GET requests under `${base}audio/` are cache-first in a separate cache named `gloop-pop-audio`. The name is not versioned, and the files are content-hashed, so audio survives code deploys.
+  - Only the format the page actually fetched gets cached. One device never downloads both.
+  - On `activate`: the old-version cleanup skips `gloop-pop-audio`, and in that cache, entries whose path is not in `AUDIO_FILES` are deleted.
+  - Offline on a first visit: no audio files, so SFX use the synth fallback and there is no music.
+- **Settings** (all existing hooks keep working):
+  - "Sound effects" toggle → `sfxBus`.
+  - "Music" toggle → `musicBus`; off also skips the music fetch.
+  - Top-bar mute and the M key → `master`, persisted as today.
+  - **New:** "Effects volume" and "Music volume" sliders (0–100 %, default 100 %), saved as `settings.sfxVolume` and `settings.musicVolume`, numbers 0–1. A missing value loads as 1.
+  - Why: the sampled bed is more present than the v1 synth bed. Balatro ships separate volumes (A7). Players who find audio tiring mute it (A16), so a middle step keeps them listening.
+  - UI in §11.14. Effects volume plays a `place` preview on release (`change`). Music volume applies live.
+
+### 13.10 Reduced motion
+Reduced motion does **not** change audio: the same sounds, gains and ladder. The director callbacks fire as they do in reduced mode:
+- L and F = release.
+- `onBurst` fires at the 150 ms fade start, in burst order.
+- `onClimax` fires at release + 150 ms, even though no slow-mo runs.
+
+Stingers and ducks therefore still land on their moment. Hitstop and slow-mo never delay or stretch any sound. Haptics and audio both stay independent of reduced motion (§9.13.k).
+
+### 13.11 Offline asset pipeline (`tools/build-audio.mjs`)
+- **What it is:** a Node 20 script with no dependencies. It runs `ffmpeg`/`ffprobe` (≥ 6, with libopus and libmp3lame) through `child_process.spawnSync`. It is run by hand (`npm run audio`) and is **not** part of `npm run check`. Every ffmpeg call uses `-nostdin -v error -map_metadata -1 -fflags +bitexact -flags:a +bitexact`. The script records `ffmpeg -version`'s first line in the manifest.
+- **Inputs:** `assets-src/audio/`, holding exact copies of only the files used, plus `assets-src/audio/SOURCES.md`. For each file, SOURCES.md lists: path, SHA-256, title, author as named on the page, page URL, licence name and URL, the date the licence was verified (2026-10-25), and how the file was obtained. Freesound files are the HQ preview MP3s downloaded from each sound's page; the originals need a login.
+
+  ```
+  assets-src/audio/freesound/fs325583.mp3, fs802606.mp3, fs442772.mp3, fs500912.mp3
+  assets-src/audio/kenney/impact-sounds/impactSoft_medium_000.ogg … _004.ogg, impactSoft_heavy_000.ogg, License.txt
+  assets-src/audio/kenney/interface-sounds/glass_002.ogg, click_003.ogg, confirmation_002.ogg, confirmation_003.ogg, confirmation_004.ogg, License.txt
+  assets-src/audio/kenney/casino-audio/card-place-1.ogg, card-place-2.ogg, card-place-4.ogg, chips-collide-1.ogg … -4.ogg, License.txt
+  assets-src/audio/kenney/music-jingles/jingles_STEEL10.ogg, jingles_PIZZI10.ogg, License.txt
+  assets-src/audio/oga/lofi-hip-hop-loop.ogg   (as downloaded: LofiLoop_2.ogg)
+  ```
+- **Common steps per segment:**
+  1. Decode, downmix to mono (average of channels: `-ac 1`) and resample to 48 kHz float.
+  2. Apply the listed edits.
+  3. Peak-normalise to −1 dBFS.
+  4. Print the duration, peak, and % of energy in 400 Hz–4 kHz and under 200 Hz. Fail if a cue marked "in band" is under 50 % (§13.5).
+- **Pitch shift** = `asetrate=48000·2^(cents/1200),aresample=48000` (changes speed with pitch, like `playbackRate`).
+
+| Segment | Edits (ffmpeg filters, in order) |
 |---|---|
-| pickUp | sine 620 → 880 Hz exponential over 70 ms; A 3, D 80, S 0; peak 0.16 |
-| place ("plop") | sine 240 → 110 Hz over 90 ms, peak 0.42, A 2 D 110 S 0; plus noise burst through lowpass 900 Hz, 30 ms, peak 0.12. Pitch ×(0.96–1.04) random per call (cosmetic RNG). Bigger pieces: base pitch × (1 − 0.03 × (cells − 1)) |
-| returnToTray | triangle 330 → 220 Hz over 120 ms, peak 0.12, A 5 D 120 S 0 |
-| invalidHover | none (silent by design; the face shows it) |
-| deal | 3 ticks 60 ms apart: sine 1320 Hz, 25 ms, peak 0.07 |
-| lineClear | per cleared line i (0-based), 45 ms apart: triangle at `noteFor(C) × 2^(i·2/12)`, A 4 D 260 S 0, peak 0.3; plus a sine an octave up at peak 0.08; plus highpass-filtered noise (4 kHz) "fizz" 150 ms peak 0.1 |
-| combo harmony (tier ≥ 1) | add a sine at the fifth (×1.5) of the lineClear note, peak 0.12 |
-| sparkle layer (tier ≥ 2) | 4 sine pings at ×4 the note, 30 ms apart, 40 ms each, peak 0.05 |
-| gloopPop | per popped cell in ripple order, rate-limited to one voice per 25 ms (skip extras but keep pitch progression): sine starting at 380 Hz × 1.045^k (k = pop index, capped at k = 30), pitch bend up ×1.6 over 50 ms, A 2 D 70 S 0, peak 0.2, ±10 cents random detune. Wet "bloop": run through a bandpass (Q 4) following the pitch |
-| bigPop stinger (s ≥ 8) | after the last pop: two-note rise `noteFor(C)` → ×1.5, square wave through lowpass 2.2 kHz, 90 ms each, peak 0.18 |
-| hugePop / megaPop | three-note (×1, ×1.25, ×1.5) / five-note (×1, 1.25, 1.5, 2, 2.5) arpeggio, 70 ms apart, square + lowpass 2.6 kHz, peak 0.2; plus a sub thump sine 90 → 40 Hz over 220 ms peak 0.35 |
-| allClear | C-E-G-C-E-G (523, 659, 784, 1047, 1319, 1568 Hz), 60 ms apart, triangle + sine octave, peak 0.24; preceded by a 400 ms noise swell (bandpass 2 kHz sweeping to 8 kHz, gain 0 → 0.12) |
-| comboLost | sine 440 → 330 Hz over 160 ms, peak 0.08 (quiet on purpose) |
-| stageUp | sine chime 784 + 1175 Hz, 400 ms decay, peak 0.14 |
-| newBest | fanfare: 784, 988, 1175, 1568 Hz, 90 ms apart, square through lowpass 3 kHz, last note held 400 ms; peak 0.2 |
-| stuck | triangle 392 → 330 → 262 Hz (three notes, 180 ms each), peak 0.18, plus lowpass sweep on the music bus (§9.8) |
-| rescue | reverse swell (noise 300 ms rising) then pop + major third chime |
-| uiTap | sine 1200 Hz, 25 ms, peak 0.08 |
-| toggleOn / toggleOff | sine 880 → 1320 / 1320 → 880, 60 ms, peak 0.08 |
-| coinTick | sine 1568 Hz + 2093 Hz, 40 ms, peak 0.06; for counting up, max 12 ticks spaced 50 ms |
-| levelUp | arpeggio C5-E5-G5-C6 80 ms apart triangle, then a 600 ms sine shimmer at C7 with 6 Hz vibrato, peak 0.2 |
-| achievement | two bell tones 1319 + 1976 Hz with 900 ms exponential decay (sine + sine ×2.76 inharmonic partial at 0.3), peak 0.14 |
+| `pop1`–`pop6` | fs325583.mp3, windows (start s, length s): (0.254, 0.141), (1.825, 0.189), (7.713, 0.209), (14.851, 0.147), (16.472, 0.178), (23.428, 0.215); `highpass=f=200`, `afade=t=in:d=0.002`, `afade=t=out` over the last 30 ms |
+| `place1`–`place5` | sum (`amix=normalize=0:duration=longest`) of: (a) fs802606.mp3 at 1.715 / 2.595 / 5.169 / 6.933 / 7.586 s, 140 ms: `highpass=f=150`, fade in 2 ms, fade out from 80 ms over 60 ms; (b) `impactSoft_medium_000`…`004` whole: `highpass=f=60`, `volume=6dB`, `asoftclip=type=tanh`, `volume=-20dB`; (c) fs442772.mp3 from 0 / 30 / 60 / 90 / 120 ms, 90 ms: `highpass=f=300`, `lowpass=f=3500`, fade in 3 ms, fade out from 30 ms over 60 ms, `volume=-6dB` |
+| `goo` | fs500912.mp3 0–0.450 s: `lowpass=f=4000`, `highpass=f=120`, fade out from 0.25 s over 0.2 s |
+| `sub` | impactSoft_heavy_000.ogg 0–0.350 s: `volume=6dB`, `asoftclip=type=tanh`, fade out from 0.2 s over 0.15 s |
+| `tink` | glass_002.ogg whole: pitch −4 cents; fade out from 80 ms over 40 ms |
+| `tap` | click_003.ogg whole: no edit |
+| `deal1`–`deal3` | card-place-1 (0.095, 0.162), card-place-2 (0.141, 0.114), card-place-4 (0.250, 0.173): `highpass=f=250`, `highshelf=f=5000:g=-4`, fade out over the last 40 ms |
+| `coin1`–`coin4` | chips-collide-1 (0.079, 0.083), -2 (0.027, 0.097), -3 (0.119, 0.077), -4 (0.043, 0.069): `highshelf=f=5000:g=-4`, fade out over the last 30 ms |
+| `chime` | confirmation_003.ogg whole: pitch −200 cents |
+| `stage` | confirmation_002.ogg whole: pitch −200 cents |
+| `ach` | confirmation_004.ogg whole: pitch −400 cents |
+| `best` | jingles_STEEL10.ogg whole: pitch +484 cents |
+| `level` | jingles_PIZZI10.ogg from 0.015 s: pitch +496 cents |
+| `swell` | fs442772.mp3 0–0.350 s: `lowpass=f=4000`, `highpass=f=200`, `areverse`, `afade=t=in:d=0.25:curve=exp` |
 
-### 13.3 Music (generative, `src/audio/music.ts`)
-- Lo-fi candy-shop loop, 84 BPM, 4/4, 4-bar progression: **Cmaj7 – Am7 – Fmaj7 – G6**, one chord per bar.
-- **Keys ("candy Rhodes"):** each chord voiced in C4–C5 range; each note: sine + triangle at 2× frequency (gain 0.25), with a 5 Hz tremolo (depth 0.15); A 15, D 900, S 0.35, R 600. Chords play on beat 1 and the "and" of 2.
-- **Bass:** sine at chord root (C2–G2), on beats 1 and 3, A 5 D 300 S 0.4 R 100, peak 0.35.
-- **Kick:** sine 120 → 45 Hz over 120 ms, beats 1 and 3, peak 0.4. **Hat:** noise through highpass 7 kHz, 30 ms, on every 8th, peak 0.04 (off-beats 0.06).
-- **Melody (from combo tier 4 only):** arpeggio of the current chord tones in 16ths, an octave above the keys, triangle, peak 0.06.
-- **Master music filter:** lowpass on the music bus, 1200 Hz normally; tier 3+ opens it to 5000 Hz over 600 ms; it closes back 3 s after the combo ends. Paused: 400 Hz and gain ×0.5. Game over: 600 Hz.
-- Scheduler: a 25 ms `setInterval` lookahead loop scheduling notes up to 120 ms ahead on the AudioContext clock (standard WebAudio pattern). Stops when the tab is hidden.
-- Each loop of 4 bars, randomly (cosmetic RNG) swap the voicing inversion so 4 bars don't repeat exactly for ~8 cycles.
+- **Sprite layout:** 0.100 s silence; the marker (2 samples, +0.9 and −0.9, at sample 4,800); silence to 0.200 s; then the segments in table order, each followed by 50 ms of silence. The sprite is about 8.2 s. Encode `sfx.ogg` with `-c:a libopus -b:a 48k -application audio`. Encode `sfx.mp3` with `-ar 44100 -c:a libmp3lame -b:a 96k`.
+- **Music:**
+  1. Decode lofi-hip-hop-loop.ogg at its native 22,050 Hz, mono.
+  2. `highpass=f=40`.
+  3. Pad the end with 1,554 zero samples (L = 2,821,460).
+  4. `volume=-0.59dB`.
+  5. Prepend the last 250 ms and append the first 250 ms of the padded loop.
+  6. Encode `music.ogg` with `-ar 48000 -c:a libopus -b:a 40k -application audio`. Encode `music.mp3` with `-ar 22050 -c:a libmp3lame -b:a 48k`.
+- **Outputs:**
+  - The 4 files in `public/audio/`, named with the first 8 hex digits of each file's SHA-256. Older files in that folder are deleted.
+  - `src/audio/manifest.ts`, with segment times measured from the rendered sprite, `durations` from ffprobe on each encoded file, and SHA-256 of every source.
+  - A report on stdout.
+- **Credits link:** each segment lists its `sources` (credit ids from `src/audio/credits.ts`). `CREDITS.md` "Changes" quotes the table above. A test keeps them in sync (§13.12).
 
-### 13.4 Settings
-"Sound effects" toggles `sfxBus`; "Music" toggles `musicBus`; the top-bar mute button toggles `master` (and is shown crossed when master is muted). M key = mute. The mute state persists.
+### 13.12 Test checklist (unit tests, colocated)
+1. **Ladder:**
+   - `rungMidi` equals `[72, 74, 76, 79, 81, 84, 86, 88, 91, 93, 96]`; `freq` matches the Hz list ± 0.01.
+   - `rungFor(C, i) = min(clamp(C − 1, 0, 10) + i, 10)`; C 0 or 1 gives rung 0.
+   - `rate(t, root) = 2^((t − root)/12)`; the fold keeps |Δ′| ≤ 6; tink rates match §13.3 ± 1e−4.
+   - Lines voiced ≤ 5.
+2. **Variants:** over 10,000 draws `pickVariant` never returns `last` (n ≥ 2), each other index gets 1/(n−1) ± 5 %, and n = 1 gives 0.
+3. **Rate limits:**
+   - pop voices start ≥ 25 ms apart, and skipped bursts still advance k
+   - place ≥ 40 ms; snap ≥ 120 ms, and none while |v| > 8 c/s; uiTap ≥ 50 ms
+   - coin ≤ 12 ticks per count
+   - ≤ 6 live pop voices
+4. **Voice cap:** the 25th voice steals the oldest voice in the lowest class; a stinger is never stolen.
+5. **Manifest:**
+   - Every segment has `start ≥ markerAt + 0.1` and `start + dur ≤ durations.sfx[fmt] − 0.05` for both formats.
+   - Segments don't overlap.
+   - `0 < loopStart < loopEnd ≤ durations.music[fmt]`, and `loopEnd − loopStart = 256 × 60 / 120.04 ± 0.001` s.
+6. **Gesture rule:** importing `src/audio` and calling every sfx, music and loader function before `initAudioOnFirstInput()` constructs no `AudioContext`, calls no `fetch` and throws nothing (spy on the global constructor and `fetch`).
+7. **Formats:** `pickFormat` returns `'ogg'` for 'probably' and `'mp3'` for 'maybe' and ''. An ogg decode failure triggers exactly one mp3 fetch.
+8. **Sprite marker:** `findSpriteOffset` on a synthetic buffer with the click at 0.1 + δ returns δ to within 1 sample, for δ ∈ {−0.05, 0, +0.04} s.
+9. **comboUp fix:**
+   - `planMove([placed, cleared, comboUp, scored])` plus `playForEvents` at input play no lineClear (spy).
+   - The impact handler plays exactly one lineClear, with the post-move C and tier.
+   - A 2-line tier-2 move plays notes at rungs r0 and r0 + 1, one harmony note and 4 sparkle tinks.
+10. **Stingers:**
+    - newBest is not played at input; it is played at F (or L).
+    - With All Clear + Mega + New best in one move, only the All Clear stinger plays.
+    - A stinger < 3 s after the last one is dropped.
+11. **Ducking:**
+    - Only allClear, megaPop and newBest stingers schedule a duck; place, line, pop, Big and Huge never do.
+    - The duck schedule reaches −8 dB at t0 + 40 ms, holds to t0 + 540, and is back at 0 dB at t0 + 1,440 ms.
+    - Overlapping ducks extend, never deepen.
+12. **Service worker:** `precacheFilter` drops every `audio/…` path; the built `sw.js` PRECACHE has no `/audio/` entry; `AUDIO_FILES` lists all 4 files; the template's cleanup keeps `gloop-pop-audio` (string test on the template).
+13. **Credits:**
+    - Every manifest segment's `sources` and `music.sources` are ids in `credits.ts`.
+    - Every credit except `original` is used at least once.
+    - `CREDITS.md` contains each credit's title, author, URL and licence name verbatim.
+    - The Credits screen lines come from `credits.ts` (render the screen in jsdom and compare).
+14. **Music state:** `musicState()` gives the §13.7 table for tiers 0–4, danger (with hysteresis 40/34 cells and the fit count), idle at 30,000 ms, paused and game over. Zen never gives danger. Tier changes are scheduled at the next bar line (`nextBar(pos)`). On `stuck`, the bed rate is scheduled 1 → 0.5 over 450 ms.
+15. **Rest:** after 3 loops the bed fades out at the loop end, is silent for 60 s, and restarts at `loopStart`. A pause resets the count.
+16. **Reduced motion:** the same audio calls (names, gains, order) with reduced motion on and off for a Mega Pop move. The stinger fires in both.
+17. **Size:** `check-size.mjs` fails when any audio file exceeds its budget or the per-device total exceeds 1.5 MB.
+18. **Synth band rule:** for every synth recipe, a 48 kHz offline render (pure TS oscillator maths, no WebAudio) has ≥ 50 % of its energy in 400 Hz–4 kHz.
+
+### 13.13 Unverified by ear (listening checklist for the director, on a phone speaker and on headphones)
+All of these come from measurement only:
+1. The bed's loop seam (pad 70.5 ms ± 30 ms). Fallback: change `LOOP_PAD_SAMPLES`, or switch to "Cozy Puzzle In-Game 1" (clean 64-bar loop at 118 BPM, G major; keeps the ladder, since C pentatonic is inside G major).
+2. Whether the bed's "lofi" character suits the candy look, and how it sounds after 3 loops.
+3. Whether the `place` mix (tock + weight + squish) reads as "jelly lands" and not as a mouth noise. Fallback: drop layer (a) and raise (c) by 3 dB.
+4. Whether the `pop1`–`6` mouth pops read as gloops and not as a person, and whether ±3 % and the +0.5 st/pop rise feel right.
+5. The `tink` + synth bar blend as a "candy instrument", and the folded tink register jumps (rungs 3 and 8 fold down).
+6. Whether the retuned Kenney jingle (`best`, `level`) and chimes are in tune with the bed (cents offsets come from pitch tracking).
+7. All §13.4 gains, the −8 dB duck depth, the bed bus at −3 dB, and the −18 LUFS integrated target (not measured).
+8. The pad (E/A) over the Fmaj7–Em7 vamp, and the twinkle density.
+9. The 0.5× game-over slow-down: it may sound sad rather than "settling". Fallback: 0.75×.
+10. Coin clack + ping, deal cards, UI tap at −18/−20 dB on a phone at low volume (A15).
 
 ---
 

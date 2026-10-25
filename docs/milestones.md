@@ -405,3 +405,138 @@ Spec: SG §9.13 (read §9.13.a first). Research: `research/game-feel.md`. Before
   - The `?debug=1` overlay shows effect ms ≤ 4 at Mega Pop + combo 12 on desktop.
   - A code-review list confirms no `new`, object literal or array literal, `splice`, `createLinearGradient`, `shadowBlur` or `filter` in the per-frame paths of `director.draw`, `boardView.draw`, `particles.update`, `camera.update`.
   - The final message notes the iOS haptics gap (S19, S20).
+
+---
+
+## M11 Audio v2 (samples + synth)
+
+Spec: SG §13 (read §13.1–§13.3 first), SG §11.13–§11.14, design §16.4 (Settings and Credits strings). Research: `research/audio.md` (tags A1–A27). Assets: only the files in SG §13.11. They are all CC0 and listed in `CREDITS.md`. Copy them from `/workspace/night-game/audio-src/` and don't download anything. Do the chunks in order. Each chunk ships alone: `npm run check` passes and the game plays correctly after every chunk. The game must never be silent where v1 made a sound: until a sample exists, the v1 synth recipe plays (SG §13.4 note 4). Agents can't listen. The director does the SG §13.13 ear check after M11.4 and again after M11.6.
+
+### M11.1 Asset pipeline, sprite, manifest, credits data
+- **Implements:** SG §13.2, §13.11 (whole), §13.9 file table and manifest shape; §13.12 items 5, 8 and 13 (the parts that need no engine).
+- **Files:**
+  - `assets-src/audio/**`: copies of exactly the source files listed in SG §13.11 (with each Kenney pack's `License.txt`). `assets-src/audio/SOURCES.md`: one entry per file with path, SHA-256, title, author, page URL, licence and licence URL, "verified 2026-10-25", and how it was obtained.
+  - `tools/build-audio.mjs` (new; Node 20, no dependencies, runs ffmpeg/ffprobe through `spawnSync`, every command wrapped in a timeout). `package.json` script `"audio": "node tools/build-audio.mjs"`; **not** part of `check`.
+  - Generated and committed: `public/audio/sfx.<hash8>.ogg|mp3`, `public/audio/music.<hash8>.ogg|mp3`, `src/audio/manifest.ts`.
+  - `src/audio/credits.ts` (new): `CREDITS` (id, group, title, author, site, url, licence, licenceUrl). Ids: `oga-lofi`, `fs-325583`, `fs-802606`, `fs-442772`, `fs-500912`, `kenney-interface`, `kenney-impact`, `kenney-casino`, `kenney-jingles`, `original`.
+  - `src/audio/sprite.ts` (new): `findSpriteOffset(data, sampleRate)`, pure.
+  - Tests: `manifest.test.ts`, `sprite.test.ts`, `credits.test.ts` (reads `CREDITS.md` with `node:fs`).
+  - `CREDITS.md`: remove the "Draft" note and correct anything that changed.
+  - `docs/architecture.md`: record the new folders and files.
+- **Done when:**
+  - `npm run audio` rebuilds byte-identical outputs on a second run (same hashes).
+  - It prints every segment's in-band % (all cues except `sub` and `coin*` ≥ 50 %).
+  - The 4 files are within the SG §13.9 budgets.
+  - The manifest, sprite-marker and credits tests pass.
+  - `src/` imports nothing from `assets-src/`.
+  - No player-facing behaviour changes yet.
+
+### M11.2 Sample engine: graph, loader, formats, voices, ladder, ducking, service worker
+- **Implements:** SG §13.3 (math), §13.5, §13.6 duck schedule, §13.8, §13.9 (loading, formats, service worker, the audioSession line); §13.12 items 1–4, 6, 7, 11, 12 and 17.
+- **Files:**
+  - `src/audio/engine.ts`:
+    - buses per SG §13.8, with the limiter replacing the old compressor
+    - `audioSession` set before the context exists
+    - `suspend`/`resume` on visibility
+    - one shared noise buffer
+  - `src/audio/loader.ts` (new):
+    - `pickFormat`
+    - fetch and decode the sprite after the gesture
+    - marker offset and slicing into per-segment buffers
+    - the ogg → mp3 retry
+    - lazy music fetch
+  - `src/audio/voices.ts` (new): voice pool with priority stealing, `pickVariant`, rate limiters. It uses the cosmetic RNG (arch §5), injectable.
+  - `src/audio/ladder.ts` (new): `rungMidi`, `rungFor`, `freq`, `rate`, `foldRate`, the candy-bar synth body.
+  - `src/audio/duck.ts` (new): pure schedule plus apply.
+  - `src/audio/fallback.ts` (new): the v1 recipes, moved out of `sfx.ts` unchanged.
+  - `vite.config.ts`: exported `precacheFilter`, `AUDIO_FILES` injection.
+  - `src/sw/sw.template.js`: `gloop-pop-audio` cache-first for `audio/`, plus the cleanup rule.
+  - `tools/check-size.mjs`: audio budgets and the per-device total.
+  - `docs/architecture.md` §11.1: record the audio cache.
+- **Done when:**
+  - The listed tests pass.
+  - With a fake `AudioContext`, no context or fetch happens before `initAudioOnFirstInput()`, and the first `sfx.place()` after the gesture (sprite not decoded yet) plays the synth fallback.
+  - `npm run build` produces a `sw.js` whose PRECACHE has no `/audio/` path.
+  - Sounds are still the v1 mapping (the per-event mapping is M11.3).
+
+### M11.3 Per-event mapping, impact-frame sync, comboUp fix
+- **Implements:** SG §13.4 (every row and note), §13.3 (ladder use and the comboUp fix), §13.6 (stingers), §13.10; §13.12 items 9, 10, 16 and 18.
+- **Files:**
+  - `src/audio/movePlan.ts` (new, pure): `planMove(events, ctx)`.
+  - `src/audio/sfx.ts`: rewritten per SG §13.4, using the plan.
+  - `src/audio/index.ts`: `playForEvents` plays only the input-time sounds; new handlers `onLand`, `onImpact`, `onBurst`, `onPopFirst`, `onClimax`.
+  - `src/render/director.ts`:
+    - new `onBurst(order, gloopTier, isLastOfGloop)`
+    - `onClimax` and `onBurst` also fire in reduced motion (SG §13.10)
+  - `src/app/app.ts`:
+    - route the director callbacks to the audio handlers
+    - newBest moves from input to F (or L)
+    - stuck at t0
+    - the snap tick from the pointer's target-change hook (same gate as the snap haptic)
+    - deal ticks per slot
+    - uiTap/toggle sounds for DOM buttons through one delegated listener
+- **Done when:**
+  - The tests pass. They include: a `cleared` + `comboUp` move gives one lineClear, at F only; newBest is never at input; one stinger per move by priority; reduced motion gives the same calls.
+  - `grep -n "case 'comboUp'.*sfx\." src/audio` finds nothing.
+  - `sfx.comboHarmony` and `sfx.sparkle` are reachable from the plan, so the audit's dead code is gone.
+  - A 28-cell Mega Pop voices ≤ 14 pop sounds, each ≥ 25 ms apart (test on a simulated burst schedule).
+
+### M11.4 Music bed and adaptive layers
+- **Implements:** SG §13.7 (whole), §13.6 (duck and low-pass dip on the music chain); §13.12 items 14 and 15.
+- **Files:**
+  - `src/audio/music.ts`: rewritten. The generative v1 loop is deleted.
+    - bed source with `loopStart`/`loopEnd`, the music clock and `nextBar`
+    - pad and twinkle layers
+    - game-over rate ramp
+    - rest rule, idle, pause, menus, restart
+  - `src/audio/musicState.ts` (new, pure): states, danger with hysteresis, tier changes at bar lines.
+  - `src/app/app.ts`:
+    - feed `musicState` its inputs: tier, danger, idle time, paused, screen, game over
+    - start the lazy fetch on the first play-screen interaction
+- **Done when:**
+  - The tests pass.
+  - The bed loops with no gap in a long-running test, using a fake clock and `loopStart`/`loopEnd` checks.
+  - Music is never fetched while "Music" is off (test).
+  - In menus the music is silent; returning to play resumes from a bar line.
+  - Game over halves the bed rate over 450 ms. Restart brings rate 1 back within 300 ms, and input is never blocked.
+  - The director listens to the bed on a phone (SG §13.13 items 1, 2, 8 and 9).
+
+### M11.5 Credits screen, settings sliders, README
+- **Implements:** SG §11.13, §11.14, §13.9 settings; design §16.4 (Settings and Credits strings, word for word).
+- **Files:**
+  - `src/ui/screens/credits.ts` (new): built from `CREDITS` data.
+  - `src/ui/screens/settings.ts`: the two sliders, and a "Credits" button under "Show tutorial again".
+  - `src/ui/screens/home.ts`: "Credits" text button in the footer after "How to play".
+  - `src/ui/strings.ts`: the new strings.
+  - `src/meta/saveSchema.ts` and load migration: `settings.sfxVolume` and `settings.musicVolume`, default 1, clamped to 0–1.
+  - Router entry `credits`.
+  - CSS for the slider (CSS variables only, no hex).
+  - `README.md` (see below).
+- **README text:** add this section after "Build it yourself":
+
+  ```md
+  ## Credits
+
+  Sound effects and music use free CC0 assets by Kenney, cbenci, JelloApocalypse, qubodup, Bertsz and omfgdude, from Kenney.nl, Freesound and OpenGameArt. The full list, with links, licences and the exact edits we made, is in [CREDITS.md](CREDITS.md). The game also shows it under Settings → Credits.
+  ```
+
+  Also replace the README sentence "Sound and music come from WebAudio synthesis, so the repo has no audio files." with: "Sound effects mix CC0 samples with WebAudio synthesis, and the music is a CC0 loop with synthesised layers. The audio files are about 0.8–1 MB, are loaded after your first tap, and are cached for offline play."
+- **Done when:**
+  - The Credits screen lists exactly the `CREDITS` entries (jsdom test), in the design §16.4 wording.
+  - Every link has `target="_blank"` and `rel="noopener noreferrer"` (test).
+  - Sliders change the bus gains as v² (test with a fake graph), persist through reload, and are disabled when their toggle is off.
+  - The mute button, the M key and both toggles still work (existing tests pass).
+  - The string audit finds no player-facing text outside `strings.ts`.
+
+### M11.6 Tests, mix check, polish
+- **Implements:** SG §13.12 (every item not yet covered), §13.8 loudness target, §13.13.
+- **Files:**
+  - Any test still missing.
+  - A `?debug=1` overlay line: the audio format in use, decoded or fallback per segment, `outputLatency`, live voices, the music state.
+  - `docs/qa-checklist.md`: an "Audio" section with the SG §13.13 items as checkboxes.
+- **Done when:**
+  - All 18 items of SG §13.12 have passing tests.
+  - The debug overlay shows the audio line.
+  - The total payload measured in `dist/audio` is reported in the final message (per format).
+  - The final message lists every SG §13.13 item as "needs ear check" for the director.
+  - The director's ear check (phone speaker and headphones) passes, or its fixes are written back into SG §13 as a dated revision note.

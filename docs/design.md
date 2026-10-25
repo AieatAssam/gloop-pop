@@ -656,7 +656,17 @@ Home:
 - Row buttons: "Collection", "Achievements", "Stats"; footer: "Settings", "How to play"
 Daily result: "Daily #12", score, "Best combo 7", "Biggest pop 18", the emoji grid, legend "⬜ no clear · 🟩 1 line · 🟨 2–3 · 🟧 4–5 · 🟥 6+ · 🟪 all clear or huge pop", buttons "Share", "Share image", "Practice (not counted)", "Home", countdown "Next daily in 05:12:33".
 Toasts: "Copied! Paste it anywhere.", "Level {L}! +50 coins", "Unlocked: {item}", "Achievement: {name} · +{c} coins", "Weekly goal done! +200 coins, +150 XP, +1 freeze", "A freeze saved your {n}-day streak.", "Your streak ended at {n} days. Play today to start a new one."
-Settings: "Sound effects", "Music", "Vibration", "Reduce motion" (options "Match device", "On", "Off"), "Colour-blind patterns", "Show tutorial again", "Reset all progress"; reset confirm: "Delete all progress? Your level, coins, unlocks, stats and streak will be gone. This can't be undone." buttons "Delete everything", "Cancel"; after reset the app reloads into the tutorial.
+Settings: "Sound effects", "Effects volume", "Music", "Music volume" (slider value "{n}%"), "Vibration", "Reduce motion" (options "Match device", "On", "Off"), "Colour-blind patterns", "Show tutorial again", "Credits", "Reset all progress"; reset confirm: "Delete all progress? Your level, coins, unlocks, stats and streak will be gone. This can't be undone." buttons "Delete everything", "Cancel"; after reset the app reloads into the tutorial.
+Credits (SG §11.13; entry points: "Credits" in Settings and in the Home footer after "How to play"):
+- Title "Credits"; button "Back"
+- Intro: "Gloop Pop uses free sounds and music made by these people. Thank you!"
+- Group headings: "Music", "Sound effects", "Code and art"
+- One line per credit, built as "{title} by {author} · {licence} · {site}", where {site} is the link text. The lines are generated from `src/audio/credits.ts` and read exactly:
+  - Music: "Lofi Hip Hop Loop by omfgdude · CC0 · OpenGameArt"
+  - Sound effects: "mouth pops - wet - room.flac by cbenci · CC0 · Freesound"; "Pops - Mouth by JelloApocalypse · CC0 · Freesound"; "Slime Squish by qubodup · CC0 · Freesound"; "Squish impact by Bertsz · CC0 · Freesound"; "Interface Sounds by Kenney · CC0 · Kenney"; "Impact Sounds by Kenney · CC0 · Kenney"; "Casino Audio by Kenney · CC0 · Kenney"; "Music Jingles by Kenney · CC0 · Kenney"
+  - Code and art: "Code, art and synth sounds: made for Gloop Pop." (no link)
+- Link label (aria): "Open {title} on {site}"
+- Note at the end: "CC0 means anyone may use it for free. We credit them anyway."
 Collection: tabs "Themes", "Skins", "Pop effects"; item buttons per §14.4.
 Stats: see §18.
 
