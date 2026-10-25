@@ -15,15 +15,20 @@ describe('Adventure boosters', () => {
   });
   it('consumes Moves at start and adds three bonus moves', () => {
     const save = defaultSave(); save.adventure.boosters.moves = 1;
-    const result = armBoosters(save, { moves: true }, 0);
+    const result = armBoosters(save, { moves: true }, 0, 1);
     expect([result.bonusMoves, result.save.adventure.boosters.moves]).toEqual([3, 0]);
   });
   it('applies the frontier streak table and free Shuffle without spending stock', () => {
     for (const [streak, bonus, free] of [[0, 0, false], [1, 1, false], [2, 2, false], [3, 2, true], [5, 2, true]] as const) {
       const save = defaultSave(); save.adventure.frontier = 1; save.adventure.boosters.shuffle = 1;
-      const result = armBoosters(save, { shuffle: true }, streak);
+      const result = armBoosters(save, { shuffle: true }, streak, 1);
       expect([result.bonusMoves, result.freeShuffle, result.armed.shuffle, result.save.adventure.boosters.shuffle]).toEqual([bonus, free, free ? 0 : 1, free ? 1 : 0]);
     }
+  });
+  it('does not grant the frontier streak bonus or free Shuffle on a replay', () => {
+    const save = defaultSave(); save.adventure.frontier = 4; save.adventure.boosters.shuffle = 1;
+    const result = armBoosters(save, { shuffle: true }, 5, 2);
+    expect([result.bonusMoves, result.freeShuffle, result.armed.shuffle, result.save.adventure.boosters.shuffle]).toEqual([0, false, 1, 0]);
   });
   it('returns unused Shuffle and Pop on every result path, but not used or free Shuffle', () => {
     const armed = newAdventureGame(LEVELS[0]!, { bonusMoves: 0, boosters: { shuffle: 1, pop: 1 }, freeShuffle: false }).state;

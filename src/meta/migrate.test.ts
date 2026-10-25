@@ -57,6 +57,17 @@ describe('save migration', () => {
     const bad = { ...fresh, adventure: { ...fresh.adventure, frontier: 300, boosters: { moves: 9, shuffle: -1, pop: 3 }, levels: { '0': { stars: 5, wins: 0, losses: 0, lossRun: 0, bestScore: 0 }, '121': { stars: 1, wins: 0, losses: 0, lossRun: 0, bestScore: 0 } } }, missions: { ...fresh.missions, slots: [{ id: 'unknown', pos: 0, progress: 4, claimed: false, issued: '' }] } };
     const clean = sanitize(bad as unknown as SaveV2); expect(clean.adventure.frontier).toBe(121); expect(clean.adventure.boosters).toEqual({ moves: 5, shuffle: 0, pop: 3 }); expect(clean.adventure.levels).toEqual({}); expect(clean.missions.slots).toEqual([]);
   });
+  it('keeps mission slot positions when sanitizing a dropped middle slot', () => {
+    const save = defaultSave();
+    const dirty = { ...save, missions: { ...save.missions, slots: [
+      { id: 'lines15', pos: 0, progress: 1, claimed: false, issued: '' },
+      { id: 'unknown', pos: 1, progress: 0, claimed: false, issued: '' },
+      { id: 'lines80', pos: 2, progress: 8, claimed: false, issued: '' },
+    ] } } as SaveV2;
+    const clean = sanitize(dirty);
+    expect(clean.missions.slots).toHaveLength(3);
+    expect(clean.missions.slots[0]?.id).toBe('lines15'); expect(clean.missions.slots[1]).toBeUndefined(); expect(clean.missions.slots[2]?.id).toBe('lines80');
+  });
   it('applies the v2 clamps and board-mode validation from design §24.14', () => {
     const fresh = defaultSave();
     const savedAttempt = { ...migrate({ ...fixture, profile: { ...fixture.profile, level: 23 } }).inProgress!, mode: 'adventure' as const, adventure: { level: 1 } };

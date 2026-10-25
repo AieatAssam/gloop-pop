@@ -29,6 +29,14 @@ describe('near miss facts', () => {
     const result = nearMissMessages(state, 0, 0, 0, { mission: { remaining: 2, target: 15, text: 'Clear 15 lines' } });
     expect(result.map((item) => item.kind)).toEqual(['mission','fallback']); expect(result[0]?.amount).toBe(2);
   });
+  it('lists all unmet Adventure goals before stuck and board facts, then keeps the first two', () => {
+    const state = newAdventureGame(LEVELS[0]!, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state;
+    state.adventure!.goals = [{ kind: 'L', target: 5, progress: 2 }, { kind: 'F', flavour: 3, target: 8, progress: 4 }];
+    state.adventure!.result = { won: false, reason: 'stuck', movesLeft: 2, stars: 0 };
+    expect(nearMissMessages(state, 0, 0, 0).map((item) => [item.kind, item.amount, item.unit])).toEqual([['adventureNeed', 3, 'L'], ['adventureNeed', 4, '3']]);
+    state.adventure!.goals = [{ kind: 'L', target: 5, progress: 4 }];
+    expect(nearMissMessages(state, 0, 0, 0).map((item) => item.kind)).toEqual(['adventureNeed', 'stuck']);
+  });
   it('reports Adventure goal units in singular and plural and only reports empty space on stuck losses', () => {
     const state = newAdventureGame(LEVELS[0]!, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state;
     state.adventure!.goals = [{ kind: 'F', flavour: 6, target: 4, progress: 3 }]; state.adventure!.result = { won: false, reason: 'moves', movesLeft: 0, stars: 0 };
@@ -36,6 +44,6 @@ describe('near miss facts', () => {
     state.adventure!.goals[0]!.progress = 2;
     expect(nearMissMessages(state, 0, 0, 0)[0]).toMatchObject({ kind: 'adventureNeed', amount: 2, unit: '6' });
     state.adventure!.result = { won: false, reason: 'stuck', movesLeft: 3, stars: 0 };
-    expect(nearMissMessages(state, 0, 0, 0).map((item) => item.kind)).toEqual(['stuck', 'adventureNeed']);
+    expect(nearMissMessages(state, 0, 0, 0).map((item) => item.kind)).toEqual(['adventureNeed', 'stuck']);
   });
 });

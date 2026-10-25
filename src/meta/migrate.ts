@@ -60,10 +60,24 @@ export function sanitize(input: SaveV2): SaveV2 {
     const attemptLevel = savedAttempt?.adventure?.level;
     base.adventure = { frontier: Math.max(high, Math.min(121, Math.max(1, integer(source.adventure.frontier, 1)))), levels, winStreak: integer(source.adventure.winStreak), bestWinStreak: integer(source.adventure.bestWinStreak), boosters: { moves: clampCount(source.adventure.boosters, 'moves'), shuffle: clampCount(source.adventure.boosters, 'shuffle'), pop: clampCount(source.adventure.boosters, 'pop') }, chaptersDone: cleanChapters(source.adventure.chaptersDone), chaptersAllStars: cleanChapters(source.adventure.chaptersAllStars), inProgress: validGame(savedAttempt) && savedAttempt.mode === 'adventure' && Number.isInteger(attemptLevel) && Number(attemptLevel) >= 1 && Number(attemptLevel) <= 120 ? savedAttempt : null };
   }
-  if (source.missions && isRecord(source.missions)) base.missions = { day: typeof source.missions.day === 'string' ? source.missions.day : null, slots: Array.isArray(source.missions.slots) ? source.missions.slots.filter((slot) => isRecord(slot) && typeof slot.id === 'string' && missionIds.has(slot.id)).slice(0, 3).map((rawSlot) => { const slot = rawSlot as unknown as Record<string, unknown>; return { id: String(slot.id), pos: integer(slot.pos), progress: Math.min(missionTarget(String(slot.id)), integer(slot.progress)), claimed: slot.claimed === true, issued: typeof slot.issued === 'string' ? slot.issued : '' }; }) : [], rerollDay: typeof source.missions.rerollDay === 'string' ? source.missions.rerollDay : null, shownToday: Array.isArray(source.missions.shownToday) ? source.missions.shownToday.filter((id): id is string => typeof id === 'string' && missionIds.has(id)) : [], setPaid: source.missions.setPaid === true, finished: integer(source.missions.finished) };
+  if (source.missions && isRecord(source.missions)) base.missions = { day: typeof source.missions.day === 'string' ? source.missions.day : null, slots: Array.isArray(source.missions.slots) ? sanitizeMissionSlots(source.missions.slots) : [], rerollDay: typeof source.missions.rerollDay === 'string' ? source.missions.rerollDay : null, shownToday: Array.isArray(source.missions.shownToday) ? source.missions.shownToday.filter((id): id is string => typeof id === 'string' && missionIds.has(id)) : [], setPaid: source.missions.setPaid === true, finished: integer(source.missions.finished) };
   if (source.ui) base.ui = { runsFinished: integer(source.ui.runsFinished), seenTips: Array.isArray(source.ui.seenTips) ? source.ui.seenTips.filter((v): v is string => typeof v === 'string') : [] };
   base.best.classic = Math.max(base.best.classic, base.stats.bestClassic); base.best.expert = Math.max(base.best.expert, base.stats.bestExpert);
   base.v = 2; return base;
+}
+
+
+function sanitizeMissionSlots(input: unknown[]): SaveV2['missions']['slots'] {
+  const slots: SaveV2['missions']['slots'] = [];
+  slots.length = 3;
+  for (let pos = 0; pos < 3; pos += 1) {
+    const rawSlot = input[pos];
+    if (!isRecord(rawSlot) || typeof rawSlot.id !== 'string' || !missionIds.has(rawSlot.id)) continue;
+    slots[pos] = { id: rawSlot.id, pos, progress: Math.min(missionTarget(rawSlot.id), integer(rawSlot.progress)), claimed: rawSlot.claimed === true, issued: typeof rawSlot.issued === 'string' ? rawSlot.issued : '' };
+  }
+  let length = slots.length; while (length > 0 && slots[length - 1] === undefined) length -= 1;
+  slots.length = length;
+  return length === 0 ? [] : slots;
 }
 
 function cleanDailyRecords(records: Record<string, unknown>): SaveV1['daily']['records'] {

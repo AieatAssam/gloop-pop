@@ -40,7 +40,7 @@ export const S = {
   cubesGoal: (t: number): string => `Clear all ${number(t)} sugar cubes`,
   adventureTip: (n: number): string => ({ 6: 'New: flavour goals. Cells you clear or pop both count.', 21: 'New: sugar cubes. Clear a line through a cube to remove it.', 41: 'New: Big Pop goals. Pop a gloop of 8 or more cells.', 46: 'New: clear 2 or more lines with one piece.', 51: 'Grape joins in: 6 flavours from now on.', 61: 'New: hard cubes. They need 2 line clears.', 81: 'New: two goals. Finish both to win.', 91: 'Bubblegum joins in: 7 flavours from now on.' } as Record<number,string>)[n] ?? '',
   levelPlay: 'Play', backToMap: 'Back to map', levelText: (n: number): string => `Level ${number(n)}`,
-  winStreakBonus: (k: number): string => `Win streak ${number(k)}: +${number(Math.min(2, k))} moves`,
+  winStreakBonus: (k: number): string => `Win streak ${number(k)}: +${number(Math.min(2, k))} ${Math.min(2, k) === 1 ? 'move' : 'moves'}`,
   winStreakShuffle: (k: number): string => `Win streak ${number(k)}: +2 moves and a free Shuffle`,
   streakBonusCaption: 'Win new levels in a row for a bonus. A loss resets it.',
   assist: 'Extra help: +5 moves', assistCaption: "Extra moves don't count for stars.",
@@ -53,15 +53,15 @@ export const S = {
   useShuffle: 'Use Shuffle', usePop: 'Use Pop', boosterUsed: 'Used',
   movesLeft: 'moves left', goalProgress: (p: number, t: number): string => `${number(p)} / ${number(t)}`,
   goalAria: (text: string, p: number, t: number): string => `${text}: ${number(p)} of ${number(t)}`,
-  levelComplete: (n: number): string => `Level ${number(n)} complete`, resultStarsAria: (s: number): string => `${number(s)} stars`, levelWinStreak: (n: number): string => `Win streak ${number(n)}`, wonMoves: (m: number): string => `Won with ${number(m)} moves left.`,
-  winNextStar: (s: number, k: number): string => `Win with ${number(s)} moves left for ${number(k)} stars.`,
-  bonusStarsCaption: (b: number): string => `Stars count moves left without your ${number(b)} extra moves.`,
+  levelComplete: (n: number): string => `Level ${number(n)} complete`, resultStarsAria: (s: number): string => `${number(s)} stars`, levelWinStreak: (n: number): string => `Win streak ${number(n)}`, wonMoves: (m: number): string => `Won with ${number(m)} ${m === 1 ? 'move' : 'moves'} left.`,
+  winNextStar: (s: number, k: number): string => `Win with ${number(s)} ${s === 1 ? 'move' : 'moves'} left for ${number(k)} stars.`,
+  bonusStarsCaption: (b: number): string => b === 1 ? "Your 1 extra move doesn't count for stars." : `Your ${number(b)} extra moves don't count for stars.`,
   levelEnded: (n: number): string => `Level ${number(n)} ended`, outOfMoves: 'Out of moves',
   tryAgain: 'Try again', nextLevel: 'Next level', replayLevel: 'Replay', map: 'Map',
   levelReward: (xp: number, coins: number): string => `+${number(xp)} XP · +${number(coins)} coins`,
   levelLossReward: '+5 XP · +2 coins', winStreakReset: 'Win streak reset',
   adventureNeed: (count: number, unit: string): string => `You needed ${number(count)} more ${unit}.`,
-  nothingFit: (moves: number): string => `Nothing fit with ${number(moves)} moves left.`,
+  nothingFit: (moves: number): string => `Nothing fit with ${number(moves)} ${moves === 1 ? 'move' : 'moves'} left.`,
   adventureUnit: (kind: string, count: number, flavour?: string): string => {
     if (kind === 'L') return count === 1 ? 'line' : 'lines';
     if (kind === 'S') return count === 1 ? 'point' : 'points';

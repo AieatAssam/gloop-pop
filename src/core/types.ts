@@ -17,7 +17,7 @@ export interface GameState {
   linesCleared: number; rescue: { charge: number; ready: boolean; used: boolean };
   daily?: { dayNumber: number; dayKey: string; flavourOfDay: Flavour; trays: Piece[][]; trayLines: number[]; traySpecial: boolean[] };
   status: 'playing' | 'stuck' | 'rescueOffer' | 'over'; moves: number; stats: RunStats;
-  goals?: { floor: number; targetsHit: number; mini: { id: string; flavour?: Flavour; target: number; progress: number; done: boolean } };
+  goals?: { floor: number; best: number; targetsHit: number; mini: { id: string; flavour?: Flavour; target: number; progress: number; done: boolean } };
   // spec-note: Leaving an Adventure attempt preserves it as inProgress; only explicit give-up records a loss.
   adventure?: { level: number; moveLimit: number; bonusMoves: number; movesLeft: number; goals: { kind: 'L' | 'S' | 'F' | 'B' | 'M' | 'C'; flavour?: Flavour; target: number; progress: number }[]; s2: number; s3: number; stage: number; flavours: number; f2: number; boosters: { shuffle: 'none' | 'armed' | 'used'; pop: 'none' | 'armed' | 'used'; freeShuffle: boolean }; result: null | { won: boolean; reason: 'goals' | 'moves' | 'stuck' | 'gaveUp'; movesLeft: number; stars: 0 | 1 | 2 | 3 } };
 }

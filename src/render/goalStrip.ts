@@ -4,6 +4,7 @@ import type { Layout, Rect } from './layout';
 import { PALETTE } from './palette';
 import { S } from '../ui/strings';
 import { easeOutBack } from './easing';
+import { ladderValue, nextTarget } from '../core/goals';
 
 const textSprites = new Map<string, HTMLCanvasElement>();
 export function drawGoalStrip(ctx: CanvasRenderingContext2D, layout: Layout, state: GameState, shownScore: number, elapsed: number, crossing?: { target: number; coins: number; at: number; worldAt: number; hold: boolean }, miniDoneAt = -1, miniDoneWorldAt = -1, worldNow = elapsed, reducedMotion = false): void {
@@ -14,7 +15,7 @@ export function drawGoalStrip(ctx: CanvasRenderingContext2D, layout: Layout, sta
   const width = desktop ? layout.goalStrip.width : Math.min((layout.width - 40) / 2, 240);
   const total = width * 2 + gap; const left = desktop ? layout.goalStrip.x : (layout.width - total) / 2;
   const top = desktop ? layout.goalStrip.y : layout.goalStrip.y + 2;
-  const target = nextVisible(state, shownScore);
+  const target = nextTarget(shownScore, state.goals.floor, state.goals.best);
   const targetIndex = ladderIndex(target); const firstVisibleIndex = ladderIndexAtFloor(state.goals.floor); const previous = targetIndex === firstVisibleIndex ? 0 : ladderValue(targetIndex - 1);
   const fraction = Math.max(0, Math.min(1, (shownScore - previous) / Math.max(1, target - previous)));
   const crossingVisible = crossing && crossing.at >= 0 && elapsed - crossing.at < 1200 || crossing?.hold === true;
@@ -78,7 +79,5 @@ function textSprite(ctx: CanvasRenderingContext2D, text: string, font: string): 
   label.font = font; label.fillStyle = PALETTE.ui.textPrimary; label.textAlign = 'center'; label.textBaseline = 'middle'; label.fillText(text, sprite.width / 2, sprite.height / 2);
   textSprites.set(key, sprite); return sprite;
 }
-function nextVisible(state: GameState, score: number): number { let index = 0; while (ladderValue(index) <= score || ladderValue(index) < (state.goals?.floor ?? 0)) index += 1; return ladderValue(index); }
 function ladderIndex(target: number): number { let i = 0; while (ladderValue(i) < target) i += 1; return i; }
 function ladderIndexAtFloor(floor: number): number { let i = 0; while (ladderValue(i) < floor) i += 1; return i; }
-function ladderValue(index: number): number { const base = [1000,2500,5000,7500,10000,15000,20000,30000,40000,50000,75000,100000]; return base[index] ?? 100000 + 50000 * (index - 11); }

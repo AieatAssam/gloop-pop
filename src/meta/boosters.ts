@@ -18,11 +18,11 @@ export function buyBooster(save: SaveV2, id: BoosterId): SaveV2 {
   return next;
 }
 
-export function armBoosters(save: SaveV2, selection: BoosterSelection, streak: number): { save: SaveV2; bonusMoves: number; armed: { shuffle: number; pop: number }; freeShuffle: boolean } {
+export function armBoosters(save: SaveV2, selection: BoosterSelection, streak: number, level: number): { save: SaveV2; bonusMoves: number; armed: { shuffle: number; pop: number }; freeShuffle: boolean } {
   const next = structuredClone(save);
   const frontier = next.adventure.frontier;
-  const freeShuffle = frontier <= 120 && streak >= 3;
-  const onFrontier = frontier <= 120;
+  const onFrontier = level === frontier;
+  const freeShuffle = onFrontier && streak >= 3;
   const moves = selection.moves && next.adventure.boosters.moves > 0 ? 3 : 0;
   const shuffle = selection.shuffle && next.adventure.boosters.shuffle > 0 && !freeShuffle ? 1 : 0;
   const pop = selection.pop && next.adventure.boosters.pop > 0 ? 1 : 0;

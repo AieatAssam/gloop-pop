@@ -9,8 +9,8 @@ export function ladderValue(index: number): number {
   if (index < 0 || !Number.isInteger(index)) return 0;
   return index < LADDER.length ? LADDER[index]! : 100_000 + 50_000 * (index - LADDER.length + 1);
 }
-export function nextTarget(score: number, floor: number): number {
-  let index = 0; while (ladderValue(index) <= score || ladderValue(index) < floor) index += 1;
+export function nextTarget(score: number, floor: number, best = 0): number {
+  let index = 0; while (ladderValue(index) <= score || ladderValue(index) < floor || ladderValue(index) === best) index += 1;
   return ladderValue(index);
 }
 export function targetsPassed(oldScore: number, newScore: number): number[] {
@@ -44,7 +44,10 @@ export function miniProgress(mini: MiniGoal, events: readonly GameEvent[], state
     if (mini.id === 'lines12' && event.type === 'cleared') amount += event.rows.length + event.cols.length;
     if (mini.id === 'grow12' && event.type === 'bigGloop' && event.size >= 12) amount = 1;
   }
-  if (mini.id === 'combo4') amount = Math.max(amount, mini.progress, state.bestCombo >= 4 ? 4 : 0);
+  if (mini.id === 'combo4') {
+    const progress = Math.min(4, Math.max(mini.progress, amount, state.bestCombo));
+    return progress === mini.progress ? mini : { ...mini, progress, done: progress >= 4 };
+  }
   const progress = Math.min(mini.target, mini.progress + amount);
   return progress === mini.progress ? mini : { ...mini, progress, done: progress >= mini.target };
 }

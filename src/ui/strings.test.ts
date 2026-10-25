@@ -52,6 +52,14 @@ describe('player-facing strings', () => {
     expect(S.creditsIntro).toBe('Gloop Pop uses free sounds and music made by these people. Thank you!');
     expect(S.creditsNote).toBe('CC0 means anyone may use it for free. We credit them anyway.');
   });
+  it('uses singular Adventure copy and the stated bonus-move wording', () => {
+    expect(S.wonMoves(1)).toBe('Won with 1 move left.'); expect(S.wonMoves(2)).toBe('Won with 2 moves left.');
+    expect(S.winNextStar(1, 2)).toBe('Win with 1 move left for 2 stars.');
+    expect(S.nothingFit(1)).toBe('Nothing fit with 1 move left.'); expect(S.nothingFit(2)).toBe('Nothing fit with 2 moves left.');
+    expect(S.winStreakBonus(1)).toBe('Win streak 1: +1 move');
+    expect(S.bonusStarsCaption(1)).toBe("Your 1 extra move doesn't count for stars.");
+    expect(S.bonusStarsCaption(2)).toBe("Your 2 extra moves don't count for stars.");
+  });
   it('uses the exact short and full mini-goal labels from design §24.2', () => {
     expect(['bigpop','combo4','double','cross','flavour12','lines12','pop15','grow12'].map((id) => S.miniShort(id, 0, 4))).toEqual(['Big Pop 0/1','Combo 0/4','2 lines at once 0/1','Row + column 0/1','Apple cells 0/12','Lines 0/12','Gloop cells 0/15','12-cell gloop 0/1']);
     expect(S.miniText('flavour12', 4)).toBe('Clear or pop 12 apple cells');

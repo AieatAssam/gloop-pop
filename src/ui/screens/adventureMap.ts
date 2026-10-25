@@ -5,6 +5,8 @@ import { createMiniGloop } from '../../render/miniGloop';
 import { S } from '../strings';
 
 const FLAVOURS = [1, 3, 4, 5, 6, 7] as const;
+const SLOT = 132;
+export function yFor(level: number, pitch: number): number { return (120 - level) * pitch + (6 - Math.ceil(level / 20) + 1) * SLOT; }
 export function createAdventureMap(save: SaveV2, actions: { back(): void; openLevel(level: number): void }): HTMLElement {
   const root = document.createElement('main'); root.className = 'screen-wrap adventure-screen';
   const header = document.createElement('header'); header.className = 'adventure-header';
@@ -16,9 +18,9 @@ export function createAdventureMap(save: SaveV2, actions: { back(): void; openLe
   const scroll = document.createElement('div'); scroll.className = 'adventure-scroll';
   const column = document.createElement('div'); column.className = 'adventure-map-column';
   const content = document.createElement('div'); content.className = 'adventure-map-content';
-  const pitch = window.innerWidth >= 800 ? 104 : 96; const contentHeight = 120 * pitch + 220;
+  const pitch = window.innerWidth >= 800 ? 104 : 96; const contentHeight = 120 * pitch + 6 * SLOT + 220;
   content.style.height = `${contentHeight}px`;
-  content.append(mapPath(save.adventure.frontier, contentHeight, pitch, window.innerWidth >= 800 ? 180 : 160));
+  content.append(mapPath(save.adventure.frontier, contentHeight, pitch, window.innerWidth >= 800 ? 204 : 196));
   const pausedLevel = save.adventure.inProgress?.adventure?.level;
   for (let level = 1; level <= 120; level += 1) {
     const state = save.adventure.levels[String(level)]; const won = Boolean(state?.wins); const unlocked = level <= save.adventure.frontier || won;
@@ -37,15 +39,15 @@ export function createAdventureMap(save: SaveV2, actions: { back(): void; openLe
     else if (won) { const starsLabel = document.createElement('small'); starsLabel.textContent = '★'.repeat(state?.stars ?? 0) + '☆'.repeat(3 - (state?.stars ?? 0)); starsLabel.className = 'adventure-node-stars'; nodeWrap.append(starsLabel); }
     if (params.band === 'hard') { const hard = document.createElement('small'); hard.textContent = S.hard; hard.className = 'adventure-node-hard'; nodeWrap.append(hard); }
     const offset = [0, 18, 28, 18, 0, -18, -28, -18][(level - 1) % 8] ?? 0;
-    nodeWrap.style.setProperty('--node-x', `${offset}%`); nodeWrap.style.setProperty('--node-y', `${(120 - level) * pitch}px`); content.append(nodeWrap);
-    if (level % 20 === 0) content.append(chapterCard(save, Math.ceil(level / 20), (120 - level) * pitch + 12));
+    nodeWrap.style.setProperty('--node-x', `${offset}%`); nodeWrap.style.setProperty('--node-y', `${yFor(level, pitch)}px`); content.append(nodeWrap);
+    if (level % 20 === 0) content.append(chapterCard(save, Math.ceil(level / 20), yFor(level, pitch) + 4));
   }
   column.append(content); scroll.append(column);
   const target = Math.max(1, pausedLevel ?? save.adventure.frontier);
   root.append(header, scroll);
   if (save.adventure.frontier > 120) { const done = document.createElement('p'); done.className = 'adventure-all-won'; done.textContent = S.allLevelsWon; root.append(done); }
   else { const footer = button(S.playLevel(target), 'button button--primary adventure-footer', () => actions.openLevel(target)); root.append(footer); }
-  requestAnimationFrame(() => { scroll.scrollTop = Math.max(0, (120 - target) * pitch + (window.innerWidth >= 800 ? 180 : 160) - scroll.clientHeight * 0.6); });
+  requestAnimationFrame(() => { scroll.scrollTop = Math.max(0, yFor(target, pitch) + (window.innerWidth >= 800 ? 204 : 196) - scroll.clientHeight * 0.6); });
   return root;
 }
 function chapterCard(save: SaveV2, chapter: number, y: number): HTMLElement {
@@ -62,7 +64,7 @@ function chip(text: string): HTMLElement { const value = document.createElement(
 function button(text: string, cls: string, action: () => void): HTMLButtonElement { const item = document.createElement('button'); item.type = 'button'; item.textContent = text; item.className = cls; item.addEventListener('click', action); return item; }
 function mapPath(frontier: number, height: number, pitch: number, centreOffset: number): SVGSVGElement {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.classList.add('adventure-map-path'); svg.setAttribute('viewBox', `0 0 600 ${height}`); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('aria-hidden', 'true');
-  const points = Array.from({ length: 120 }, (_, index) => { const level = index + 1; const offset = [0, 18, 28, 18, 0, -18, -28, -18][(level - 1) % 8] ?? 0; return { x: 300 + offset * 6, y: (120 - level) * pitch + centreOffset }; });
+  const points = Array.from({ length: 120 }, (_, index) => { const level = index + 1; const offset = [0, 18, 28, 18, 0, -18, -28, -18][(level - 1) % 8] ?? 0; return { x: 300 + offset * 6, y: yFor(level, pitch) + centreOffset }; });
   const pathFor = (items: typeof points): string => { if (!items.length) return ''; let path = `M ${items[0]!.x} ${items[0]!.y}`; for (let index = 0; index < items.length - 1; index += 1) { const p0 = items[Math.max(0, index - 1)]!; const p1 = items[index]!; const p2 = items[index + 1]!; const p3 = items[Math.min(items.length - 1, index + 2)]!; path += ` C ${p1.x + (p2.x - p0.x) / 6} ${p1.y + (p2.y - p0.y) / 6}, ${p2.x - (p3.x - p1.x) / 6} ${p2.y - (p3.y - p1.y) / 6}, ${p2.x} ${p2.y}`; } return path; };
   const base = document.createElementNS(svg.namespaceURI, 'path'); base.setAttribute('d', pathFor(points)); base.classList.add('adventure-path-base'); svg.append(base);
   const doneThrough = Math.max(1, Math.min(120, frontier)); if (doneThrough > 1) { const progress = document.createElementNS(svg.namespaceURI, 'path'); progress.setAttribute('d', pathFor(points.slice(0, doneThrough))); progress.classList.add('adventure-path-progress'); svg.append(progress); }

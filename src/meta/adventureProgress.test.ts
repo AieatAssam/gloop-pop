@@ -19,6 +19,11 @@ describe('Adventure progress', () => {
     result = recordLevelResult(save, { level: 1, won: false, stars: 0 });
     expect([result.xp, result.coins]).toEqual([5, 2]);
   });
+  it('keeps the best Adventure score for each level', () => {
+    let save = recordLevelResult(defaultSave(), { level: 1, won: true, stars: 1, score: 850 }).save;
+    save = recordLevelResult(save, { level: 1, won: false, stars: 0, score: 1200 }).save;
+    expect(save.adventure.levels['1']?.bestScore).toBe(1200);
+  });
   it('grants the level 2 unlock gift once, capped at five', () => {
     const save = defaultSave(); save.adventure.boosters = { moves: 5, shuffle: 0, pop: 2 };
     const unlocked = unlockAdventure(save);

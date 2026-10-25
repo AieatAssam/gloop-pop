@@ -3,7 +3,7 @@ import type { GameState } from '../core/types';
 import { S } from './strings';
 import { iconMarkup } from './icons';
 
-export function createLevelResultPanel(state: GameState, reward: { xp: number; coins: number }, actions: { next(): void; replay(): void; assistAgain?(): void; map(): void }, nearLines: string[] = [], progress: { winStreak: number; streakReset: boolean; assistAvailable: boolean } = { winStreak: 0, streakReset: false, assistAvailable: false }): HTMLElement {
+export function createLevelResultPanel(state: GameState, reward: { xp: number; coins: number; progress?: number; progressMax?: number }, actions: { next(): void; replay(): void; assistAgain?(): void; map(): void }, nearLines: string[] = [], progress: { winStreak: number; streakReset: boolean; assistAvailable: boolean } = { winStreak: 0, streakReset: false, assistAvailable: false }): HTMLElement {
   const adventure = state.adventure; if (!adventure?.result) throw new Error('Adventure result is required');
   const won = adventure.result.won; const panel = document.createElement('section'); panel.className = 'panel adventure-result-panel'; panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true');
   const title = document.createElement('h2'); title.textContent = won ? S.levelComplete(adventure.level) : adventure.result.reason === 'moves' ? S.outOfMoves : adventure.result.reason === 'stuck' ? S.noRoom : S.levelEnded(adventure.level); panel.append(title);
@@ -22,7 +22,7 @@ export function createLevelResultPanel(state: GameState, reward: { xp: number; c
   }
   const rewards = document.createElement('p'); rewards.className = 'adventure-result-rewards'; rewards.textContent = won ? S.levelReward(reward.xp, reward.coins) : S.levelLossReward; panel.append(rewards);
   if (won) {
-    const rewardWrap = document.createElement('div'); rewardWrap.className = 'adventure-xp-track'; const rewardFill = document.createElement('span'); rewardFill.style.width = '0%'; rewardWrap.append(rewardFill); requestAnimationFrame(() => { rewardFill.style.width = `${Math.min(100, reward.xp)}%`; });
+    const rewardWrap = document.createElement('div'); rewardWrap.className = 'adventure-xp-track'; const rewardFill = document.createElement('span'); rewardFill.style.width = '0%'; rewardWrap.append(rewardFill); requestAnimationFrame(() => { rewardFill.style.width = `${reward.progressMax ? Math.min(100, (reward.progress ?? 0) / reward.progressMax * 100) : 0}%`; });
     const rewardLabel = panel.querySelector('.adventure-result-rewards'); rewardLabel?.after(rewardWrap);
     panel.append(button(S.nextLevel, 'button button--primary', () => actions.next()), button(S.replayLevel, 'button button--secondary', () => actions.replay()));
   }

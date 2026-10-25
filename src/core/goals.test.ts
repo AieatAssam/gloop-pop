@@ -5,7 +5,7 @@ import { LADDER, MINI, ladderValue, miniProgress, nextTarget, pickMini, targetsP
 describe('run targets and mini goals', () => {
   it('keeps the fixed ladder and continues by fifty thousand', () => {
     expect([...LADDER, ladderValue(12), ladderValue(13)]).toEqual([1000,2500,5000,7500,10000,15000,20000,30000,40000,50000,75000,100000,150000,200000]);
-    expect(nextTarget(0, 0)).toBe(1000); expect(nextTarget(4999, 0)).toBe(5000); expect(nextTarget(0, 10000)).toBe(10000);
+    expect(nextTarget(0, 0)).toBe(1000); expect(nextTarget(4999, 0)).toBe(5000); expect(nextTarget(0, 10000)).toBe(10000); expect(nextTarget(0, 10000, 10000)).toBe(15000);
     expect(targetsPassed(4900, 10100)).toEqual([5000,7500,10000]);
   });
   it('pins eight independent seed hashes', () => {
@@ -29,6 +29,13 @@ describe('run targets and mini goals', () => {
       const goal = { id, ...(id === 'flavour12' ? { flavour: 4 as const } : {}), target: id === 'combo4' ? 4 : id === 'lines12' || id === 'flavour12' ? 12 : id === 'pop15' ? 15 : 1, progress: 0, done: false };
       const complete = miniProgress(goal, events[index] as never, state); expect(complete.done, id).toBe(true); expect(miniProgress(complete, events[index] as never, state)).toBe(complete);
     }
+  });
+  it('keeps combo 4 at the highest combo across moves without combo events', () => {
+    const state = newGame('classic', 'combo4-no-events').state; state.bestCombo = 1;
+    let mini = { id: 'combo4', target: 4, progress: 0, done: false };
+    mini = miniProgress(mini, [{ type: 'comboUp', combo: 1, tier: 0 }], state); expect(mini.progress).toBe(1);
+    for (let move = 0; move < 5; move += 1) { mini = miniProgress(mini, [], state); expect(mini.progress).toBe(1); expect(mini.done).toBe(false); }
+    state.bestCombo = 3; mini = miniProgress(mini, [], state); expect(mini.progress).toBe(3); state.bestCombo = 4; mini = miniProgress(mini, [], state); expect(mini).toMatchObject({ progress: 4, done: true });
   });
   it('adds goals only to opted-in Classic and Expert runs without changing deal RNG', () => {
     const base = newGame('classic', 'same-seed').state; const goals = newGame('classic', 'same-seed', { goals: true, best: 40000 }).state;

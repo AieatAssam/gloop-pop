@@ -40,17 +40,19 @@ export function nearMissFacts(state: GameState): NearMissFacts {
 
 export function nearMissMessages(state: GameState, oldBest: number, fallbackBiggestPop: number, linesCleared: number, extras: NearMissExtras = {}): NearMissMessage[] {
   if (state.adventure?.result && !state.adventure.result.won) {
-    const result: NearMissMessage[] = [];
+    const result: NearMissMessage[] = state.adventure.goals.filter((goal) => goal.progress < goal.target)
+      .map((goal) => ({ kind: 'adventureNeed', amount: goal.target - goal.progress, unit: goal.kind === 'F' ? `${goal.flavour ?? 6}` : goal.kind }));
     if (state.adventure.result.reason === 'stuck') result.push({ kind: 'stuck', amount: state.adventure.movesLeft });
-    const goal = state.adventure.goals.find((item) => item.progress < item.target);
-    if (goal) result.push({ kind: 'adventureNeed', amount: goal.target - goal.progress, unit: goal.kind === 'F' ? `${goal.flavour ?? 6}` : goal.kind });
-    return result;
+    const facts = nearMissFacts(state);
+    if (facts.pieceOneCellShort) result.push({ kind: 'piece', amount: 1, shape: facts.pieceOneCellShort.shape });
+    if (facts.lineOneFromFull) result.push({ kind: 'line', amount: 1, lineKind: facts.lineOneFromFull.kind, index: facts.lineOneFromFull.index });
+    return result.slice(0, 2);
   }
   const facts = nearMissFacts(state); const result: NearMissMessage[] = [];
   if (oldBest > 0 && state.score > oldBest) result.push({ kind: 'newBest', amount: state.score - oldBest });
   else if (oldBest > 0 && oldBest - state.score <= oldBest * 0.15) result.push({ kind: 'bestShort', amount: oldBest - state.score });
   if (result.length < 2 && state.goals && (state.mode === 'classic' || state.mode === 'expert')) {
-    const target = nextTarget(state.score, state.goals.floor); const remaining = target - state.score;
+    const target = nextTarget(state.score, state.goals.floor, state.goals.best); const remaining = target - state.score;
     if (remaining > 0 && remaining <= target * 0.1) result.push({ kind: 'targetShort', amount: remaining, target });
   }
   if (result.length < 2 && facts.pieceOneCellShort) result.push({ kind: 'piece', amount: 1, shape: facts.pieceOneCellShort.shape });

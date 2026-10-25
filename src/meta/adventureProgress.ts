@@ -1,7 +1,7 @@
 import type { SaveV2 } from './saveSchema';
 import { grantXp } from './progression';
 
-export interface LevelResult { level: number; won: boolean; stars: 0 | 1 | 2 | 3 }
+export interface LevelResult { level: number; won: boolean; stars: 0 | 1 | 2 | 3; score?: number }
 export interface AdventureReward { save: SaveV2; xp: number; coins: number; firstWin: boolean; newStars: number; chapterDone: boolean; chapterAllStars: boolean; levels: number[]; unlocked: string[] }
 
 /** Apply a single finished level to Adventure progress; rewards are deterministic and replay safe. */
@@ -35,6 +35,7 @@ export function recordLevelResult(save: SaveV2, result: LevelResult): AdventureR
     xp = 5; coins = 2; level.losses += 1; level.lossRun += 1;
     if (result.level === adventure.frontier) adventure.winStreak = 0;
   }
+  level.bestScore = Math.max(level.bestScore, result.score ?? 0);
   adventure.levels[key] = level;
   if (firstWin) { adventure.frontier = 1; while (adventure.frontier <= 120 && (adventure.levels[String(adventure.frontier)]?.wins ?? 0) > 0) adventure.frontier += 1; }
   const chapter = Math.ceil(result.level / 20); const chapterLevels = Array.from({ length: 20 }, (_, index) => adventure.levels[String((chapter - 1) * 20 + index + 1)]);

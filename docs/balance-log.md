@@ -59,3 +59,11 @@ Economy calculation from design §24.10 and §24.7:
 The 5-stock booster cap costs 5 × (150 + 100 + 200) = **2,250 coins**, or **2.54 days** at 885 coins/day. The full 10,000-coin shop takes **11.30 days** at that mixed activity rate. The separate design estimate of 120–150 runs at 55 coins/run implies 6,600–8,250 coins, short of the stated 10,000-coin shop total; 10,000 ÷ 55 is about **182 Classic runs**. No balance values were changed.
 
 Chapter 1–2 human result: **lead to verify**. Record hard-level shortness/fairness here after phone play; do not hand-edit generated level data. Any clearly unfair level must be corrected by a level parameter change and regeneration.
+
+## 2026-10-25 · M12 director review fixes
+
+The 120 generated levels remain unchanged. `timeout 900 npm run levels -- --verify` validated all levels with the same per-chapter results above.
+
+Production bundle after review fixes: `timeout 300 npm run check` reports **113.54 KB gzipped** total (the 115 KB target remains unchanged). The Adventure map, level card, result panel and level data now ship together in `adventureBundle` (7.81 KB gzipped); `levelBot` is absent from `dist/`. Using the same gzip method as `tools/check-size.mjs`, the entry chunk is **102.30 KB gzipped**, compared with **82.64 KB** at `fadb7c3`, a **19.66 KB increase**. The per-file gzip sizes are: entry 102.30 KB, `adventureBundle` 7.71 KB, `shareCard` 2.37 KB and `sw.js` 1.16 KB. The review asked that this growth be measured; no further entry split was requested, and total size is under target.
+
+The director's phone play for Chapters 1–2 remains pending. No human balance claim is added here; record whether the hard levels feel short and fair after that play.

@@ -23,7 +23,7 @@ describe('Adventure reducer', () => {
     const result = stepAdventure(stateWithRowGoal(), { type: 'place', slot: 0, row: 0, col: 7 });
     expect(result.state.adventure?.result).toMatchObject({ won: true, reason: 'goals', stars: 3 });
     expect(result.events.some((event) => event.type === 'levelWon')).toBe(true);
-    expect(result.events.some((event) => event.type === 'stageUp' || event.type === 'rescueOffered')).toBe(false);
+    expect(result.events.some((event) => event.type === 'stageUp' || event.type === 'rescueOffered' || event.type === 'stuck' || event.type === 'gameOver')).toBe(false);
   });
 
   it('loses when the move limit reaches zero and supports give up', () => {
@@ -47,7 +47,9 @@ describe('Adventure reducer', () => {
     const largeSquare = PIECES.find((piece) => piece.family === 'O3')!;
     state.tray = [{ defId: 0, flavour: 1 }, { defId: largeSquare.id, flavour: 1 }, null];
     state.adventure!.movesLeft = 5;
-    expect(stepAdventure(state, { type: 'place', slot: 0, row: 0, col: 0 }).state.adventure?.result).toMatchObject({ won: false, reason: 'stuck', movesLeft: 4 });
+    const result = stepAdventure(state, { type: 'place', slot: 0, row: 0, col: 0 });
+    expect(result.state.adventure?.result).toMatchObject({ won: false, reason: 'stuck', movesLeft: 4 });
+    expect(result.events.filter((event) => event.type === 'stuck')).toHaveLength(1); expect(result.events.some((event) => event.type === 'gameOver')).toBe(false);
   });
 
   it.each([

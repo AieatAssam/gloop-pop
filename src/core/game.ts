@@ -10,6 +10,7 @@ import { scoreMove } from './scoring';
 import { createRng, sfc32 } from './rng';
 import { miniProgress, pickMini, targetsPassed } from './goals';
 import type { Action, GameEvent, GameState, ModeId, Piece, Preview, RngState } from './types';
+// spec-note: Adventure shares the synchronous reducer so every action still commits before UI animation begins.
 import { stepAdventure } from './adventure';
 
 export function newGame(cfg: ModeId | ReturnType<typeof modeConfig>, seed: string, opts: { tutorialStep?: number; goals?: boolean; best?: number } = {}): { state: GameState; events: GameEvent[] } {
@@ -24,7 +25,7 @@ export function newGame(cfg: ModeId | ReturnType<typeof modeConfig>, seed: strin
     stats: { placements: 0, pops: 0, biggestPop: 0, allClears: 0, bigPops: 0, hugePops: 0, megaPops: 0, multiClears: 0, solverTimeMs: 0, f2Fallbacks: 0 },
   };
   if (opts.goals === true && (requestedMode === 'classic' || requestedMode === 'expert')) {
-    state.goals = { floor: Math.floor(Math.max(0, opts.best ?? 0) / 4), targetsHit: 0, mini: pickMini(seed) };
+    state.goals = { floor: Math.floor(Math.max(0, opts.best ?? 0) / 4), best: Math.max(0, opts.best ?? 0), targetsHit: 0, mini: pickMini(seed) };
   }
   if (config.id === 'daily') {
     const dayKey = seed.startsWith('gloop-pop/daily/v1/') ? seed.slice('gloop-pop/daily/v1/'.length) : seed;

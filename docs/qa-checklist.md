@@ -115,3 +115,21 @@ Screenshot URLs and expected states (each at **412 × 915** and **1280 × 800**,
 | `/gloop-pop/?debug=1&demo=adventure-win&stars=3` | Level win panel shows three earned stars and confetti. |
 | `/gloop-pop/?debug=1&demo=adventure-lose` | Lose panel shows unmet-goal facts and no offers. |
 | `/gloop-pop/?debug=1&demo=adventure-lose&losses=3` | Lose panel shows the 5-extra-moves retry and no offers to buy. |
+
+
+### M12 review fixes (automated)
+
+- [x] Quick Adventure results record before restart/navigation; regression in `src/app/adventureResult.test.ts`.
+- [x] Combo 4 counts the highest combo across moves without combo events; regression in `src/core/goals.test.ts`.
+- [x] Replays receive no frontier streak moves or free Shuffle; `src/meta/boosters.test.ts`.
+- [x] Adventure win events contain no Classic `stuck` or `gameOver`; `src/core/adventure.test.ts`.
+- [x] Result aria text uses the same title as the panel; `src/app/adventureResult.test.ts`.
+- [x] Adventure lose lines follow §24.12 priority; `src/core/nearMiss.test.ts`.
+- [x] Targets reached and per-level best score are recorded; `src/meta/stats.test.ts` and `src/meta/adventureProgress.test.ts`.
+- [x] Map chapter slots, node/path positions and scroll target share `yFor`; `src/ui/screens/adventureMap.test.ts`.
+- [x] Mission Claim sizing and result toast lane rules are pinned in `src/ui/styles.test.ts`.
+- [x] Singular/plural Adventure strings and extra-move copy match §16.4/§24.12; `src/ui/strings.test.ts`.
+- [x] Mission sanitize preserves A/B/C positions when a middle entry is invalid; `src/meta/migrate.test.ts`.
+- [x] Production build keeps Adventure UI and level data in one lazy chunk, excludes `levelBot`, and stays within the 115 KB target.
+
+Pixel 7 layout and chapter 1–2 human play checks remain listed above for the lead reviewer.

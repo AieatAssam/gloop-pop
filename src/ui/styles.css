@@ -101,7 +101,7 @@ body { color: var(--ui-text-primary); }
 .mission-progress-line small, .mission-side small { color: var(--ui-text-secondary); font: 700 12px/1 "Nunito", sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mission-side { min-height: 56px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px; }
 .mission-change { width: 36px; height: 36px; border: 1px solid var(--ui-panel-border); border-radius: 50%; color: var(--ui-text-primary); background: linear-gradient(var(--ui-secondary-top),var(--ui-secondary-bottom)); box-shadow: 0 2px 0 var(--ui-secondary-lip); font: 800 23px/1 "Nunito", sans-serif; cursor: pointer; }
-.mission-claim { min-height: 40px; padding: 0 13px; border-radius: 20px; font-size: 18px; animation: mission-pulse 1400ms ease-in-out infinite; }
+.mission-side .mission-claim { min-height: 40px; padding: 0 12px; border-radius: 20px; font: 800 18px/1 "Baloo 2", sans-serif; animation: mission-pulse 1400ms ease-in-out infinite; }
 .mission-done { color: var(--ui-success); font: 700 13px/1 "Nunito", sans-serif; }
 .mission-coin-flight { position: fixed; z-index: 20; width: 16px; height: 16px; border: 1px solid var(--ui-gold); border-radius: 50%; background: radial-gradient(circle at 35% 30%, var(--light-specular-soft), var(--ui-coin) 58%, var(--ui-gold)); box-shadow: 0 2px 5px var(--light-shadow); pointer-events: none; }
 .mission-row.is-claimed .mission-text { color: var(--ui-text-secondary); }
@@ -191,7 +191,7 @@ body { color: var(--ui-text-primary); }
 .adventure-map-column { width: min(100%,600px); min-height: 100%; margin: auto; padding: 0 0 104px; }
 .adventure-map-content { position: relative; width: 100%; }
 .adventure-map-path { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }.adventure-map-path path { fill: none; stroke-width: 10; stroke-linecap: round; stroke-dasharray: 0 18; }.adventure-path-base { stroke: color-mix(in srgb,var(--ui-panel-border) 90%,transparent); }.adventure-path-progress { stroke: color-mix(in srgb,var(--ui-gold) 80%,transparent); }
-.adventure-node-wrap { position: absolute; top: calc(var(--node-y) + 128px); left: calc(50% + var(--node-x)); width: 80px; height: 88px; display: flex; flex-direction: column; align-items: center; transform: translateX(-50%); }
+.adventure-node-wrap { position: absolute; top: calc(var(--node-y) + 164px); left: calc(50% + var(--node-x)); width: 80px; height: 88px; display: flex; flex-direction: column; align-items: center; transform: translateX(-50%); }
 .adventure-node { position: relative; z-index: 1; width: 64px; height: 64px; border: 0; border-radius: 50%; color: var(--ui-text-on-primary); background: linear-gradient(var(--ui-primary-top),var(--ui-primary-bottom)); box-shadow: 0 4px 0 var(--ui-primary-lip), inset 0 2px 0 var(--light-specular-soft),0 7px 12px var(--light-shadow); font: 800 24px/1 "Baloo 2",sans-serif; cursor: pointer; }
 .adventure-node.is-won { color: var(--ui-text-primary); background: linear-gradient(var(--ui-secondary-top),var(--ui-secondary-bottom)); box-shadow: 0 4px 0 var(--ui-secondary-lip),inset 0 2px 0 var(--light-specular-soft),0 7px 12px var(--light-shadow); }
 .adventure-node.is-locked { color: var(--ui-disabled-text); background: var(--ui-disabled); box-shadow: inset 0 2px 0 var(--light-specular-soft); cursor: default; }
@@ -206,6 +206,7 @@ body { color: var(--ui-text-primary); }
 .adventure-all-won { position: absolute; z-index: 3; bottom: calc(var(--safe-area-bottom) + 20px); width: 100%; padding: 0 20px; color: var(--ui-text-primary); text-align: center; font: 800 15px/1.3 "Nunito",sans-serif; }
 .adventure-modal-shade { position: fixed; z-index: 12; inset: 0; display: grid; place-items: center; padding: 24px 16px; background: var(--ui-scrim); }
 .adventure-level-card,.adventure-result-panel { position: relative; width: min(100%,360px); max-height: calc(100% - 24px); overflow: hidden; display: flex; flex-direction: column; gap: 12px; padding: 24px; }
+.adventure-result-shade { padding-top: calc(var(--safe-area-top) + 96px); }.adventure-result-shade .adventure-result-panel { max-height: 100%; }
 .adventure-card-body { min-height: 0; overflow-y: auto; display: grid; gap: 12px; padding: 0 2px 4px; }
 .adventure-card-title { display: grid; gap: 2px; }.adventure-card-title h2,.adventure-result-panel h2 { margin: 0; color: var(--ui-text-primary); font: 800 28px/1.05 "Baloo 2",sans-serif; }.adventure-card-title small,.adventure-star-threshold,.adventure-result-panel small { color: var(--ui-text-secondary); font: 700 13px/1.35 "Nunito",sans-serif; }
 .adventure-card-close { position: absolute; top: 0; right: 0; width: 44px; height: 44px; border: 2px solid var(--ui-panel-border); border-radius: 50%; color: var(--ui-text-primary); background: linear-gradient(var(--ui-secondary-top),var(--ui-secondary-bottom)); font: 800 24px/1 "Nunito",sans-serif; cursor: pointer; }
@@ -226,8 +227,8 @@ body { color: var(--ui-text-primary); }
 @media (prefers-reduced-motion: reduce) { .adventure-node.is-next { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .adventure-star-fill { animation: none; transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .adventure-confetti span { animation: none; opacity: .75; } }
-@media (max-width: 799px) { .adventure-result-shade { align-items: end; padding-bottom: calc(var(--safe-area-bottom) + 24px); } }
-@media (min-width: 800px) { .adventure-level-card,.adventure-result-panel { width: min(100%,420px); }.adventure-header { left: 50%; width: min(100%,600px); height: 72px; transform: translateX(-50%); }.adventure-scroll { top: calc(var(--safe-area-top) + 72px); }.adventure-node,.adventure-node.is-hard { width: 72px; height: 72px; }.adventure-node.is-hard { width: 80px; height: 80px; }.adventure-node-wrap { height: 100px; top: calc(var(--node-y) + 144px); }.adventure-map-path path { stroke-width: 12; } }
+@media (max-width: 799px) { .adventure-result-shade { align-items: end; padding-top: calc(var(--safe-area-top) + 96px); padding-bottom: calc(var(--safe-area-bottom) + 24px); } }
+@media (min-width: 800px) { .adventure-result-shade { padding-top: calc(var(--safe-area-top) + 96px); }.adventure-level-card,.adventure-result-panel { width: min(100%,420px); }.adventure-header { left: 50%; width: min(100%,600px); height: 72px; transform: translateX(-50%); }.adventure-scroll { top: calc(var(--safe-area-top) + 72px); }.adventure-node,.adventure-node.is-hard { width: 72px; height: 72px; }.adventure-node.is-hard { width: 80px; height: 80px; }.adventure-node-wrap { height: 100px; top: calc(var(--node-y) + 168px); }.adventure-map-path path { stroke-width: 12; } }
 
 .button {
   min-height: 56px;

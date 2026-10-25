@@ -53,7 +53,7 @@ export function stepAdventure(state: GameState, action: Action): { state: GameSt
   if (reservedSlot >= 0) next.tray[reservedSlot] = null;
   next.adventure = { ...adventure, goals: adventure.goals.map((goal) => ({ ...goal })), boosters: { ...adventure.boosters }, movesLeft: adventure.movesLeft - 1, result: null };
   next.rescue = { charge: 0, ready: false, used: false };
-  const events = placed.events.filter((event) => event.type !== 'stageUp' && event.type !== 'rescueOffered' && event.type !== 'rescueReady');
+  const events: GameEvent[] = placed.events.filter((event) => event.type !== 'stageUp' && event.type !== 'rescueOffered' && event.type !== 'rescueReady' && event.type !== 'stuck' && event.type !== 'gameOver');
   advanceGoals(next, events);
 
   // The order is intentional: a goal win takes priority over exhausted moves, dealing, and stuck.
@@ -65,7 +65,10 @@ export function stepAdventure(state: GameState, action: Action): { state: GameSt
     next.traysDealt += 1;
     events.push({ type: 'dealt', tray: dealt.tray });
   }
-  if (next.tray.filter((piece) => piece !== null).every((piece) => !fitsAnywhere(next.board, piece.defId))) return lose(next, 'stuck', events);
+  if (next.tray.filter((piece) => piece !== null).every((piece) => !fitsAnywhere(next.board, piece.defId))) {
+    events.push({ type: 'stuck', unfit: next.tray.filter((piece): piece is NonNullable<typeof piece> => piece !== null).map((piece) => piece.defId) });
+    return lose(next, 'stuck', events);
+  }
   return { state: next, events };
 }
 

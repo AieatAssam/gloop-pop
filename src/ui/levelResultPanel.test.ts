@@ -8,9 +8,10 @@ describe('Adventure result panel', () => {
   it('focuses Next level on wins and presents three stars and rewards', async () => {
     const state = newAdventureGame(LEVELS[0]!, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state;
     state.adventure!.result = { won: true, reason: 'goals', movesLeft: 6, stars: 3 }; state.status = 'over';
-    const panel = createLevelResultPanel(state, { xp: 70, coins: 65 }, { next: vi.fn(), replay: vi.fn(), map: vi.fn() }); document.body.append(panel); await Promise.resolve();
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { callback(0); return 0; });
+    const panel = createLevelResultPanel(state, { xp: 70, coins: 65, progress: 30, progressMax: 100 }, { next: vi.fn(), replay: vi.fn(), map: vi.fn() }); document.body.append(panel); await Promise.resolve();
     expect(document.activeElement?.textContent).toBe('Next level'); expect(panel.querySelectorAll('.adventure-star-fill')).toHaveLength(3);
-    expect(panel.textContent).toContain('+70 XP · +65 coins');
+    expect(panel.textContent).toContain('+70 XP · +65 coins'); expect(panel.querySelector<HTMLElement>('.adventure-xp-track span')?.style.width).toBe('30%'); raf.mockRestore();
   });
   it('keeps boosters, prices and purchase controls off losses and retries immediately', () => {
     const state = newAdventureGame(LEVELS[0]!, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state;
