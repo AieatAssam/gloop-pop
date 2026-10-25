@@ -67,6 +67,8 @@ export function drawJellyCell(context: CanvasRenderingContext2D, flavour: number
 }
 
 export function drawPiece(context: CanvasRenderingContext2D, flavour: number, cells: readonly (readonly [number, number])[], cell: number, x: number, y: number, elapsed: number, expression = 'idle', alpha = 1, muted = false): void {
+  // A placed piece whose every cell is removed by the same move has an empty visible shape: draw nothing (empty bounds are non-finite).
+  if (!cells.length || !Number.isFinite(cell) || !Number.isFinite(x) || !Number.isFinite(y)) return;
   const gloop: Gloop = { flavour: flavour as Gloop['flavour'], cells: cells.map(([r, c]) => r * 8 + c), bfs: [], largestSquare: { row: 0, col: 0, size: 1 } };
   drawGloop(context, gloop, cell, x, y, elapsed, expression, alpha, muted);
 }
