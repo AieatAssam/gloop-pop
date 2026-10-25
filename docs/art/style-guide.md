@@ -796,7 +796,7 @@ Top-centre, below the top bar. Pill, height 40, padding 0 18 px, `ui.panelSolid`
 - **Ghost hand:** a cartoon hand (rounded palm + index finger, drawn with paths) filled `ui.ghostHand` alpha 0.9, outline `face.ink` 2 px, shadow `ui.ghostHandShadow`. Animation loop: fade in 400 ms on the tray piece; press (scale 0.9) 120 ms; drag along a quadratic curve (control point 1.5c above the midpoint) to the target over 900 ms `easeInOutSine`, carrying a translucent copy of the piece (alpha 0.5); hold 300 ms with a press pulse ring; fade 300 ms; wait 500 ms; repeat. Disappears instantly on pointerdown on a piece.
 
 ### 11.11 Achievement badges
-80 px rounded squares (radius 20). Unlocked: fill gradient of a flavour chosen per achievement category (lines = blueberry, pops = cherry, combo = orange, score = lemon, daily/streak = grape, misc = apple, collection = bubblegum), with a white icon and a small gloop face peeking from the bottom edge. Locked: `ui.disabled`, lock icon, progress text below.
+80 px rounded squares (radius 20). Unlocked: fill gradient of a flavour chosen per achievement category (lines = blueberry, pops = cherry, combo = orange, score and goals (Adventure, missions, §20) = lemon, daily/streak = grape, misc = apple, collection = bubblegum), with a white icon and a small gloop face peeking from the bottom edge. Locked: `ui.disabled`, lock icon, progress text below.
 
 ### 11.12 Top bar (play screen)
 Left: menu button. Centre: daily pill (height 36, radius 18, `ui.panelSolid`, text Nunito 800 15 px; dot `ui.danger` 8 px when not played). Right: mute button, then pause button. On desktop the top bar spans the full width with 24 px side padding.
@@ -1205,6 +1205,7 @@ Theme switching: 400 ms crossfade of the background canvas; board and gloop cach
 ## 15. Layout
 
 ### 15.1 Portrait (reference 390 × 844 CSS px, no safe-area insets)
+(Pass 3: Classic, Expert and Adventure add a 30 px goal strip under the score band. Those numbers, and the Pixel 7 table, are in §20.8. This table stays exact for Daily and Zen.)
 Bands from the top (H = viewport height, safe insets added to the top and bottom bands):
 
 | Band | y from → to | Contents |
@@ -1278,3 +1279,182 @@ Tutorial bubble: bottom edge 12 px above the tray top, centred on the target slo
 
 ## 19. 64 px thumbnail test (R12)
 Render the app's OG image and a mid-game screenshot scaled to 64 px wide: each flavour must still be identifiable by colour and topper silhouette, the board must read as a grid of sockets, and at least one face must be visible. Done in M9.4 by eye.
+
+---
+
+## 20. Goals and Adventure UI (pass 3)
+
+Added 25 Oct 2026 for design §24. Everything here reuses the existing look: candy-pill buttons (§11.1), panels and modals (§11.3), cards (§11.7), toasts (§11.8), bars (§11.9), the gloop renderer for every gloop picture (§5, `miniGloop.ts`), and only existing palette roles. Reference sizes: **Pixel 7 = 412 × 915 CSS px** (portrait, no safe-area insets in Chrome) and **desktop = 1280 × 800**. Where this section conflicts with §15, this section wins.
+
+**Binding rule for this whole section:** nothing here blocks or delays input during play. Goal-strip and HUD motion runs on the R clock, particles on W (§9.13.a). Hitstop freezes only B, as before. Panels only open between attempts. The map and the start card are menus, not play.
+
+### 20.1 Sugar cubes on the board (Adventure only)
+- **Sugar cube (cell value 8):** a rounded square 0.84c wide, centred in the cell, radius **0.18c**, so it looks firmer than a jelly (gloop bodies use 0.28c, §4). Vertical gradient `fx.sugar` (top) → `ui.textSecondary` (bottom). Outline 0.05c `ui.textDim`. Three 4-point sugar glints (`light.specular`, alpha 0.8, sizes 0.08c / 0.06c / 0.05c) at fixed spots (upper left, centre right, lower middle). A small sleepy face (pillar 3: everything is alive): face box f = 0.4c, centred 0.06c below the middle, two closed-eye arcs and a tiny flat mouth in `face.ink` at alpha 0.55. Cubes don't blink or look at the finger. Once every 6–9 s (cosmetic RNG), a cube does a 160 ms 2% squash so it isn't perfectly still (pillar 3).
+- **Hard cube (value 9):** the sugar cube plus a frost cap: the top 38% of the body is overlaid with `ui.freeze` at alpha 0.6, with a wavy lower edge (3 arcs). The outline is 0.07c `ui.focusRing`.
+- **Never** a gloop: no merging, no shared body, no topper, and a 0.12c gap to every neighbour, like two different flavours (§4).
+- **Cached** like gloop bodies (§5.3): 2 sprites per theme per c (`render/cubes.ts`), redrawn into the board layer cache. Nothing per frame except the idle squash.
+- **Crack (9 → 8), B clock at the line-clear peak F (§9.13.f):** the frost cap breaks into 8 shard particles (`ui.freeze`, triangles 0.10–0.16c, outward 0.6–1.2c over 380 ms, gravity 2c/s², fade), and the cube swaps to the plain sprite on the same frame. Sound: `place` sample at rate 1.4, −14 dB.
+- **Removed (8 → 0), at the cell's burst frame like a line cell:** the cube squashes 1 → 1.15 × 0.85 over 60 ms, then bursts into 10 sugar sparkles (`fx.sugar`, the existing sparkle sprite) and a soft puff ring (`fx.sugar` alpha 0.4, radius 0.3c → 0.7c, 220 ms). Sound: a `pop` variant at rate 1.2, −12 dB, on the gloopPop path (§13.4) so the voice limits apply.
+- **Colour-blind patterns:** cubes are already told apart by shape and face. The hard cube's frost cap is a shape too, so no pattern is needed.
+- **Preview (§8.4):** a line that would clear outlines its cubes with the line glow. A hard cube in it shows a 1 px `ui.focusRing` crack line as a hint.
+
+### 20.2 Adventure map screen
+A full screen like Home (§11.3: the canvas keeps drawing the theme background, and the screen is DOM over it). Vertical scroll, **level 1 at the bottom**, the path climbing upward.
+
+**Header (fixed, height 64):** Back icon button (44) at x 12, y 10. Title "Adventure" (Screen title style), centred. Right: stars chip "★ 54" (chip §4, `ui.panelSolid`, a 16 px `ui.gold` star) and the coins chip, 8 px apart, right edge at W − 12.
+
+**Scroll area:** from y 64 to the bottom. `overflow-y: auto`, `overscroll-behavior: contain`. Content column width = min(W, 600), centred.
+- **Nodes:** `<button>` circles, **64 px** (hard levels **72 px**), centre x = column centre + `OFFSETS[(n − 1) mod 8] × column width`, with `OFFSETS = [0, 0.18, 0.28, 0.18, 0, −0.18, −0.28, −0.18]`. Vertical pitch **96 px** (desktop 104), measured from the bottom: level 1's centre is 120 px above the content bottom. A chapter header slot (132 px) sits above levels 20, 40, 60, 80 and 100, and above level 120 too, where it says the chapter is the last.
+- **Node states:**
+  - *Won:* gradient `ui.secondaryTop` → `ui.secondaryBottom`, 4 px lip `ui.secondaryLip`, the number in Baloo 2 800 24 px `ui.textPrimary`. Under the node, three 16 px stars 4 px apart: earned = `ui.gold` with a `ui.coinShade` 1 px inner edge; not earned = `ui.track` with a 2 px `ui.panelBorder` outline.
+  - *Next (the frontier):* the primary candy gradient (§11.1) with lip `ui.primaryLip`, the number in `ui.textOnPrimary`. A 40 px mini gloop of the chapter flavour (ch1 cherry, ch2 lemon, ch3 apple, ch4 blueberry, ch5 grape, ch6 bubblegum; expression `idle`) peeks over the node's top edge. The node pulses at scale 1 ↔ 1.06, 1,200 ms, `easeInOutSine` (CSS, off in reduced motion).
+  - *Locked:* `ui.disabled` fill, number `ui.disabledText`, no lip, a 16 px lock icon in place of the stars. Disabled.
+  - *Hard:* any of the above plus a 4 px ring `ui.danger` 3 px outside the node, and the label "Hard" (Small/caption style, `ui.danger`) under the stars.
+  - *Paused attempt:* the label "Continue" (Small, `ui.textPrimary`) in place of the stars.
+- **Path:** one inline `<svg>` behind the nodes, a Catmull-Rom curve through the node centres. Stroke 10 px, `stroke-linecap: round`, `stroke-dasharray: 0 18` so it is drawn as sugar dots: `ui.panelBorder` alpha 0.9 for the part beyond the frontier, `ui.gold` alpha 0.8 up to the frontier node.
+- **Chapter header** (a card, §11.7, full column width minus 32, max 520): heading "Chapter 2 · Sugar cubes" (Button-secondary style), on the right "34 / 60 ★" (Small, `ui.gold` star). Two reward lines (Small, `ui.textSecondary`): "All 20 levels: 200 coins, 100 XP" and "All 60 stars: 300 coins", each with a check icon in `ui.success` once paid. A 56 px mini gloop of the chapter flavour sits on the left (§11.7 card illustration).
+- **Footer button (fixed):** primary "Play level 23", width min(W − 32, 360), centred, bottom edge 16 px above the bottom safe area. It opens that level's start card (the frontier, or the paused level if there is one). The scroll content gets 104 px of bottom padding so the button never covers level 1. When every level is won, the text line from design §16.4 replaces the button.
+- **On open:** scroll so the frontier node's centre is at 60% of the viewport height (instant, never animated, so it can't feel slow). A newly unlocked node (after a win) plays a one-time unlock: lock icon scales to 0 (160 ms), the node flips to "next" with `easeOutBack` 300 ms, and 6 sugar sparkles. Reduced motion: no flip, just the new state.
+- **Performance:** about 140 DOM elements and one SVG path, built once per open. Only the frontier node animates (CSS transform). There is exactly one canvas, the frontier's mini gloop. No JS runs per frame on the map.
+
+| | Pixel 7 (412 × 915) | Desktop (1280 × 800) |
+|---|---|---|
+| Header | y 0 → 64, full width | y 0 → 72, column 600 centred (x 340 → 940); Back at column x + 12 |
+| Column | 412 wide; node centres x 91 … 321 (offsets ±74, ±115) | 600 wide; node centres x 472 … 808 (offsets ±108, ±168) |
+| Node / pitch | 64 px (hard 72) / 96 px | 72 px (hard 80) / 104 px |
+| Footer button | 360 × 56 at x 26, y 843 | 360 × 52 at x 460, y 732 |
+| Visible levels | about 8 | about 6 |
+
+### 20.3 Level start card (modal)
+A modal panel (§11.3, max width 360 phone / 420 desktop, padding 24) over the map, or over the board when coming from "Next level". Enter and exit as §11.3. Contents from top to bottom, 12 px gaps:
+1. **Title row:** "Level 23" (Panel title). Hard levels: a "Hard level" chip under it (chip, 2 px `ui.danger` border, text `ui.textPrimary` Small). Caption "Chapter 2" (Small, `ui.textSecondary`). A close × icon button (44) in the top-right corner works the same as "Back to map".
+2. **Goals:** one row per goal, 48 px tall: a 40 px icon on the left, then the goal text (Body). Icons: L = two horizontal rounded bars; S = a 5-point star burst in `ui.gold`; F = a 40 px mini gloop of that flavour; B = a 3-cell L-shaped mini gloop in cherry with the `happy` face; M = two crossing bars; C = the cube sprite (§20.1), with a hard cube when the level has any.
+3. **Tip** (only on the first level of a new thing, design §16.4): a speech bubble (§11.10 bubble style, no tail, max width 100%).
+4. **Moves row:** label "Moves" (Body, `ui.textSecondary`) on the left and the number (Baloo 2 800 32 px) on the right. With a bonus: "24 +2" where "+2" is Baloo 2 800 20 px `ui.success`.
+5. **Star line:** the design §16.4 string (Small) with two drawn 14 px gold stars before "2 stars" and three before "3 stars".
+6. **Win streak row** (frontier level and streak ≥ 1): three flame pips (16 px flame icon, earned `ui.streak`, not yet `ui.track`), then "Win streak 2: +2 moves" (Body). The caption sits under it while it applies.
+7. **Assist row** (lossRun ≥ 3): a toggle (§11.9) with "Extra help: +5 moves" and the caption.
+8. **Booster row:** 3 tiles side by side, each 96 × 112 (desktop 112 × 120), radius 18, `ui.panelSolid`, 2 px `ui.panelBorder`. Each tile has a 44 px icon at the top, the name (Small 800), and the count "×2" (Small, `ui.textSecondary`) in the top-right corner. Selected: 3 px `ui.gold` border, a 20 px check badge (`ui.success`) at the top-left, and the tile lifts 2 px. Tile with count 0: a secondary mini button (height 36, Nunito 800 14) "150 coins" across its bottom. When short of coins it is disabled and reads "Need 40 more coins" (wrapping to 2 lines is fine). At the cap: "Max 5" as plain text. A free Shuffle from the streak: the Shuffle tile is selected and locked, with "Free from win streak". Under the tiles, the two captions (Small, `ui.textSecondary`). Icons (in `icons.ts`, 3 px strokes): +3 Moves = a footprint pair with "+3"; Shuffle = two curved arrows in a circle; Pop = a starburst over a gloop outline.
+9. **Buttons:** primary "Play", full width, focused on open (Enter or Space = Play). Text button "Back to map" (Esc = back).
+- **Pixel 7:** the card is 360 wide at x 26, centred vertically. A typical 2-goal card with a streak and boosters is about 600 px tall and fits in 915. If the content is taller than the viewport minus 48 px, the card body scrolls and the Play button stays pinned at the bottom of the card.
+- **Desktop:** 420 wide, centred on the board.
+- **Buying:** the tap gives immediate feedback (coin chip counts down 300 ms, `coinTick` ×3, toast "Bought: Shuffle", count +1, tile selects itself). No confirm dialog. No price ever animates or flashes for attention.
+
+### 20.4 Adventure play HUD and booster bar
+Same board, tray, drag and juice as Classic. Only the HUD bands change.
+- **Top bar:** the centre pill shows "Level 23" (§11.12 pill style, not a button). Menu, mute and pause as usual.
+- **Score band:** the big number is **moves left** (HUD score style, Baloo 2 800 52 / 64 px). Under it, "moves left" in the HUD best style. It counts down on R at the placement's input time with a 1 → 0.92 → 1 squash (120 ms). At 3 moves or fewer it turns `ui.danger` and does one 1 → 1.08 → 1 pulse (200 ms) per move. It never blinks continuously and never plays a warning sound (honest, no panic). The run's score is shown only on S levels, as that goal's chip.
+- **Goal strip (§20.7 band):** one chip per goal, 28 px tall, centred, 8 px apart, each max (W − 40) / 2 wide: the 20 px goal icon, then "12 / 30" (Nunito 800 14, tabular). The fill inside the chip is `ui.gold` alpha 0.35 from the left, proportional to progress, easing over 300 ms on R. Each progress change ticks the number on the move's F frame (or L if nothing cleared). Done: fill `ui.success` alpha 0.4, a check icon replaces the number, one 1 → 1.15 → 1 pop (260 ms `easeOutBack`), 6 sugar sparkles (W), and the `chime` sample at −14 dB.
+- **Booster bar:** in the combo strip, where the rescue ring sits in Classic (Adventure has no rescue). Up to 2 circular buttons, 44 px (desktop 56), for Shuffle and Pop. They show only when armed for this attempt. Pixel 7 centres: x 326 and 378, y 644. Desktop: (152, 540) and (232, 540) in the left panel. Armed: `ui.panelSolid` fill, a 2 px `ui.gold` border and the white icon. Pressed: 80 ms squash. After use: `ui.disabled`, a check, aria "Used". Pop with no gloop on the board: disabled.
+  - **Shuffle:** at R t0 the current tray pieces drop 0.4c and fade (120 ms), then the new tray deals with the normal deal animation (§9.1) and `deal` ticks. Any drag in progress is cancelled first; that is the only input it touches, and only when the player taps the button.
+  - **Pop:** the biggest gloop pops with the rescue choreography (§13.4 "rescued" sound, burst path). There are no points and no combo text.
+  - Keys 4 and 5 trigger them on desktop (shown in the button's `title`).
+- **Pause overlay:** "Give up" replaces "Restart" (danger style, §11.1), with the confirm.
+
+### 20.5 Level win and lose panels
+Modal panels (§11.3) like the game-over panel (§13.3 layout). Buttons work from the first frame the panel is visible.
+- **Timing:** win panel at **600 ms** after the winning release (the clear and pops play underneath; slow-mo and the stingers keep running on W/B). Lose panel at **450 ms**, the same as the stuck choreography (§9.8). On a loss, Space, Enter and R restart the same level from **0 ms** (design §13.2, R4). On a win, Enter or Space opens the next level's start card from 0 ms.
+- **Win panel:**
+  - Title "Level 23 complete" (Panel title).
+  - **Stars row:** three stars, the centre one 76 px and raised 10 px, the side ones 64 px, 12 px apart. Empty stars (`ui.track` fill, 3 px `ui.panelBorder` outline) are visible from the first frame. Earned stars fill in at 150, 400 and 650 ms after the panel enters (R clock): scale 0 → 1.25 → 1 (`easeOutBack`, 320 ms), a white flash disc (alpha 0.6 → 0, 140 ms), and 8 gold sparkles each. Each star plays `coinTick` pitched up the ladder (rungs 4, 6 and 8, §13.3). A 3-star win also drops 40 confetti pieces (the §23.6 confetti) and plays the `best` sample at −10 dB, once. If the star count went up on a replay, the new stars get a 2 px `ui.gold` ring that lingers.
+  - Lines: "Won with 6 moves left." and the hint line (Body, `ui.textSecondary`). The bonus caption (Small) only when bonus moves were used.
+  - Rewards row: "+70 XP" with the XP bar filling (§11.9), "+65 coins". Win streak: three flame pips that fill to the new value, plus "Win streak 3" (the flame pops 1 → 1.2 → 1, 300 ms).
+  - Buttons: "Next level" (primary, full width, focused). Under it, "Replay" (secondary). "Map" is a text button at the bottom. On level 120, "Map" is the primary.
+- **Lose panel:**
+  - Title "Out of moves" / "No room left" / "Level 23 ended".
+  - **Goal chips repeated** at 1.3× size, showing the final "26 / 30", so the miss is visible at a glance.
+  - Up to 2 near-miss lines (Body).
+  - Rewards row: "+5 XP · +2 coins" (Small).
+  - "Win streak reset" (Small, `ui.textDim`, no sound, no shake) only if the streak was ≥ 1.
+  - Buttons: "Try again" (primary, full width, focused). After 3 losses in a row, "Try again with 5 extra moves" (secondary) under it. "Map" (text button).
+  - **Never on this panel:** boosters, prices, coin buttons, timers or anything to buy (design §24.10, §18 rule 11).
+- **Pixel 7:** panel 360 wide, bottom-anchored like the game-over panel (bottom edge 24 px above the bottom), so the board's last move stays visible above it. **Desktop:** 420 wide, centred over the board.
+
+### 20.6 Missions card (Home) and mission toasts
+- **Position:** between the mode grid and the Weekly card, full panel width.
+- **Card:** §11.7 card. Header row: "Daily missions" (Button-secondary style) on the left; on the right, three 10 px pips for the set (filled `ui.gold` per claimed mission).
+- **Rows:** 3 rows, each 68 px tall, with 1 px `ui.panelBorder` dividers at alpha 0.5.
+  - Left: a 28 px difficulty badge: 1, 2 or 3 small stars in `ui.gold` (A, B or C).
+  - Middle: the mission text (Body, may wrap to 2 lines), and under it an 8 px bar (§11.9 weekly-bar style, `ui.gold`) with "12 / 30" (Small, tabular) right-aligned on the same line.
+  - Right column (96 px): the reward "30 coins · 20 XP" (Small, `ui.textSecondary`), and:
+    - unfinished: the change icon button (36 px circle, two-arrow icon, aria "Change this mission"), only while the free change is unused today;
+    - done and unclaimed: a primary mini button "Claim" (height 40, Baloo 2 800 18) that pulses 1 ↔ 1.04 every 1,400 ms (CSS, off in reduced motion);
+    - claimed: a check icon and "Done" (Small, `ui.success`); the row's text dims to `ui.textSecondary`.
+  - Footer line (Small, `ui.textSecondary`): the free-change caption, then the set line ("Finish all 3: +50 coins, +50 XP" or "All 3 done. New missions tomorrow.").
+- **Claim:** at click, the button becomes the check at once (input is never held). 6 coin icons (16 px, `ui.coin`) fly from the button to the Home coins chip along a quadratic arc, 500 ms `easeInOutSine`, 40 ms apart (CSS transforms on pooled elements). The coin chip counts up over 600 ms with `coinTick`s, and the XP goes through the level-up toast path. Reduced motion: no flight; the chip updates at once with one `coinTick`.
+- **Change:** the row's content crossfades 160 ms to the new mission.
+- **In play:** "Mission done: Clear 15 lines" is a normal toast (§11.8, accent `ui.gold`, a 20 px star badge icon). Never a panel, never a pause.
+- **Pixel 7:** about 290 px tall (header 40 + 3 × 68 + footer 44). Home already scrolls (`overflow-y: auto` on the Home panel), so with the Adventure card and the missions card it is taller than 915. The Play button and the mode grid stay in the first screen.
+- **Desktop:** same card inside the Home panel (max width 560 there).
+
+### 20.7 In-run goal strip (Classic and Expert targets and mini goal; Adventure goals)
+- **New layout band "goal strip"**, **30 px** at the reference size, between the score band and gap B. It is present in Classic, Expert and Adventure. In Daily, Zen and the tutorial steps it has height 0, and those modes keep the §15.1 numbers exactly.
+- **Classic/Expert content:** two pills, 28 px tall, radius 14, 8 px apart, centred. Each is at most (W − 40) / 2 wide (Pixel 7: 186), with 12 px side padding. Background `ui.panelSolid` alpha 0.7, border 2 px `ui.panelBorder`. Text Nunito 800 14 `ui.textPrimary`, tabular numbers. The pills use the short labels from design §24.2. The longest, "Blueberry cells 12/12", is about 150 px at 14 px, which fits 186 with the padding. If a fallback font makes a label too wide, drop to 13 px, never ellipsis.
+  - **Target pill (left):** a 14 px flag icon, then "Next target 10,000". The fill is `ui.gold` alpha 0.35 from the left, `(score − prev)/(next − prev)`, easing with the score count-up (§9.13.i, R clock), drawn under the text.
+  - **Mini pill (right):** short label, e.g. "Big Pop 0/1", with a 14 px target-ring icon. When done, the fill is `ui.success` alpha 0.4 and the text is "Big Pop ✓". The full mini text appears once as a toast ("Mini goal: Make a Big Pop") when the run's first piece is placed, never before, so it can't cover the first frame.
+  - **Crossing a target:** triggered when the **counting-up HUD score** passes the target (R clock), so the pill never runs ahead of the number. The border turns `ui.gold`, the pill pops 1 → 1.15 → 1 (`easeOutBack` 260 ms, R), 6 sugar sparkles burst from the pill (W particles, normal pool), and one `coinTick` plays at −6 dB. The text reads "10,000 ✓ +5 coins" (short so it fits the pill even at 150,000) for **1,200 ms**, then crossfades (160 ms) to the next target, with the fill restarting from 0. If one move passes several targets, the pill shows only the highest one with the summed coins ("20,000 ✓ +10 coins").
+  - **Mini goal done:** the same pop on the mini pill, then "Done · +15 coins" for 1,200 ms, then the done text. Sound: `chime` −14 dB.
+  - None of this uses hitstop or slow-mo, covers the board, or waits for anything. A placement during the 1,200 ms simply updates the pills again.
+- **Adventure content:** the goal chips (§20.4) in the same band.
+- **Desktop left panel, new order (x 72 → 312):** "Score" label y 170; score y 230; best y 268; PB bar at y 280 (6 px); **target pill 240 × 32 at y 300; mini pill 240 × 32 at y 342**; combo label and pips y 410; stage text y 450; rescue ring centre (192, 540), 56 px. Adventure: moves number y 230, "moves left" y 268, goal chips (240 × 32) at y 300 and 342, combo y 410, booster buttons at y 540.
+
+### 20.8 Layout numbers with the goal strip (amends §15.1 and §15.3)
+**§15.3 algorithm change:** the non-board reference total is 402 px (top 60, score 84, **goal 30**, combo 44, tray 168, bottom 16) when the strip is present, else 372 as before. Everything else is unchanged: `k = clamp(H / 844, 0.78, 1.15)`, the board rounding rule, and the leftover split of 25% gap A, 25% gap B and 50% gap C.
+
+**390 × 844 with the strip** (Classic, Expert, Adventure; layout tests ±1 px):
+
+| Band | y from → to |
+|---|---|
+| Top bar | 0 → 60 |
+| gap A | 60 → 78 |
+| Score | 78 → 162 (score baseline 128, best baseline 152) |
+| Goal strip | 162 → 192 (pills y 163 → 191) |
+| gap B | 192 → 211 |
+| Board | 211 → 579 (frame x 11 → 379; grid x 19 → 371, y 219 → 571; c = 44) |
+| Combo strip | 579 → 623 (rescue ring / booster bar centre y 601) |
+| gap C | 623 → 660 |
+| Tray | 660 → 828 (unchanged) |
+| Bottom | 828 → 844 |
+
+**Pixel 7, 412 × 915 with the strip** (k = 1.084; board = 384, so c = 46):
+
+| Band | y from → to | Contents |
+|---|---|---|
+| Top bar | 0 → 65 | icon buttons 44 px at y 10: menu x 12, centre pill, mute x 312, pause x 356 |
+| gap A | 65 → 89 | toasts at y 69 |
+| Score | 89 → 180 | score (or moves) baseline y 143, 52 px; best (or "moves left") baseline y 169, 15 px |
+| Goal strip | 180 → 212 | two pills 186 × 28 at x 16 and x 210, y 182 → 210 |
+| gap B | 212 → 236 | |
+| Board | 236 → 620 | frame x 14 → 398; grid x 22 → 390, y 244 → 612; c = 46 |
+| Combo strip | 620 → 668 | combo label + pips at x 22; rescue ring centre (378, 644) 40 px; Adventure booster buttons centres (326, 644) and (378, 644), 44 px |
+| gap C | 668 → 716 | |
+| Tray | 716 → 898 | 3 slots 129 × 173 at x 4 / 141 / 278, centre y 807; ct = min(28.6, 129 / 5.4) = 23.9 |
+| Bottom | 898 → 915 | |
+
+**Pixel 7 without the strip** (Daily, Zen): the §15.3 algorithm gives board 384 and leftover 127.6 px: gap A 31.9, gap B 31.9, gap C 63.8.
+
+**Desktop 1280 × 800:** §15.2 plus the left-panel order in §20.7. The board doesn't move.
+
+### 20.9 Motion, clocks and sound summary
+| Element | Clock | Motion | Sound (existing cues only, §13.4) | Reduced motion |
+|---|---|---|---|---|
+| Target crossed | R (pill), W (sparkles) | pop 260 ms, text 1,200 ms | `coinTick` −6 dB | no pop or sparkles; text swap only |
+| Mini goal done | R, W | as above | `chime` −14 dB | text swap only |
+| Adventure goal done | R, W | chip pop, sparkles | `chime` −14 dB | check only |
+| Moves countdown | R | squash 120 ms, danger pulse 200 ms | none | colour only |
+| Cube crack / removal | B (with the line clear) | §20.1 | `place` 1.4× / `pop` 1.2× | particles off; sprite swap |
+| Shuffle / Pop booster | R t0 | §20.4 | `deal` ticks / rescue cue | instant swap; pops without burst motion |
+| Win stars | R | 3 fills, 250 ms apart | `coinTick` on rungs 4/6/8; 3 stars: `best` −10 dB | stars appear filled at once, sounds kept |
+| Lose panel | R | slide up at 450 ms | none (the §13.4 `stuck` cue already played) | fade |
+| Mission claim | R (DOM) | coin flight 500 ms | `coinTick`s | no flight |
+| Map unlock | R (CSS) | flip 300 ms | `uiTap` | state change only |
+| Mission toast | R | §11.8 | none | §11.8 |
+
+- Haptics (§9.13.k): target crossed and goal done = `[10]`; win = the existing All Clear pattern; booster use = `[8]`. Off with the Vibration setting.
+- Music (§13.7): the map and the start card are menus (silent bed). The Adventure HUD uses the play rules; "danger" is driven by the same board-fill input as Classic, never by moves left.
+
+### 20.10 Never do (adds to §18)
+16. Never show a price, a booster or a "buy" button on a lose panel, during play, or next to a countdown.
+17. Never animate a target, mission or star to suggest it is closer than it is. Bars show real progress only.
+18. Never cover the board with goal banners. Goal feedback lives in the goal strip, toasts and panels.
+19. Never use more than the existing palette roles for pass 3 UI. Needed roles that are missing are proposed to the lead (design AGENTS rule), not invented.

@@ -540,3 +540,175 @@ Spec: SG §13 (read §13.1–§13.3 first), SG §11.13–§11.14, design §16.4 
   - The total payload measured in `dist/audio` is reported in the final message (per format).
   - The final message lists every SG §13.13 item as "needs ear check" for the director.
   - The director's ear check (phone speaker and headphones) passes, or its fixes are written back into SG §13 as a dated revision note.
+
+---
+
+## M12 Goals and Adventure
+
+Spec: design §24 (read §24.1 and §24.15 first), design §16.4 "Pass 3" strings, SG §20. Research: `research/retention.md` (tags RT1–RT29 in design §24). Do the chunks in order. Each chunk ships alone: `npm run check` passes, and the game plays correctly after every chunk. Classic, Expert, Zen and Daily must play exactly as before, except for the goal strip added in M12.2. The pinned 400-day Daily hash, the Classic golden game and the sim tests must pass **unchanged** in every chunk.
+
+**Binding for every chunk:** nothing blocks or delays input during play (design §24.15, SG §20). Hitstop freezes only the B clock. No `setTimeout` in play paths. Strings come only from `strings.ts`, colours only from existing palette roles (SG §20.10 rule 19). No new runtime dependencies.
+
+**Debug demos:** every `?debug=1&demo=…` scene below runs on an **in-memory save copy that is never written** to storage (`saveNow` is a no-op while a demo is active; add a test). Scenes are built in `src/app/demoScenes.ts` as pure functions of the current save, so they are unit-testable. The director takes the screenshots, not the coding agent.
+
+**Bundle budget:** JS is 86 KB gz today. The pass 3 target is **≤ 115 KB gz total**. The hard limit stays 150 KB (`check-size.mjs`). The Adventure map, start card, level panels and `levels.data.ts` go in **one lazy chunk** (dynamic `import()` from the Home Adventure card and the router), so the entry chunk grows by ≤ 10 KB. `levelGen.ts` and `levelBot.ts` are used by the tool and the tests only and must not appear in `dist/`. Every chunk's final message reports the gzipped total and per-file sizes from `npm run size`.
+
+### M12.1 Save schema v2 and migration
+- **Implements:** design §24.14 (whole), arch §8 (migration pipeline).
+- **Files:**
+  - `src/meta/saveSchema.ts`: `SaveV2`, `CURRENT_VERSION = 2`, `defaultSave()` with the v2 defaults. Keep a `SaveV1` type for the migration input.
+  - `src/meta/migrate.ts`: `migrations: Record<number, (s) => s>` with `0 → 1` (today's v0 code moved) and `1 → 2`. `sanitize()` covers every new field per §24.14, and `validGame` accepts board values 8–9 only for `mode === 'adventure'`.
+  - `src/core/types.ts`: `ModeId` gains `'adventure'`; `Cell` gains `8 | 9`; the optional `GameState.goals` and `GameState.adventure` types; the new actions and events (§24.14). Types only: the reducer ignores them until M12.2/M12.4.
+  - Every `SaveV1` import site switches to `SaveV2` (type rename only).
+  - `src/meta/fixtures/save-v1-veteran.json` (new): level 23, xp in the middle of the level, 4,310 coins, 5 owned themes/skins/pops with non-default equipped items, Zen and Expert unlocked, 17 achievements including `bigPopCount`, a 12-day streak with 1 freeze and 3 frozen days, weekly progress 87/150, 14 daily records, `recentClassic` of 20 scores, firsts, settings with volumes 0.6/0.3 and `cbPatterns: true`, a Classic `inProgress` at move 37, and a `dailyInProgress`.
+  - `src/meta/fixtures/save-v2-veteran.expected.json` (new): the exact expected output.
+  - `docs/architecture.md` §8: the SaveV2 interface and the migration list.
+- **Tests** (`migrate.test.ts`, `saveStore.test.ts`):
+  1. `save-v1.json` → v2: every v1 field deep-equal, and the new fields equal the defaults.
+  2. `save-v1-veteran.json` → deep-equals `save-v2-veteran.expected.json`.
+  3. Veteran (level 23): `owned.modes` contains `'adventure'` and boosters are `{1, 1, 1}`. The level-1 fixture: no `'adventure'`, boosters `{0, 0, 0}`.
+  4. The veteran's Classic `inProgress`: run the same 5 `place` actions with `step` on the v1 state and the migrated state. The events and states are identical.
+  5. Idempotent: `migrate(migrate(x))` deep-equals `migrate(x)` for both fixtures, `defaultSave()` and the v0 sample.
+  6. v0 `{ best: 900, coins: 40 }` → v2 with `best.classic` 900, coins 40, `v` 2.
+  7. `{ v: 3 }` → `defaultSave()`, and `saveStore` writes the `gloop-pop:save:corrupt:<ts>` backup.
+  8. Sanitize: stars 5 → 3; frontier 300 → 121; frontier 1 with level 9 won → 10; boosters 9 → 5 and −1 → 0; level key "0" and "121" dropped; unknown mission id → slot removed; mission progress −4 → 0 and 999 → target; Classic `inProgress` with a cell 8 → null; Adventure `inProgress` with a cell 10 → null.
+  9. `defaultSave()` has `v: 2` and comes through `sanitize` unchanged.
+- **Done when:** the tests pass; loading the veteran fixture in the app (debug `?debug=1&save=veteran` loads it in memory, never written) shows the same Home, Collection, Stats and streak as before; the resumed Classic run continues; no player-facing change.
+
+### M12.2 In-run targets and the mini goal (Classic, Expert)
+- **Implements:** design §24.2, §24.12 rule 2b, §16.4 pass 3 "In-run goal strip" and "Game-over rewards row"; SG §20.7, §20.8 (layout band), §20.9 rows 1–2.
+- **Files:**
+  - `src/core/goals.ts` (new, pure): `LADDER`, `ladderValue(i)` (continues +50,000 forever), `nextTarget(score, floor)`, `targetsPassed(oldScore, newScore)`, `MINI` table, `pickMini(seed)` (hash `cyrb128(seed + '/mini')`, never the tray stream), `miniProgress(mini, events, state)`.
+  - `src/core/game.ts`: `newGame(cfg, seed, { best })` creates `state.goals` for Classic and Expert, and only when the caller passes `goals: true` (the app passes `save.tutorialDone`). `step` updates the mini goal and emits `targetReached` (ascending) and `miniDone`, after `scored`. No other change to events or RNG.
+  - `src/render/goalStrip.ts` (new): the canvas pills (SG §20.7) on the R clock, with cached text sprites. The crossing trigger reads the HUD's counting-up score.
+  - `src/render/layout.ts`: the goal-strip band and the `hasGoalStrip` input.
+  - `src/meta/progression.ts`: run coins += 5 × `targetsHit` + 15 if the mini is done; XP += 10 if the mini is done.
+  - `src/core/nearMiss.ts`: rule 2b. `src/ui/gameOverPanel.ts`: the two new reward lines.
+  - `src/app/app.ts`: pass `best` and `goals`; the "Mini goal: {text}" toast on the first placement; feed the strip.
+  - `src/ui/strings.ts`: the strip strings. `src/ui/screens/howToPlay.ts`: rule 8 (design §16.5), with the rule count in `strings.test.ts` updated.
+  - `src/app/demoScenes.ts`: the scenes below.
+- **Tests:**
+  - `goals.test.ts`: the first 14 ladder values exactly (1,000 … 100,000, 150,000, 200,000); `nextTarget(0, 0) = 1,000`, `nextTarget(4,999, 0) = 5,000`, `nextTarget(0, 10,000) = 10,000` (best 40,000); `targetsPassed(4,900, 10,100)` = [5,000, 7,500, 10,000]; `pickMini` golden ids and flavours for 8 pinned seeds; each of the 8 mini kinds reaches done from a synthetic event list and fires once.
+  - `game.test.ts`: with goals on, a scripted move from 4,880 to 7,600 emits `targetReached` 5,000 then 7,500 and `targetsHit = 2`; the Classic golden game gives the same score, board and trays with goals on and off; Daily, Zen and tutorial states have no `goals`; resume (JSON round trip and sanitize) keeps the mini progress.
+  - `progression.test.ts`: coins and XP with 0, 3 and 12 targets, with and without the mini.
+  - `nearMiss.test.ts`: rule 2b text, its order (after 2, before 3), and the 10% edge (exactly 10% applies, 10.01% doesn't).
+  - `layout.test.ts`: 390 × 844 with the strip matches SG §20.8 (±1 px); without it, the old §15.1 numbers are unchanged; 412 × 915 matches the Pixel 7 table (±1 px); 360 × 640 and 1280 × 800 have no overlapping rects.
+- **Debug:** `?debug=1&demo=target` (Classic, score 4,880, best 9,000; slot 0 holds a Dot that completes a row and passes 5,000; mini "Big Pop 0/1"), `?debug=1&demo=target-hit` (the same after the move, with the crossing text held), `?debug=1&demo=mini-done` (the mini pill in its "Done · +15 coins" state, held). `&hold=1` (default in the two held scenes) freezes the 1,200 ms text so it can be captured.
+- **Done when:** the tests pass; in Classic the pills update without any input delay (code review: no awaits, no queues, R clock); Daily and Zen show no strip and keep their exact layout; the game-over panel shows the target and mini lines.
+
+### M12.3 Daily missions
+- **Implements:** design §24.3 (whole), §24.12 rule 6b, §24.11 #48–#49, §16.4 "Missions card" and the mission toasts; SG §20.6.
+- **Files:**
+  - `src/core/missions.ts` (new, pure): `MISSIONS` (29 rows: id, slot, target, counting kind, needs), `deck(slot, cycle)`, `missionAt(slot, w)`, `issue(slot, w, available, shownToday)`.
+  - `src/meta/missions.ts` (new): `rollDay(save, dayKey)`, `addMissionProgress(save, state, events)` (the §24.3 counting rules; Zen excluded for score kinds), `claimMission(save, slot)` (through `grantXp`), the set bonus, `rerollMission(save, slot, dayKey)`, `missionNearMiss(save)`, `available(id, save)`.
+  - `src/ui/missionsCard.ts` (new) and `src/ui/screens/home.ts` (card placement; Adventure entries are not added yet).
+  - `src/meta/achievements.ts`: #48 and #49 (counters), category `goals`.
+  - `src/app/app.ts`: `rollDay` on load, on opening Home and at run end; live progress per move; the "Mission done" toast; the game-over line "{k} missions ready to claim".
+  - `src/core/nearMiss.ts`: rule 6b. `src/ui/strings.ts`: the missions strings. `howToPlay.ts`: rule 9 (design §16.5).
+- **Tests:**
+  - `core/missions.test.ts`: 29 missions, slot counts 10/10/9, unique ids; every text equals the §24.3 table (via `strings.test.ts`); `deck` is a permutation per cycle with no repeat within a cycle; golden: the missions of days 1–14 for each slot are pinned.
+  - `meta/missions.test.ts`:
+    1. Adventure missions are skipped while Adventure is locked; `advstars6` is skipped with fewer than 6 unearned stars.
+    2. Day roll: a claimed slot is replaced; an unfinished one is kept with its progress; a done-unclaimed one is kept; after 5 missed days nothing is lost and the claim still pays.
+    3. Change: once per UTC day; it skips `shownToday`; a second change the same day is refused; the next day it works again.
+    4. Table-driven: every mission id advances by the right amount from a synthetic event list. This includes flavour cells from both cleared lines and pops, cubes not counted, Zen excluded for the 4 score missions, and Adventure counted.
+    5. Claim pays once, and the set bonus pays once, when the third slot is claimed.
+    6. The "Mission done" toast fires once per mission.
+    7. #48 at 10 claims, #49 at 100.
+    8. Rule 6b text and order.
+- **Debug:** `?debug=1&demo=missions` (Home: slot A done and unclaimed, slot B at 32/40, slot C claimed, free change unused), `?debug=1&demo=missions-done` (all three claimed, set line done).
+- **Done when:** the tests pass; claiming is instant (the button turns into the check on click; the coin flight is cosmetic); mission progress from a Classic, a Daily and a Zen run shows on Home; nothing expires.
+
+### M12.4 Adventure engine: sugar cubes, adventure mode, 120 validated levels
+- **Implements:** design §24.4, §24.5, §24.6 (whole), the reducer half of §24.8–§24.10 (bonus moves, `booster` action, result and stars); SG §20.1 (cube rendering, so the debug board can be checked).
+- **Files:**
+  - `src/core/gloops.ts`: components only for values 1–7. `src/core/resolve.ts` and `src/core/solver.ts`: the cube rule through one shared helper (`applyLineClear`); the `cubes` event.
+  - `src/core/generator.ts`: `DealOptions` gains `weights?`, `flavours?` and `f2?` (used only by Adventure). The RNG consumption order (§7.3) stays the same for every existing mode.
+  - `src/core/levels.ts` (new, pure): the §24.6 tables (bands, K, moves, chapters, rotation, start pieces, cubes), `levelParams(n)` and `buildLevel(n, s)`.
+  - `src/core/levelBot.ts` (new, frozen): the §24.6 bot.
+  - `src/core/levelGen.ts` (new, pure): `calibrate(n, s)`, `validate(def)`, `generateLevel(n)`.
+  - `src/core/levels.data.ts` (generated, committed, header `// GENERATED by tools/gen-levels.mjs — do not edit`).
+  - `src/core/adventure.ts` (new): `newAdventureGame(def, { bonusMoves, boosters, freeShuffle })` and the Adventure branch of `step` (§24.4 order; no rescue, no stage-up; `booster` and `endRun` actions; `result` with stars).
+  - `src/core/game.ts`: dispatches Adventure states to `adventure.ts`.
+  - `tools/gen-levels.mjs` (new; like `tools/sim.mjs`). `package.json`: `"levels": "vite build --ssr src/core/levelGen.ts --outDir .sim --emptyOutDir && node tools/gen-levels.mjs"` with flags `--write` (regenerate the table) and `--verify` (re-validate and print the per-chapter wins table and the time taken). **Not** part of `check`.
+  - `src/render/cubes.ts` (new) and the board-layer hook in `boardView.ts`.
+  - `docs/architecture.md`: record the new files (§3), the cube rule (§4.6) and the tool (§9.3).
+  - `docs/balance-log.md`: a new dated section, "Adventure levels", with the `--verify` table (per chapter and band: mean wins of 12, mean moves, mean s3) and the seed indices that needed more than 1 try.
+- **Tests:**
+  - `resolve.test.ts` and `gloops.test.ts`: a cube counts as filled; cubes are never in a gloop (a line of 7 cherry + 1 cube pops no cube); 9 → 8 and 8 → 0 on a clear; a cube in a crossing row and column is hit once; no All Clear while a cube is left; `cubes` event lists.
+  - `solver.test.ts`: `canPlaceAll` agrees with stepping `resolveBoard` on 200 seeded random boards with cubes.
+  - `generator.test.ts`: the existing golden deal snapshots are unchanged; Adventure options use the given weights, flavours and F2.
+  - `levels.test.ts` (the §24.6 re-validation, vitest timeout 90,000 ms):
+    1. There are 120 levels, and the bands, K, moves, rotation, chapters and cube counts match `levelParams`.
+    2. For every level, `buildLevel(n, s)` equals the stored board and goal flavour.
+    3. For every level, 12 bot runs on the real reducer give exactly the stored targets, `wins` (≥ K), `s2` and `s3`, and the bot's win/star results agree with a real step-by-step replay.
+    4. Sawtooth: per chapter, the mean wins of hard < normal < easy; every level after a hard one is easy-band.
+    5. Staircase: the first levels with F, C, B, M, 6 flavours, hard cubes, two goals and 7 flavours are 6, 21, 41, 46, 51, 61, 81 and 91, and all are easy-band.
+    6. Intro caps hold.
+  - `adventure.test.ts`:
+    1. A win on the move that meets the goals, even when that move leaves nothing that fits.
+    2. "Out of moves" at 0; "No room left" when stuck with moves left; give up → `gaveUp`.
+    3. Bonus moves add to the limit and are subtracted for stars (a table of movesLeft × bonus → stars).
+    4. Shuffle: a new F2-forced tray, no move cost, once per level, refused when not armed.
+    5. Pop: the largest gloop, no points, combo unchanged, cubes untouched, no goal progress, disabled with no gloop.
+    6. Resuming mid-level (JSON round trip and sanitize) gives the same next deal.
+    7. No `stageUp` or `rescueOffered` events in Adventure.
+  - `levelBot.test.ts`: a golden 12-run result for level 1.
+- **Debug:** `?debug=1&demo=cubes` (Classic board drawing only: 6 sugar cubes, 3 hard cubes, slot 0 holds a Dot that clears a row through a hard cube and a sugar cube), `?debug=1&level=21` (starts level 21 directly in a bare Adventure state; the M12.5 HUD isn't there yet, so the normal HUD shows the score).
+- **Done when:** `npm run levels -- --write` produces the table and a second run is byte-identical; `npm run levels -- --verify` passes and prints its time; `levels.test.ts` takes under 30 s in the container (report the number); the existing Daily hash, Classic golden game and sim tests pass unchanged; `dist/` contains no `levelBot` or `levelGen` code (grep the build for `levelBot`).
+
+### M12.5 Adventure UI: map, start card, HUD, win and lose panels, rewards
+- **Implements:** design §24.4 (unlock and gift, entry, leaving, continue), §24.5 (stars display), §24.7 (rewards and chapter rewards), §24.12 Adventure lines, §24.13 (Home card, runs, weekly), §16.4 pass 3 "Home", "Adventure map", "Level start card" (without the streak, assist and booster rows), "Adventure play", "Level win panel", "Level lose panel"; SG §20.2, §20.3 (items 1–5 and 9), §20.4 (top bar, moves, chips, pause), §20.5, §20.9.
+- **Files:**
+  - `src/ui/screens/adventureMap.ts` (new), `src/ui/levelCard.ts` (new), `src/ui/levelResultPanel.ts` (new): all in the lazy chunk.
+  - `src/app/router.ts`: `ScreenId` gains `'adventure'`; back from the start card returns to the map.
+  - `src/render/hudView.ts`: the Adventure score band (moves). `src/render/goalStrip.ts`: the Adventure goal chips.
+  - `src/meta/adventureProgress.ts` (new): `recordLevelResult(save, result)` (stars best-of, wins, losses, lossRun, frontier, first-win and new-star rewards, replay and loss rewards, chapter rewards once), `unlockAdventure(save)` (gift).
+  - `src/meta/progression.ts`: the Level 2 unlock row. `src/meta/stats.ts`: the Adventure counters. `src/meta/weeklyGoal.ts`: Adventure counted.
+  - `src/ui/screens/home.ts`: the Adventure mode card (lazy import on tap).
+  - `src/ui/screens/stats.ts`: the §24.13 rows.
+  - `src/app/app.ts`: `toAdventure(level)`, `adventure.inProgress` save and resume, panel timing (win 600 ms, loss 450 ms, Space/Enter/R from 0 ms).
+  - `src/core/nearMiss.ts`: the Adventure lines. `src/ui/strings.ts`. `howToPlay.ts`: rules 10 and 11 (design §16.5).
+- **Tests:**
+  - `adventureProgress.test.ts`: the reward table (first win at 1/2/3 stars = 50/60/70 XP and 35/50/65 coins; replay without a new star 10 XP / 5 coins; replay 1 → 3 stars pays 2 new stars; loss 5 XP / 2 coins); the frontier moves only on a first win; the chapter rewards pay once each; the unlock gift is capped at 5.
+  - jsdom `adventureMap.test.ts`: 120 nodes and 6 chapter headers from a fixture save; won/next/locked/hard/paused states and aria labels match §16.4; the footer button opens the frontier (or the paused level).
+  - `levelCard.test.ts`: the goal text for every goal kind and the singular forms; the hard chip; the tips on levels 6, 21, 41, 46, 51, 61, 81 and 91 only; Enter = Play, Esc = back.
+  - `levelResultPanel.test.ts`: the "Next level" focus; the lose panel has no element with a price, coin button or booster (query by role/text); "Try again" restarts within the same frame (the fake clock shows 0 ms between click and the new state).
+  - `nearMiss.test.ts`: every Adventure unit in singular and plural; "Nothing fit with {m} moves left." only for stuck losses.
+  - `strings.test.ts`: every pass 3 string from §16.4 exists, and there are no hype words.
+  - `router` test: `'adventure'` push and back.
+  - Build test (`check-size` output): a separate chunk contains `levels.data`, and the entry chunk grows ≤ 10 KB gz versus M12.4.
+- **Debug:** `?debug=1&demo=adventure-map` (frontier 23, mixed stars on 1–22, a paused attempt on 23, chapter 1 rewards paid), `?debug=1&demo=adventure-map-end` (all 360 stars), `?debug=1&demo=level-card&level=21` (with the tip), `?debug=1&demo=adventure-play&level=87` (two-goal HUD mid-level, 3 moves left in danger colour), `?debug=1&demo=adventure-win&stars=3` (also `stars=1` and `stars=2`; the stars animation replays on every load), `?debug=1&demo=adventure-lose` (out of moves at 26/30 grape cells), `?debug=1&demo=adventure-lose&reason=stuck`.
+- **Done when:** the tests pass; a real first session can unlock Adventure at Level 2, win level 1, see stars and rewards, and reach level 2 from "Next level" in two taps; leaving mid-level and coming back shows "Continue"; Space/Enter/R on a loss restarts at once; the game-over and Daily flows are unchanged.
+
+### M12.6 Win streak, assist, boosters, achievements
+- **Implements:** design §24.8, §24.9, §24.10 (whole), §24.11 #42–#47, §16.4 pass 3 start-card rows (streak, assist, boosters) and "Bought" toast; SG §20.3 items 6–8, §20.4 booster bar, Shuffle and Pop, §20.9 booster rows.
+- **Files:**
+  - `src/meta/boosters.ts` (new): `BOOSTERS` (id, price, cap), `buyBooster(save, id)`, `armBoosters(save, selection, streak)` → `{ save, bonusMoves, armed, freeShuffle }`, and `returnUnused(save, state)`.
+  - `src/meta/adventureProgress.ts`: `winStreak` / `bestWinStreak` (frontier only; replays never change it; a frontier loss or give-up resets it; a discarded pause doesn't), `lossRun` and the assist flag.
+  - `src/ui/levelCard.ts`: the streak, assist and booster rows, and buying.
+  - `src/ui/boosterBar.ts` (new): DOM buttons positioned from the layout; keys 4 and 5 in `src/input/keyboard.ts`.
+  - `src/ui/levelResultPanel.ts`: "Try again with 5 extra moves"; the streak line on win and lose.
+  - `src/meta/achievements.ts`: #42–#47 (#43–#47 are counters), category `goals`; totals "/ 49" everywhere (`strings.ts`, the Achievements screen).
+  - `src/ui/screens/stats.ts`: "Best win streak", "Missions done", "Targets reached".
+- **Tests:**
+  - `boosters.test.ts`: prices 150/100/200; buying with too few coins is refused with the save unchanged; the cap of 5; `+3 Moves` is used up at start and adds 3 `bonusMoves`; an unused Shuffle or Pop comes back after a win, a loss, a give-up and a discard; a used one doesn't; the free Shuffle at streak ≥ 3 doesn't touch stock, and a level still allows only one Shuffle; coins never go negative.
+  - `adventureProgress.test.ts`: the streak table (0/1/2/3+ → 0/+1/+2/+2 and a free Shuffle); a replay win or loss leaves the streak alone; a frontier loss resets it; `bestWinStreak` is kept; `lossRun` reaches 3 → assist offered, resets on a win; assist moves are excluded from stars.
+  - `achievements.test.ts`: each of #42–#47 fires from a synthetic save and never twice; counter progress "7 / 20" etc.
+  - jsdom: the start card shows "Need 40 more coins" when short and "Max 5" at the cap; the lose panel still has no booster or price (the M12.5 test, extended); the booster bar renders only armed boosters and a press fires the action at once.
+- **Debug:** `?debug=1&demo=level-card&level=24&streak=3&coins=120&boosters=1,0,5` (free Shuffle, one tile to buy that is short of coins, one at the cap), `?debug=1&demo=level-card&level=25&losses=3` (assist toggle), `?debug=1&demo=adventure-play&level=24&armed=shuffle,pop`, `?debug=1&demo=adventure-lose&losses=3` (assist button).
+- **Done when:** the tests pass; every level stays winnable without boosters (M12.4's `levels.test.ts` still passes untouched); buying is one tap with instant feedback; the booster bar never interrupts a drag unless it is tapped.
+
+### M12.7 QA, balance check, polish
+- **Implements:** design §24.15 (session and ethics checks), SG §20.10, everything left over from §24 and SG §20.
+- **Files:**
+  - `docs/qa-checklist.md`: a "Goals and Adventure" section with checkboxes. Items: each debug demo above renders as specified; no input delay during target crossings, goal done, boosters and panels (drag during the effects); Space/Enter/R restart on a loss; the map scrolls to the frontier; Android back from the start card, the HUD and the panels; reduced motion for every SG §20.9 row; the ethics list (no price on any lose panel, nothing expires, no random rewards, levels winnable without boosters).
+  - `docs/balance-log.md`: the M12.4 table plus a short economy check: coins per day for a "5 Classic runs + 3 missions + 5 levels" day (computed from the formulas), and how many days the booster cap and the shop take.
+  - Any missing tests. A `?debug=1` overlay line: `adv L{n} s{seed} K{k} wins {w}/12 · goals {p}/{t}` while in Adventure.
+- **Done when:**
+  - `npm run check` passes.
+  - `npm run levels -- --verify` passes.
+  - The JS total is ≤ 115 KB gz (report the per-file sizes).
+  - The string audit finds no player-facing text outside `strings.ts`, and `check-no-hex` is clean.
+  - The final message lists the screenshot set for the director: `demo=target`, `target-hit`, `mini-done`, `missions`, `missions-done`, `cubes`, `adventure-map`, `adventure-map-end`, `level-card&level=21`, `level-card&level=24&streak=3…`, `adventure-play&level=87`, `adventure-win&stars=1|2|3`, `adventure-lose`, `adventure-lose&losses=3`, each at 412 × 915 and 1280 × 800.
+  - The director plays chapters 1–2 on a phone and records in `docs/balance-log.md` whether the hard levels feel short and fair (RT16). Any level that a human finds clearly unfair is fixed by a parameter change and regeneration, never by hand.

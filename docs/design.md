@@ -140,8 +140,9 @@ Total: 13 families, 37 orientations.
 | Daily | Start | Stuck, or 30 trays done | No | Per day | ×1 + daily bonus |
 | Zen | Level 3 | Player taps "End run" | Automatic shake | No | ×0.5 |
 | Expert | Level 8 | Stuck | No | Yes, separate | ×1.5 |
+| Adventure | Level 2 | Goals met (win), out of moves or stuck (loss) | No (boosters and assist instead) | Stars per level | own table (§24.7) |
 
-Details in §9 (Classic, Zen, Expert) and §10 (Daily).
+Details in §9 (Classic, Zen, Expert), §10 (Daily) and §24 (Adventure, plus in-run targets and daily missions for every mode).
 
 ---
 
@@ -489,12 +490,13 @@ Evaluate in this order; show the first two that apply:
 ### 14.2 Coins
 - Run coins: `5 + floor(score / 200)`, same multipliers as XP.
 - Daily counted: +30. Weekly goal: +200. Each level up: +50. Each Star: +100. Achievements: 25 / 50 / 100 by tier (§15).
-- Coins are only spent in the Collection. There is no other sink and no way to buy coins.
+- Coins are only spent in the Collection and, since pass 3, on Adventure boosters (§24.10). There is no other sink and no way to buy coins.
+- Pass 3 adds: in-run targets +5 each and the mini goal +15 (§24.2), daily missions 30/50/80 plus a 50 set bonus (§24.3), Adventure rewards (§24.7).
 
 ### 14.3 Level rewards (free, automatic)
 | Level | Reward |
 |---|---|
-| 2 | Pop effect: Hearts |
+| 2 | Pop effect: Hearts; Mode: Adventure, plus 1 of each booster (§24.4) |
 | 3 | Mode: Zen |
 | 5 | Skin: Googly Eyes |
 | 8 | Mode: Expert |
@@ -536,7 +538,7 @@ Collection UI strings: price button "600 coins", unaffordable: "Need 220 more co
 
 ---
 
-## 15. Achievements (41; #41 "Rivals" is defined in §23.5)
+## 15. Achievements (49; #41 "Rivals" is defined in §23.5, #42–#49 in §24.11)
 
 Coins: E = 25, M = 50, H = 100. Conditions use run stats or lifetime totals as noted. "Any mode" includes Zen unless marked.
 
@@ -585,7 +587,7 @@ Coins: E = 25, M = 50, H = 100. Conditions use run stats or lifetime totals as n
 
 - Score achievements (18–24) do not count Zen.
 - Toast on unlock: "Achievement: Big Pop · +25 coins" (2.4 s, SG §11.8). Several unlocks queue, 0.6 s apart.
-- Achievements screen: grid of 41 badges, locked ones show the description and progress when counter-based ("23 / 50").
+- Achievements screen: grid of 49 badges (§24.11), locked ones show the description and progress when counter-based ("23 / 50").
 
 ---
 
@@ -670,6 +672,21 @@ Credits (SG §11.13; entry points: "Credits" in Settings and in the Home footer 
 Collection: tabs "Themes", "Skins", "Pop effects"; item buttons per §14.4.
 Stats: see §18.
 
+Pass 3 (§24). Every string below goes in `src/ui/strings.ts` word for word. `{n}`-style values use en-US number format. Flavour names are the §3.2 names in lower case inside sentences ("grape cells") and capitalised at the start of a chip.
+- **In-run goal strip (Classic, Expert):** target pill "Next target {t}"; on crossing "{t} ✓ +{c} coins" ({c} = 5 per target passed by that move); mini pill short labels "Big Pop {p}/1", "Combo {p}/4", "2 lines at once {p}/1", "Row + column {p}/1", "{Flavour} cells {p}/12", "Lines {p}/12", "Gloop cells {p}/15", "12-cell gloop {p}/1"; when done the label without numbers plus " ✓" ("Big Pop ✓", "Combo ✓", "2 lines at once ✓", "Row + column ✓", "{Flavour} cells ✓", "Lines ✓", "Gloop cells ✓", "12-cell gloop ✓"); for 1,200 ms after finishing "Done · +15 coins". Mini texts (toast "Mini goal: {text}", aria, game over): "Make a Big Pop", "Reach combo 4", "Clear 2 lines in one move", "Clear a row and a column at once", "Clear or pop 12 {flavour} cells", "Clear 12 lines", "Pop 15 gloop cells", "Grow a gloop to 12 cells". Aria: "Next target {t}. {d} to go." and "Mini goal: {mini text}. {p} of {t}."
+- **Game-over rewards row:** "Targets: {k} · +{c} coins", "Mini goal · +15 coins", "1 mission ready to claim", "{k} missions ready to claim".
+- **Near-miss (§24.12):** "{d} points short of the {t} target.", "{k} more to finish \"{mission}\".", "You needed {k} more {unit}." with units "line", "lines", "point", "points", "{flavour} cell", "{flavour} cells", "Big Pop", "Big Pops", "2+ line clear", "2+ line clears", "sugar cube", "sugar cubes"; "Nothing fit with {m} moves left."; "Won with {m} moves left."; "Win with {s} moves left for {k} stars."; "Stars count moves left without your {b} extra moves."
+- **Home:** mode card "Adventure", "Levels with goals. Win up to 3 stars."; status "Next: Level {n} · ★ {s} / 360"; all won "All 120 levels won · ★ {s} / 360"; locked "Reach Level 2" (existing pattern).
+- **Missions card:** title "Daily missions"; reward "{c} coins · {x} XP"; progress "{p} / {t}"; buttons "Claim" and, once claimed, "Done"; change button aria "Change this mission"; caption "1 free change per day" / "Free change used. Next one tomorrow."; set line "Finish all 3: +50 coins, +50 XP"; set done "All 3 done. New missions tomorrow."; mission texts exactly as the §24.3 table.
+- **Toasts:** "Mission done: {text}", "Mission reward: +{c} coins, +{x} XP", "All 3 missions done! +50 coins, +50 XP", "Adventure gift: 1 of each booster", "Chapter {c} done! +200 coins, +100 XP", "All stars in Chapter {c}! +300 coins", "Bought: {booster}". The unlock uses the existing "Unlocked: {item}" with {item} = "Adventure".
+- **Adventure map:** title "Adventure"; stars chip "★ {s}"; chapter headings "Chapter 1 · First goals", "Chapter 2 · Sugar cubes", "Chapter 3 · Big Pops", "Chapter 4 · Hard cubes", "Chapter 5 · Two goals", "Chapter 6 · Everything"; chapter stars "{s} / 60 ★"; chapter reward lines "All 20 levels: 200 coins, 100 XP" and "All 60 stars: 300 coins" (with ✓ when paid); node label "Hard"; under a paused level "Continue"; footer button "Play level {n}"; when every level is won the footer shows the text "You won every level. Replay any level to get more stars."; node aria "Level {n}, {s} stars" / "Level {n}, hard, {s} stars" / "Level {n}, locked" / "Level {n}, next".
+- **Level start card:** title "Level {n}"; chip "Hard level"; caption "Chapter {c}"; label "Moves"; star line "2 stars: win with {s2} moves left · 3 stars: win with {s3} moves left"; goal texts per §24.5 ("Clear {t} lines", "Score {t} points", "Clear or pop {t} {flavour} cells", "Make {t} Big Pops (8+ cells)" / "Make a Big Pop (8+ cells)", "Clear 2+ lines in one move {t} times" / "Clear 2+ lines in one move", "Clear all {t} sugar cubes"); tips on the first level of each new thing: L6 "New: flavour goals. Cells you clear or pop both count.", L21 "New: sugar cubes. Clear a line through a cube to remove it.", L41 "New: Big Pop goals. Pop a gloop of 8 or more cells.", L46 "New: clear 2 or more lines with one piece.", L51 "Grape joins in: 6 flavours from now on.", L61 "New: hard cubes. They need 2 line clears.", L81 "New: two goals. Finish both to win.", L91 "Bubblegum joins in: 7 flavours from now on."; streak "Win streak {k}: +{m} moves" / "Win streak {k}: +2 moves and a free Shuffle"; streak caption (shown until the first streak bonus is used) "Win new levels in a row for a bonus. A loss resets it."; assist toggle "Extra help: +5 moves" and caption "Extra moves don't count for stars."; booster names "+3 Moves", "Shuffle", "Pop"; booster descriptions "Start with 3 more moves.", "Get 3 new pieces once.", "Pop your biggest gloop once."; count "×{n}"; buy "{p} coins"; short "Need {d} more coins"; cap "Max 5"; free "Free from win streak"; captions "You can win every level without boosters." and "Shuffle and Pop come back if you don't use them."; buttons "Play", "Back to map".
+- **Adventure play:** top bar pill "Level {n}"; HUD label "moves left"; goal chip "{p} / {t}" with aria "{goal text}: {p} of {t}"; booster aria "Use Shuffle" / "Use Pop", used "Used"; pause "Give up" (existing) with confirm "Give up this level? It counts as a loss." buttons "Give up", "Cancel".
+- **Level win panel:** title "Level {n} complete"; streak "Win streak {k}"; buttons "Next level", "Replay", "Map".
+- **Level lose panel:** titles "Out of moves", "No room left" (existing), "Level {n} ended" (gave up); "Win streak reset"; buttons "Try again", "Try again with 5 extra moves", "Map".
+- **Stats:** "Adventure runs", "Adventure levels won", "{w} / 120", "Adventure stars", "{s} / 360", "Best win streak", "Missions done", "Targets reached"; achievements fraction "{n} / 49".
+- **Achievements:** names and descriptions exactly as §24.11. Units for near-miss rule 7: "levels", "levels with 3 stars", "stars", "wins in a row", "missions".
+
 ### 16.5 How to play page (exact text)
 1. **Drag pieces onto the board.** Pieces can't be rotated.
 2. **Fill a whole row or column to clear it.** Clearing several at once scores much more.
@@ -678,6 +695,10 @@ Stats: see §18.
 5. **You get 3 pieces at a time.** Place all 3 to get new ones. New pieces always include at least one that fits.
 6. **The game ends when none of your pieces fit.** In Classic you have one rescue per run: clear 10 lines to charge it.
 7. **Daily challenge:** the same board and pieces for everyone, every day. Your first try counts. Share your result with friends.
+8. **Targets:** in Classic and Expert, reach the next target score for +5 coins. Each run also has one mini goal.
+9. **Daily missions:** three small goals a day. They count in every mode. Rewards wait until you claim them.
+10. **Adventure:** levels with a goal and a move limit. Win to open the next level. More moves left means more stars.
+11. **Sugar cubes:** clear a line through a cube to remove it. Hard cubes need 2 clears. Cubes never join gloops.
 Controls (desktop): "Drag with the mouse, or press 1, 2, 3 to pick a piece, arrow keys to move it, Space to place. Esc pauses. M mutes."
 Scoring table (shown under the text): "Each cell placed: 1 · 1 line: 100 · 2 lines: 300 · 3 lines: 600 · 4 lines: 1,000 · Each popped cell: 20 · Big Pop: +200 · Huge Pop: +600 · Mega Pop: +1,500 · Empty board: +2,000 · Combo multiplies everything except placing."
 
@@ -692,9 +713,15 @@ Load ──► Play (Classic; tutorial if first launch)
             ├─ Rescue panel: Use rescue · No thanks
             └─ Game over panel: Play again · Home · Share score
                                    (Daily: Share · Practice · Home)
-Home ──► Play · Mode cards (Classic, Daily, Zen, Expert) · Weekly card
+Home ──► Play · Mode cards (Classic, Adventure, Daily, Zen, Expert) · Missions card (Claim, Change) · Weekly card
+     ├─► Adventure map (scrolling levels 1–120)                          [◀ Back]
+     │      └─► Level start card (goals, moves, stars, streak, assist, boosters: buy/select) · Play · Back to map
+     │             └─► Play (Adventure HUD: moves, goal chips, booster bar)
+     │                    ├─ Pause overlay: Resume · Give up · Home · Settings
+     │                    ├─ Level win panel: Next level (→ start card) · Replay · Map
+     │                    └─ Level lose panel: Try again · Try again with 5 extra moves (after 3 losses) · Map
      ├─► Collection (tabs Themes / Skins / Pop effects; each item: buy / use)  [◀ Back]
-     ├─► Achievements (grid of 41; tap badge for details)                   [◀ Back]
+     ├─► Achievements (grid of 49; tap badge for details)                   [◀ Back]
      ├─► Stats (numbers + last-20 bar chart)                                [◀ Back]
      ├─► Settings (toggles, Show tutorial again, Reset all progress)        [◀ Back]
      └─► How to play                                                        [◀ Back]
@@ -704,12 +731,13 @@ Daily card ──► Play (Daily) ──► Daily result: Share · Share image �
 - Every screen has a back button top-left (Esc on desktop). Android back / browser back: handled with `history.pushState` per screen, so back closes the current screen instead of leaving the site.
 - Menu (☰) during a run pauses the run and opens Home. "Play" on Home resumes it.
 - Level-up and unlock moments are toasts, never blocking modals.
+- Pass 3: the level start card and the level win/lose panels are modals over the map or the board (SG §20). They open only between attempts, never during play. Android/browser back closes the start card back to the map, and from the Adventure HUD it opens the pause overlay.
 - Leaving the tab (visibilitychange hidden) auto-pauses and saves.
 
 ---
 
 ## 18. Stats screen
-Lifetime: Runs played (per mode), Best score (Classic, Expert), Average score (last 20 Classic), Lines cleared, Popped cells, Biggest pop, Best combo, All clears, Pieces placed, Time played (h m), Dailies finished, Best daily score, Current streak, Best streak, Achievements "17 / 41". Chart: last 20 Classic scores as bars (best bar highlighted), drawn on a small canvas.
+Lifetime: Runs played (per mode), Best score (Classic, Expert), Average score (last 20 Classic), Lines cleared, Popped cells, Biggest pop, Best combo, All clears, Pieces placed, Time played (h m), Dailies finished, Best daily score, Current streak, Best streak, Achievements "17 / 49"; pass 3 rows in §24.13. Chart: last 20 Classic scores as bars (best bar highlighted), drawn on a small canvas.
 
 ---
 
@@ -756,12 +784,12 @@ Lifetime: Runs played (per mode), Best score (Classic, Expert), Average score (l
 | R12 Thumbnail-readable | 7 saturated flavours on a calm dark board, each with a distinct topper shape and face; patterns for colour-blind mode; 64 px test | SG §5–6 |
 | R13 Characterful pieces | Faces with 10 expressions that react to drag, danger, clears and loss; face size grows with gloop | SG §6 |
 | R14 Juice everywhere | Squash and stretch, sweep, ripple, particles, shake tiers, combo pitch ladder, haptics | SG §9, §13 |
-| R15 Layered progression | Score, XP/levels, coins every run, 21 cosmetics, 2 unlockable modes, 41 achievements | §14, §15 |
+| R15 Layered progression | Score, XP/levels, coins every run, 21 cosmetics, 3 unlockable modes, 49 achievements, run targets, missions, 360 Adventure stars | §14, §15, §24 |
 | R16 Short sessions | Classic median 4–7 min verified by sim; Daily ≤ 90 placements; one-tap restart | §8 |
-| R17 Long tail | Endless score, level 50 + Stars, Expert mode, 41 achievements, Collector | §9.2, §14, §15 |
+| R17 Long tail | Endless score, level 50 + Stars, Expert mode, 49 achievements, Collector, 120 Adventure levels × 3 stars, target ladder without end | §9.2, §14, §15, §24 |
 | R18 Fair, player-favourable | Generator only helps (F1–F4); rescue earned by clearing 10 lines; no ads, IAP, energy or accounts | §3.7, §7.4 |
 | R19 No-install web | Static Vite build on GitHub Pages, service worker offline, OG image | architecture §10–11 |
-| R20 Return reasons | Daily, streak with freezes, rotating weekly goal | §10–12 |
+| R20 Return reasons | Daily, streak with freezes, rotating weekly goal, 3 daily missions that carry over | §10–12, §24.3 |
 | R21 Sound respectful | On by default, starts on first input, mute always visible in the top bar, M key | SG §13, §17 |
 | R22 Performance | Cached board layer, DPR cap 2 with adaptive drop to 1.5, pooled particles, no per-frame shadowBlur | architecture §6 |
 | R23 PB chase bar | Gold progress bar under the score; pulses at 80%; label "{d} to beat your best" | §23.1 |
@@ -772,11 +800,14 @@ Lifetime: Runs played (per mode), Best score (Classic, Expert), Average score (l
 | R28 Streak celebration | Animated flame tick-up, gold milestone flames with confetti | §23.6 |
 | R29 Screenshot results | Biggest gloop drawn with its face, best combo, lines | §23.7 |
 | R30 Replay | Deferred (deterministic reducer supports it) | §23.8 |
+| Pass 3 (RT1–RT29) | Goals that keep you playing: Classic/Expert targets and mini goals, daily missions, 120 validated Adventure levels with stars, assist and a small win streak, boosters as a coin sink. R15, R17 and R20 above gain these layers. | §24, traceability §24.16 |
 
 ---
 
 ## 22. What is deliberately not in the game
 No ads, IAP, energy, loot boxes, accounts, backend, leaderboards, push notifications, timers in Classic/Daily, paid streak repair, fake near-misses, or rigged pieces. No link in share text beyond the bare site address (and the `?beat=` score in a Classic challenge). Replays of runs are a later idea (§23.8). No text walls.
+
+Pass 3 (§24.1 cut list) adds: no chests, spin wheels or random rewards; no lives, energy or waits between Adventure attempts; no star gates; no boosters or extra moves offered at a loss; no paid anything (boosters cost earned coins only and are never needed); no mission streak and no expiring rewards; no "x% of players" numbers; no levels that were not validated by the bot.
 
 ---
 
@@ -874,3 +905,409 @@ Not built for launch. The deterministic reducer makes it possible later: store t
 11. **"You beat your friend!"** banner (§23.5).
 12. **First Mega Pop** banner with its hit-stop (§23.2, §23.4).
 13. **Milestone streak flame** turning gold (§23.6).
+
+---
+
+## 24. Goals and Adventure (pass 3)
+
+Added on 25 Oct 2026 after the retention research (`research/retention.md`). In this section, **RT n** means tag R n in `research/retention.md`. Bare R-tags elsewhere in this file keep their old meaning (`docs/research/virality.md`). Where this section conflicts with an earlier one, this section wins.
+
+### 24.1 What this pass adds, and why
+The owner asked: "Is there real progression that keeps you playing endlessly? Goals to beat or targets to keep you playing more and more?" The research says the core loop already has a variable reward (when combos and big pops happen depends on the deal and the player, RT1, RT2). What is missing is **goals**. "Always, always a reason for the player to be playing" (RT2), close goals that pull you forward (goal gradient RT6), and goals people come back to finish (RT8, resumption).
+
+| # | Feature | Mechanism | Evidence | Where |
+|---|---|---|---|---|
+| 1 | In-run targets in Classic and Expert: "Next target 5,000" plus one small mini goal per run | goal gradient; every run pays toward something | RT6, RT7, RT2, RT23 | §24.2 |
+| 2 | Daily missions: 3 small goals, 1 free change a day, count in every mode, rewards wait until claimed, unfinished missions never expire | frequent small goals; resumption; no FOMO | RT2, RT8, RT10, RT25, RT12 | §24.3 |
+| 3 | Adventure: 120 levels with goals and move limits, 1–3 stars, a map, a sawtooth difficulty curve, a complexity staircase, an assist after 3 losses | goals instead of survival; mastery; hard levels short | RT16, RT17, RT18, RT19, RT27 | §24.4–24.8 |
+| 4 | Adventure win streak: at most +2 moves and 1 free Shuffle, reset only by a real loss, never sold | the honest version of Royal Match's streak | RT14, RT15 (counter-examples), RT9 | §24.9 |
+| 5 | Coin sink: 3 Adventure boosters bought with earned coins only, max 5 of each; every level is validated **without** them | every run banks progress; no degrade-and-sell | RT23, RT4, RT15 | §24.10 |
+| 6 | All of it feeds XP, coins, achievements (+8), stats, near-miss lines and the weekly goal | multiple activities | RT2 | §24.11–24.13 |
+
+**Cut, with reasons:**
+- **Chests, spin wheels or random rewards of any kind.** The core loop is already variable, and random rewards drift toward loot boxes (RT1, RT12, RT13).
+- **Lives, energy, timers between attempts.** Playing by appointment is a named dark pattern (RT12). A loss costs only the attempt.
+- **Star gates on chapters.** Grinding is a named dark pattern (RT12), and gates make difficulty spikes worse (RT16: level 65 churn). Winning a level opens the next one. Stars are for mastery.
+- **Offering boosters or moves on the lose panel.** That is exactly where extra moves are sold (RT14, RT15). Boosters can only be picked on the level start card.
+- **A streak tied to missions.** RT ranked table: "No streak tied to missions". The Daily streak (§11) stays the only day streak.
+- **Higher cosmetic tiers.** Every new tier needs new art for 21 items, and boosters already give coins a renewable use (RT23). Revisit once the shop is commonly finished.
+- **Levels after 120 generated at runtime.** They could not be validated before shipping (§24.6). More chapters can be added later with the same tool, and Classic stays endless.
+- **Hand-authored level templates.** The seeded generator plus bot calibration (§24.6) gives exact, testable difficulty with no hand data to keep in sync. The first level of every new idea is an easy-band level with a one-line tip instead (RT27: introduce, then develop).
+- **More blocker types than sugar cubes and hard cubes.** Two are enough for a staircase across 120 levels (RT17), and each one touches resolve, solver and rendering.
+- **"You beat 87% of players" or any social number.** Unverifiable (RT18). We have no backend anyway.
+
+### 24.2 In-run targets and the mini goal (Classic and Expert)
+Not in Daily (it already has trays and a share grid), Zen (no stakes), the tutorial steps or Adventure (it has its own goals). Shown only when `tutorialDone` was true at run start.
+
+**Target ladder (fixed, the same for everyone):**
+`LADDER = 1,000 · 2,500 · 5,000 · 7,500 · 10,000 · 15,000 · 20,000 · 30,000 · 40,000 · 50,000 · 75,000 · 100,000`, then every +50,000 forever (150,000, 200,000, …). Expert uses the same ladder.
+
+**Derived from your own best:** at run start, `floor = floor(best / 4)` where `best` is that mode's best score (0 if none). The goal strip shows the **next target**: the smallest ladder value that is greater than the score and at least `floor`. So a player whose best is 40,000 first sees "Next target 10,000", and a new player sees "Next target 1,000". The personal-best bar (§23.1) still chases the best itself, so the two never show the same number. If the next visible target equals the best exactly, show the ladder value after it.
+
+**Rewards:** +5 coins for **every** ladder value the score passes in the run, including values below `floor` that were never shown. They bank at run end with the run's coins. No XP. A 20,000 run passes 7 targets: +35 coins.
+
+**Progress fill** inside the target pill: `(score − prev) / (next − prev)`, where `prev` is the ladder value before `next`, or 0 when `next` is the first visible target of the run. RT7 says a head start only works with a stated reason, so nothing is pre-filled for show.
+
+**Crossing:** core emits `targetReached { target, index }` for each ladder value passed by a move, in ascending order. The HUD shows it when the counting-up score reaches the target (SG §20.7). It is not a banner over the board, it has no hitstop or slow-mo, and it never blocks input.
+
+**Mini goal:** one per run, chosen from the run seed with its own hash, so the tray stream is not touched: `h = cyrb128(seed + "/mini")`, `id = MINI[h[0] mod 8]`, flavour for `flavour12` = `1 + (h[1] mod 5)` (cherry to blueberry, which are always in play).
+
+| # | id | Text (toast, aria, game over) | Pill label | Target | Counts |
+|---|---|---|---|---|---|
+| 0 | bigpop | Make a Big Pop | Big Pop {p}/1 | 1 | a popped gloop with size ≥ 8 |
+| 1 | combo4 | Reach combo 4 | Combo {p}/4 | 4 | the highest combo this run |
+| 2 | double | Clear 2 lines in one move | 2 lines at once {p}/1 | 1 | a move with n ≥ 2 |
+| 3 | cross | Clear a row and a column at once | Row + column {p}/1 | 1 | a move with ≥ 1 row and ≥ 1 column |
+| 4 | flavour12 | Clear or pop 12 {flavour} cells | {Flavour} cells {p}/12 | 12 | cells of that flavour removed by clears or pops |
+| 5 | lines12 | Clear 12 lines | Lines {p}/12 | 12 | lines cleared this run |
+| 6 | pop15 | Pop 15 gloop cells | Gloop cells {p}/15 | 15 | popped cells \|P\| (§3.5) this run |
+| 7 | grow12 | Grow a gloop to 12 cells | 12-cell gloop {p}/1 | 1 | a `bigGloop` event (size ≥ 12) |
+
+- The pill uses the short label (it must fit 186 px, SG §20.7). When done it shows the label without numbers plus " ✓" ("Big Pop ✓"). The full text is shown once as a toast when the run's first piece is placed, "Mini goal: {text}" (standard toast, never blocks), and it is the pill's aria label.
+
+- Reward: **+15 coins and +10 XP** when done (flat, any mode multiplier ignored), banked at run end. Core emits `miniDone { id }` once.
+- Progress is part of `GameState.goals` (§24.14), so it resumes after a reload.
+
+**Game-over panel additions** (rewards row, under XP and coins): "Targets: 4 · +20 coins" (hidden if 0), "Mini goal · +15 coins" (only if done), and "1 mission ready to claim" / "{k} missions ready to claim" (if any mission is done and unclaimed). The coin total already includes the target and mini coins.
+
+### 24.3 Daily missions (every mode)
+**Model:** Guild Wars 2's Wizard's Vault (RT25): goals drawn from a reshuffled deck, nothing to miss. Three slots: A (easy), B (medium) and C (hard). Progress counts in Classic, Expert, Zen, Daily (counted and practice) and Adventure, but not in tutorial steps 1–3. **Score missions ignore Zen** (as the weekly goal does). Progress only counts events that happen after the mission was issued.
+
+**Rewards** (claimed by tapping "Claim" on Home; they wait forever):
+
+| Slot | Coins | XP |
+|---|---|---|
+| A easy | 30 | 20 |
+| B medium | 50 | 40 |
+| C hard | 80 | 60 |
+| All 3 current missions claimed (set bonus, once per set) | 50 | 50 |
+
+Most a player can earn per day: 210 coins and 170 XP (about 4 Classic runs' worth of coins).
+
+**Pool (29 missions):**
+
+| Slot | id | Text | Target | Counts | Needs |
+|---|---|---|---|---|---|
+| A | lines15 | Clear 15 lines | 15 | lines cleared | — |
+| A | pieces40 | Place 40 pieces | 40 | `placed` events | — |
+| A | gloop25 | Pop 25 gloop cells | 25 | popped cells \|P\| | — |
+| A | bigpop1 | Make a Big Pop (8+ cells) | 1 | popped gloops with size ≥ 8 | — |
+| A | combo3 | Reach combo 3 | 3 | highest combo in one run since issue | — |
+| A | double1 | Clear 2 lines in one move | 1 | moves with n ≥ 2 | — |
+| A | score3k | Score 3,000 in one run | 3,000 | best single-run score since issue (not Zen) | — |
+| A | runs2 | Finish 2 runs | 2 | finished runs: game over, Zen "End run", Adventure win or loss | — |
+| A | advwin1 | Win an Adventure level | 1 | Adventure wins (replays count) | Adventure unlocked |
+| A | cherry20 | Clear or pop 20 cherry cells | 20 | cherry cells removed by clears or pops | — |
+| B | lines40 | Clear 40 lines | 40 | lines cleared | — |
+| B | blueberry40 | Clear or pop 40 blueberry cells | 40 | blueberry cells removed | — |
+| B | combo6 | Reach combo 6 | 6 | highest combo in one run | — |
+| B | bigpop3 | Make 3 Big Pops | 3 | popped gloops with size ≥ 8 | — |
+| B | score10k | Score 10,000 in one run | 10,000 | best single-run score (not Zen) | — |
+| B | triple1 | Clear 3 lines in one move | 1 | moves with n ≥ 3 | — |
+| B | cross3 | Clear a row and a column at once 3 times | 3 | moves with ≥ 1 row and ≥ 1 column | — |
+| B | advwin3 | Win 3 Adventure levels | 3 | Adventure wins | Adventure unlocked |
+| B | adv3star | Win an Adventure level with 3 stars | 1 | Adventure wins with 3 stars (replays count) | Adventure unlocked |
+| B | orange40 | Clear or pop 40 orange cells | 40 | orange cells removed | — |
+| C | lines80 | Clear 80 lines | 80 | lines cleared | — |
+| C | hugepop1 | Make a Huge Pop (15+ cells) | 1 | popped gloops with size ≥ 15 | — |
+| C | combo10 | Reach combo 10 | 10 | highest combo in one run | — |
+| C | score20k | Score 20,000 in one run | 20,000 | best single-run score (not Zen) | — |
+| C | allclear1 | Empty the board once | 1 | `allClear` events | — |
+| C | multi10 | Clear 2+ lines in one move 10 times | 10 | moves with n ≥ 2 | — |
+| C | lemon70 | Clear or pop 70 lemon cells | 70 | lemon cells removed | — |
+| C | advstars6 | Earn 6 new Adventure stars | 6 | stars earned for the first time on a level | Adventure unlocked and at least 6 unearned stars on levels up to the frontier |
+| C | score50k | Score 50,000 in total | 50,000 | sum of `scored.points` (not Zen) | — |
+
+"Cells removed" for flavour missions = cells of that flavour in the move's cleared lines (`cleared.flavoursByCell`) plus that flavour's popped cells outside the lines. Sugar cubes are not flavours and never count.
+
+**Deck (deterministic, the same for everyone):**
+- `deck(slot, cycle)` = the slot's pool in table order, shuffled by Fisher–Yates (for i from n−1 down to 1, j = `nextInt(rng, i + 1)`, swap) with `sfc32` seeded from `cyrb128("gloop-pop/missions/v1/" + slot + "/" + cycle)` and 12 warm-up draws. n = 10, 10, 9.
+- A **walk position** `w` maps to `deck(slot, floor(w / n))[w mod n]`. The position for UTC day d (`dayNumber`, §10.1) is `w = d − 1`.
+- To **issue** a mission for a slot, start at the day's `w` and step `w + 1` until the mission is available to this player (column "Needs") and not in `shownToday` for that slot. Give up after 2n steps and use the slot's first mission (lines15 / lines40 / lines80, always available).
+
+**Day roll** (on app load, on opening Home, and at every run end; compares the UTC `dayKey` with `missions.day`):
+- A slot whose mission is **claimed** (or empty) gets the new day's mission, with progress 0.
+- A slot whose mission is **unfinished** keeps it, with its progress. Missing days never costs anything (RT25: no "forever behind").
+- A slot whose mission is **done but unclaimed** keeps it. It stays claimable.
+- `shownToday` is reset, the free change is available again, and `setPaid` is reset when all three slots got new missions.
+
+**Free change (reroll):** once per UTC day, on any unfinished slot. It replaces the mission with the next issuable one after its walk position (skipping `shownToday`), with progress 0. It is never sold, and there is no second change.
+
+**Set bonus:** when all three current slots are claimed and `setPaid` is false, pay 50 coins and 50 XP and set `setPaid`. The card then reads "All 3 done. New missions tomorrow."
+
+**Live feedback:** when a mission becomes done during play, show the toast "Mission done: {text}" (standard queue, SG §11.8). Missions never pause or interrupt a run.
+
+### 24.4 Adventure: mode rules
+- **Unlock:** Level 2 (the end of the first run for most players; level reward table §14.3 gains this row). Toast "Unlocked: Adventure", then "Adventure gift: 1 of each booster" (each booster count +1, capped at 5).
+- **Entry:** the Home mode card "Adventure" opens the map (§17). Load still opens Classic (§9.1).
+- **A level** has 1 or 2 goals, a move limit, a fixed starting board (it may hold sugar cubes), a piece mix and a flavour count. All of these come from the committed level table (§24.6). Every attempt of a level uses the level's validated seed, so the start board and the first tray are the same on every attempt and for every player. Later trays depend on your moves, deterministically.
+- **Pieces:** dealt by `dealTray` (§7.4) on the level's tray stream, with the level's stage weights, flavour list and F2 probability. F1 always holds. There is no rescue, no Zen shake and no stage-up.
+- **Moves:** each placement costs 1 move. Boosters (§24.10) cost none.
+- **Scoring and combo:** exactly §5 and §6. First-time discoveries (§23.2) still fire, since they are lifetime one-offs.
+- **After every placement, in this order:** (1) update goal progress; (2) if every goal is met, **the level is won**, even if the same move also leaves nothing that fits; (3) else if moves left = 0, **lost: "Out of moves"**; (4) else deal if the tray is empty; (5) else if nothing in the tray fits, **lost: "No room left"**.
+- **Give up:** pause menu "Give up" (confirm "Give up this level? It counts as a loss.") ends the attempt as a loss.
+- **Leaving:** Menu/Home or closing the tab keeps the attempt in `adventure.inProgress`. The map shows "Continue" on that level. Starting a different level discards the paused attempt with no loss recorded. This is allowed on purpose: the only thing a loss changes is the small win streak (§24.9), so there is nothing worth guarding.
+- **A loss costs nothing but the attempt** and resets the win streak. No lives, no energy, no wait, no coins.
+- **Unlocking levels:** winning level n (any star count) unlocks level n + 1. `frontier` = the lowest level never won (121 when all are won).
+- **Replays** of won levels are always allowed and can raise the star count.
+
+### 24.5 Goals, sugar cubes and stars
+**Goal kinds** (progress is monotonic: it never goes down during an attempt):
+
+| Code | Goal text (start card, §16) | Chip | Progress counts | Bot weight W (§24.6) | Target rounding, minimum |
+|---|---|---|---|---|---|
+| L | Clear {t} lines | lines icon "{p} / {t}" | lines cleared | 120 per line | whole number, min 3 |
+| S | Score {t} points | star-burst icon | the attempt's score | 0 (points already rank moves) | down to a multiple of 100, min 500 |
+| F | Clear or pop {t} {flavour} cells | mini gloop of the flavour | cells of the goal flavour removed by clears or pops | 30 per cell | down to a multiple of 5 if ≥ 20, else whole, min 8 |
+| B | Make {t} Big Pops (8+ cells) | big-gloop icon | popped gloops with size ≥ 8 | 300 per Big Pop | whole, min 1 |
+| M | Clear 2+ lines in one move {t} times | double-line icon | moves with n ≥ 2 | 300 per such move | whole, min 1 |
+| C | Clear all {t} sugar cubes | cube icon | cubes fully removed | 250 per cube hit | fixed: the number of cubes on the start board |
+
+Singular forms: "Make a Big Pop (8+ cells)" and "Clear 2+ lines in one move" when t = 1.
+
+**Sugar cubes** (blockers; they fit the engine cheaply because a cube is just a non-flavour cell value):
+- Cell value **8 = sugar cube**, **9 = hard cube**. `Cell = 0 | Flavour | 8 | 9`. Only Adventure boards ever contain them. Pieces never do.
+- A cube is a **filled** cell: pieces can't go there, and it counts toward a full row or column.
+- A cube is **never part of a gloop**. `components()` only groups values 1–7. A popped gloop never removes a cube.
+- When a cleared line contains a cube (§3.5 step 6): a value 8 cell becomes 0 (**removed**), and a value 9 cell becomes 8 (**cracked**, it stays). A cube in two cleared lines at once is hit once.
+- All Clear needs the board fully empty, so a cube left on the board means no All Clear.
+- Scoring is unchanged: cube cells in a line are ordinary line cells. No extra points.
+- Events: after `cleared`, core emits `cubes { removed: number[], cracked: number[] }` when either list is non-empty.
+- `solver.ts` and `resolve.ts` must apply the same rule (one shared helper). Classic, Expert, Zen and Daily never see values 8–9, so their deals, scores and the pinned 400-day Daily hash don't change.
+
+**Stars:** a won level gives 1–3 stars from the moves left when it was won:
+```
+effMovesLeft = movesLeft − bonusMoves        (bonusMoves = streak + assist + "+3 Moves" booster; floor at 0)
+stars = 3 if effMovesLeft ≥ s3;  2 if effMovesLeft ≥ s2;  else 1
+```
+`s2` and `s3` are stored per level (§24.6). Extra moves help you win but never buy stars. Stars on a level only go up (best kept). There are 360 Adventure stars in total. On screen they are always drawn on the map, cards and panels, so they are never confused with the Level-50 Stars (§14.1), which only appear as "Lv 50 ★3".
+
+### 24.6 Level table: parameters, generation, calibration, validation
+**Count:** 120 levels in 6 chapters of 20. The table `src/core/levels.data.ts` is generated by `npm run levels` (`tools/gen-levels.mjs`) and committed. The game never generates levels at runtime.
+
+**Position and band.** For level n: chapter `c = ceil(n / 20)`, position `p = n − 20(c − 1)`.
+- **intro:** n = 1, 2, 3
+- **hard:** p = 5, 10, 15, 20
+- **easy:** p = 1, 6, 11, 16 (and the intro levels)
+- **normal:** all other positions
+
+This is the **sawtooth** (RT16, RT27). Every 5th level is hard and short, and the level after it is easy. Each chapter's easy levels are easier than the previous chapter's hard ones.
+
+**Wins required (K of 12 bot runs):** intro 12, easy 10, normal 7, hard 4.
+
+**Move limits** (intro levels: 20). Hard levels are short (RT16: "if a level is really hard, it should also be really short"):
+
+| Chapter | easy | normal | hard |
+|---|---|---|---|
+| 1 | 30 | 26 | 18 |
+| 2 | 28 | 25 | 17 |
+| 3 | 28 | 24 | 16 |
+| 4 | 27 | 24 | 16 |
+| 5 | 26 | 23 | 15 |
+| 6 | 26 | 22 | 14 |
+
+**Chapters and the complexity staircase** (RT17: one new thing at a time, first in an easy level, with a one-line tip on the start card):
+
+| Ch | Levels | Map name | New thing (level) | Stage weights (§7.2): easy/normal · hard | Flavours | F2 p: easy · normal · hard |
+|---|---|---|---|---|---|---|
+| 1 | 1–20 | Chapter 1 · First goals | line and score goals (1); flavour goals (6) | S1 · S2 | 5 | 1 · 1 · 1 |
+| 2 | 21–40 | Chapter 2 · Sugar cubes | sugar cubes (21) | S2 · S3 | 5 | 1 · 1 · 1 |
+| 3 | 41–60 | Chapter 3 · Big Pops | Big Pop goals (41); 2+ line goals (46); grape (51) | S3 · S4 | 5 (41–50), 6 (51–60) | 1 · 0.5 · 0.5 |
+| 4 | 61–80 | Chapter 4 · Hard cubes | hard cubes (61) | S3 · S4 | 6 | 1 · 0.5 · 0.5 |
+| 5 | 81–100 | Chapter 5 · Two goals | two goals (81); bubblegum (91) | S4 · S5 | 6 (81–90), 7 (91–100) | 1 · 0.5 · 0 |
+| 6 | 101–120 | Chapter 6 · Everything | — | S4 · S5 | 7 | 1 · 0.5 · 0 |
+
+Intro levels use S1 weights and F2 p = 1.
+
+**Goal rotation by position p = 1…20** ("C+X" = two goals: clear all cubes and goal X):
+
+| Ch | p1 | p2 | p3 | p4 | p5 | p6 | p7 | p8 | p9 | p10 | p11 | p12 | p13 | p14 | p15 | p16 | p17 | p18 | p19 | p20 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | L | S | L | S | L | F | S | L | F | S | F | L | S | F | L | S | F | L | S | F |
+| 2 | C | L | S | C | C | F | C | S | L | C | S | C | F | L | F | C | S | C | L | C |
+| 3 | B | L | C | B | S | M | F | B | C | M | L | B | S | C | B | F | M | C | B | C |
+| 4 | C | L | B | C | F | C | M | S | C | B | C | F | M | C | S | L | C | B | M | C |
+| 5 | C+L | S | C+F | B | C | M | C+S | F | C+B | L | S | C+M | B | C+L | C+F | F | C+S | M | C+B | C+L |
+| 6 | C+S | B | C+F | M | C+L | F | C+B | S | C+M | C | L | C+F | B | C+S | M | C+L | F | C+B | S | C+M |
+
+**Start board pieces** (dropped like the Daily start board, §7.5: pieces from {I2h, I2v, I3h, I3v, L3a–d, O2} in the level's flavours, rejecting positions that make a full line; intro levels: 0):
+
+| Chapter | easy | normal | hard |
+|---|---|---|---|
+| 1 | 0 | 2 | 3 |
+| 2 | 1 | 2 | 3 |
+| 3 | 2 | 3 | 4 |
+| 4 | 2 | 3 | 4 |
+| 5 | 2 | 4 | 5 |
+| 6 | 3 | 4 | 5 |
+
+**Cubes on C levels** (sugar, hard). Two-goal levels always use the chapter's **easy** column, because their second goal carries the difficulty:
+
+| Chapter | easy | normal | hard |
+|---|---|---|---|
+| 2 | 3, 0 | 5, 0 | 6, 0 |
+| 3 | 4, 0 | 6, 0 | 8, 0 |
+| 4 | 2, 1 | 3, 2 | 4, 3 |
+| 5 | 3, 1 | 4, 2 | 4, 4 |
+| 6 | 3, 2 | 4, 3 | 5, 4 |
+
+**Seeds and streams.** For level n and candidate seed index s (0, 1, 2, …): `seed = "gloop-pop/adventure/v1/" + n + "/" + s`. Sub-streams use `cyrb128(seed + "/board" | "/trays" | "/goal")` with 12 warm-up draws (like §10.2). Building a level:
+1. Board stream: drop the start pieces (rejecting full lines; at most 20,000 tries, else reject this seed). Then place hard cubes, then sugar cubes, each on a uniformly picked empty cell (`nextInt` over the list of empty cells in index order), rejecting a cell that would complete a row or column.
+2. Goal stream: the F goal's flavour = `1 + nextInt(flavourCount)`.
+3. Tray stream: the attempt's `rng` for `dealTray`.
+
+**The level bot** (`src/core/levelBot.ts`, frozen: any change means regenerating the table). It is the architecture §9.3 "decent human" with one change: each move's value is `movePoints + 40 × lines + Σ W × goalDelta` (W from §24.5). It plays one of the top 3 safe moves, picked by `seededRng(seed + "/bot/" + k)`. It is a copy, not an import of `rankMoves`, so Classic balance changes can never shift Adventure levels.
+
+**Calibration and validation** (per level, in `src/core/levelGen.ts`, pure):
+1. Build the level for s = 0.
+2. Play 12 bot runs (k = 0…11) on the real Adventure reducer with the targets set to "never met", up to the move limit (no bonus moves, no boosters). Record each goal's progress after every move and the move where the run got stuck, if it did.
+3. **Calibrate** each count goal (L, S, F, B, M): the target is the **K-th highest** final progress among the 12 runs, rounded **down** per §24.5. Two-goal levels calibrate X only among runs that removed all cubes by the limit, and need at least K such runs. C targets are fixed.
+4. A run **wins** when every goal's progress reaches its target at some move j ≤ limit. Its `movesLeft = limit − j`. Because the bot's choices don't depend on targets, this equals a real play-through, and step 7 checks that.
+5. **Stars:** `s3 = min(max movesLeft over winning runs, floor(0.4 × limit))`, `s2 = max(1, floor(s3 / 2))`.
+   **Intro caps** apply between steps 3 and 4: level 1's L target is at most 4, level 2's S target at most 1,500, level 3's L target at most 6. A calibrated value above its cap becomes the cap, so wins and stars are computed with the capped target.
+6. **Accept the seed** when all of these hold: wins ≥ K; each calibrated target ≥ its minimum (§24.5); s3 ≥ 2 (at least one bot run reaches 3 stars). Otherwise try s + 1.
+7. **Store** `{ n, s, goals: [{kind, flavour?, target}], moves, s2, s3, wins, board }` (board as a 64-character string of digits 0–9). Also re-run the 12 bots on the real reducer *with* the targets and check that the win count equals `wins` and every star result agrees.
+8. If 64 seeds fail, the tool stops with "Level {n}: no seed passed in 64 tries" and does not write the table. The fix is a parameter change in `src/core/levels.ts` (tables above, then this section), never a hand edit of `levels.data.ts`.
+
+**Re-validation in tests** (`levels.test.ts`, part of `npm run check`): for all 120 levels, (a) rebuilding from `s` gives exactly the stored board and goal flavour; (b) the 12 bot runs on the real reducer give exactly the stored targets, `wins`, `s2` and `s3`; (c) the sawtooth holds: in every chapter, mean wins of hard < normal < easy levels, and every level right after a hard one is easy-band; (d) the staircase holds: the first level using each new thing is the one in the chapter table, and it is easy-band. Budget: at the measured 3,700 bot moves per second (25 Oct 2026, `npm run sim`), 120 × 12 runs × ≤ 30 moves ≈ 43,000 moves ≈ 12 s. The test's timeout is 90 s, and the agent reports the measured time. If it ever passes 30 s, check this section before cutting runs.
+
+**Hard levels stay short and fair:** a hard level wins 4–12 of 12 bot runs, has 14–18 moves and is followed by an easy level. "Crazy hard levels never pay off" (RT16).
+
+### 24.7 Adventure rewards
+| Event | XP | Coins |
+|---|---|---|
+| First win of a level | 40 | 20 |
+| Each star earned for the first time on a level (also on the first win) | 10 | 15 |
+| A win that earns no new star (replay) | 10 | 5 |
+| A loss (any reason) | 5 | 2 |
+| Chapter done (all 20 levels won), once per chapter | 100 | 200 |
+| All 60 stars in a chapter, once per chapter | 0 | 300 |
+
+No mode multipliers. A first win with 3 stars pays 70 XP and 65 coins. All 120 levels at 3 stars pay 8,400 XP and 7,800 coins, plus chapters 600 XP and 3,000 coins. Toasts: "Chapter {c} done! +200 coins, +100 XP" and "All stars in Chapter {c}! +300 coins". Level-ups from these go through the normal XP path (§14.1).
+
+### 24.8 Assist after 3 losses (RT27)
+- Each level keeps `lossRun` = losses in a row on that level since its last win.
+- When `lossRun ≥ 3`, the lose panel shows a second button, "Try again with 5 extra moves". The start card also shows the toggle "Extra help: +5 moves" (off by default). It is free and unlimited, and it has no other effect.
+- The 5 moves count as `bonusMoves`, so they never raise stars (§24.5). The caption "Extra moves don't count for stars." says so.
+
+### 24.9 Adventure win streak (RT14, RT15: the honest version)
+- `winStreak` counts wins on the **frontier** level, that is, new levels. A loss on the frontier level (out of moves, no room, or give up) resets it to 0. Replays of won levels never change it, win or lose. A discarded paused attempt doesn't change it either.
+- **Bonus at the start of a frontier level:**
+
+| Streak at level start | Bonus |
+|---|---|
+| 0 | none |
+| 1 | +1 move |
+| 2 | +2 moves |
+| 3 or more | +2 moves and a free Shuffle |
+
+- The bonus is applied automatically and shown on the start card ("Win streak 2: +2 moves"). Its moves are `bonusMoves` (no stars). The free Shuffle doesn't use your stock, and a level still allows only one Shuffle.
+- It can't be bought, protected or restored. `bestWinStreak` is kept for stats and the "Five Wins" achievement.
+- Why it is small: Royal Match's streaks are tuned to sell moves and "greatly increase the chances of player burnout" (RT15). Ours is worth at most 2 moves.
+
+### 24.10 Boosters (the coin sink)
+Bought with earned coins only, on the level start card. Never offered on the lose panel or during play, never for money, and **no level ever needs one** (validated without, §24.6).
+
+| id | Name | Effect | Price | Max held | Used |
+|---|---|---|---|---|---|
+| moves | +3 Moves | Start the level with 3 more moves (they are `bonusMoves`: no stars). | 150 coins | 5 | used up when the level starts |
+| shuffle | Shuffle | Once per level: replace the whole tray with 3 new pieces dealt by `dealTray` with F2 forced (all 3 fit in some order). | 100 coins | 5 | used up only when tapped; comes back at level end if unused |
+| pop | Pop | Once per level: pop the biggest gloop on the board, the same rule as the rescue (§3.7): no points, combo unchanged, no effect on cubes, **doesn't count for goals**. Disabled when the board has no gloop. | 200 coins | 5 | used up only when tapped; comes back if unused |
+
+- On the start card each booster is a tile with its count. Tapping an owned tile selects it for this attempt. When the count is 0, the tile has a buy button ("150 coins"; "Need 40 more coins" when short; "Max 5" at the cap). One tap buys one. There is no confirm, because it is cheap and the coins are earned.
+- In play, Shuffle and Pop are buttons in the booster bar (SG §20.4), also on keys 4 and 5. They resolve instantly (`booster` action), cost no move, and never block input. The events are `boosterUsed { id }`, plus `dealt` for Shuffle or `poppedCells` for Pop.
+- Economy check: a day of 5 Classic runs (about 55 coins each, plus about 30 from targets and minis), all 3 missions (210) and 5 new Adventure levels at 2 stars (50 each) earns about 900 coins. One booster costs 100–200 coins, so boosters are a real choice against the shop but never a wall. The cap of 5 stops hoarding; a full stock is 2,250 coins.
+- §14.2 is amended: coins are spent in the Collection **and** on Adventure boosters. Nothing else, and there is still no way to buy coins.
+
+### 24.11 Achievements (+8, total 49)
+| # | id | Name | Description | Condition | Coins |
+|---|---|---|---|---|---|
+| 42 | adv_first | First Level | Win an Adventure level. | any Adventure win | E |
+| 43 | adv_20 | Twenty Levels | Win 20 Adventure levels. | frontier ≥ 21 | M |
+| 44 | adv_all | Every Level | Win all 120 Adventure levels. | frontier = 121 | H |
+| 45 | three_stars10 | Three Stars | Get 3 stars on 10 Adventure levels. | count of levels with 3 stars ≥ 10 | M |
+| 46 | all_stars | Every Star | Get all 360 Adventure stars. | total stars = 360 | H |
+| 47 | win_streak5 | Five Wins | Win 5 new Adventure levels in a row. | bestWinStreak ≥ 5 | M |
+| 48 | missions10 | Ten Missions | Finish 10 daily missions. | missions claimed ≥ 10 | E |
+| 49 | missions100 | Hundred Missions | Finish 100 daily missions. | ≥ 100 | H |
+
+- All except #42 are counter-based (progress shown "7 / 20"). Badge category: **goals** (lemon gradient, SG §11.11, shared with score).
+- Every "N / 41" total becomes "N / 49" (§15, §17, §18).
+
+### 24.12 Near-miss lines (still only true facts, §13.4)
+Classic and Expert get two new rules, inserted into the §13.4 order:
+- **2b** (after rule 2): when `0 < next − score ≤ 10% of next` for the next ladder target (§24.2): **"{d} points short of the {t} target."**
+- **6b** (after rule 6): when a daily mission is unfinished and ≥ 80% done (the lowest remaining first): **"{k} more to finish \"{mission}\"."**
+
+Adventure lose panel (show the first two that apply, in this order):
+1. For each unmet goal, in goal order: **"You needed {k} more {unit}."** Units: "line"/"lines", "point"/"points", "{flavour} cell"/"{flavour} cells", "Big Pop"/"Big Pops", "2+ line clear"/"2+ line clears", "sugar cube"/"sugar cubes". Singular when k = 1.
+2. When the loss was "No room left" with moves left: **"Nothing fit with {m} moves left."**
+3. §13.4 rule 3 (piece 1 cell short) and rule 4 (line 1 from full).
+
+Adventure win panel: **"Won with {m} moves left."** Then, if stars < 3, **"Win with {s} moves left for {k} stars."** (the next star tier and its threshold). If bonus moves were used: **"Stars count moves left without your {b} extra moves."**
+
+### 24.13 Stats, weekly goal, Home
+- **Stats (§18)** add: "Adventure levels won" "{w} / 120", "Adventure stars" "{s} / 360", "Best win streak", "Missions done", "Targets reached", and "Adventure runs" in the per-mode runs list.
+- **Weekly goal (§12)** counts Adventure moves like any mode (and its `score` goal counts Adventure scores, since only Zen is excluded).
+- **Home:** the mode grid becomes Classic, Adventure, Daily, Zen, Expert. The Missions card sits between the mode grid and the Weekly card (SG §20.6).
+- **Recorded runs:** an Adventure attempt counts as a finished run (achievements "Regular", "Hundred Runs") when it is won or lost. It does not count toward `recentClassic` or the Classic/Expert best.
+
+### 24.14 Save schema v2 and migration
+`CURRENT_VERSION = 2`. Every v1 field keeps its name, type and value. New fields:
+
+```ts
+interface SaveV2 extends Omit<SaveV1, 'v' | 'stats'> {
+  v: 2;
+  stats: LifetimeStats & { adventureWins: number; adventureLosses: number; missionsDone: number; targetsReached: number; boostersUsed: number };
+  adventure: {
+    frontier: number;                                    // 1..121, lowest level never won
+    levels: Record<string, { stars: 0 | 1 | 2 | 3; wins: number; losses: number; lossRun: number; bestScore: number }>; // key = level number; only played levels
+    winStreak: number; bestWinStreak: number;
+    boosters: { moves: number; shuffle: number; pop: number };   // 0..5 each
+    chaptersDone: number[]; chaptersAllStars: number[];        // chapters already rewarded (1..6)
+    inProgress: GameState | null;                              // paused attempt, mode 'adventure'
+  };
+  missions: {
+    day: string | null;                                        // dayKey of the last day roll
+    slots: { id: string; pos: number; progress: number; claimed: boolean; issued: string }[]; // 0 or 3 entries, slot order A, B, C
+    rerollDay: string | null; shownToday: string[]; setPaid: boolean; finished: number;
+  };
+}
+```
+
+`GameState` stays `v: 1` and gains optional fields, so v1 runs resume unchanged:
+- `mode` adds `'adventure'`.
+- `goals?: { floor: number; targetsHit: number; mini: { id: string; flavour?: Flavour; target: number; progress: number; done: boolean } }` (Classic and Expert, created by `newGame(cfg, seed, { best })`).
+- `adventure?: { level: number; moveLimit: number; bonusMoves: number; movesLeft: number; goals: { kind: 'L' | 'S' | 'F' | 'B' | 'M' | 'C'; flavour?: Flavour; target: number; progress: number }[]; s2: number; s3: number; stage: number; flavours: number; f2: number; boosters: { shuffle: 'none' | 'armed' | 'used'; pop: 'none' | 'armed' | 'used'; freeShuffle: boolean }; result: null | { won: boolean; reason: 'goals' | 'moves' | 'stuck' | 'gaveUp'; movesLeft: number; stars: 0 | 1 | 2 | 3 } }`.
+
+New actions: `{ type: 'booster'; id: 'shuffle' | 'pop' }`. `endRun` is also allowed in Adventure (give up). New events: `cubes`, `goalProgress { index, progress, target }`, `levelWon { level, movesLeft, stars }`, `levelLost { level, reason }`, `boosterUsed { id, poppedCells? }`, `targetReached { target, index }`, `miniDone { id }`.
+
+**Migration `1 → 2`** (`migrations[1]` in `src/meta/migrate.ts`; v0 still goes through 0 → 1 first):
+1. Copy every v1 field as it is, including `inProgress` and `dailyInProgress` (they resume with no change).
+2. `stats` gets the 5 new counters at 0.
+3. `adventure` = `{ frontier: 1, levels: {}, winStreak: 0, bestWinStreak: 0, boosters: {0, 0, 0}, chaptersDone: [], chaptersAllStars: [], inProgress: null }`.
+4. If `profile.level ≥ 2`: add `'adventure'` to `owned.modes` and set every booster count to 1 (the unlock gift, so existing players get what new players get).
+5. `missions` = `{ day: null, slots: [], rerollDay: null, shownToday: [], setPaid: false, finished: 0 }`. The first day roll issues 3 missions.
+6. `v = 2`.
+
+**Sanitize (v2):** clamp stars to 0–3 and boosters to 0–5. Keep `frontier` within 1–121 and at least (highest level with stars ≥ 1) + 1. Drop level keys outside 1–120 and chapters outside 1–6. Drop mission slots with unknown ids (the next day roll refills them), and clamp progress to 0…target. Accept board values 8–9 only when `mode === 'adventure'`, and drop any other `inProgress` that has them. Drop an `adventure.inProgress` whose level doesn't match a table entry. A save with `v > 2` is backed up and replaced by a fresh one (arch §8).
+
+### 24.15 Session design with pass 3 (§19 additions)
+- **First session:** the tutorial and the first Classic run ("Next target 1,000" and a mini goal like "Make a Big Pop" are visible from run 2; run 1 is the tutorial run). Level 2 unlocks Adventure with a gift of 1 of each booster. Home shows 3 missions, and the first easy one is usually done by the end of the next run.
+- **One more go:** every Classic run ends with a target that was close ("320 points short of the 10,000 target") or a mission at 80%+. Every Adventure loss shows exactly what was missing ("You needed 4 more grape cells"), and "Try again" is one tap or one key.
+- **Day 5:** around level 15–25 of Adventure with a win streak bonus they can see, 10–15 missions done, saving between a theme and a booster or two. Unfinished missions from a missed day are still there with their progress.
+- **Ethics, binding (RT11):** no loot boxes or random rewards; nothing for money; nothing expires (missions roll over, rewards wait); no rigged deals or near-misses (Adventure deals use the same fair generator, and every near-miss line is a fact); no fake social proof; boosters never needed; no booster offers at a loss; no lives or energy.
+- **Input (binding):** nothing in this pass blocks or delays input during play. Goal strip pulses, mission toasts and booster effects run on the R and W clocks (SG §9.13.a). Hitstop still freezes only the B clock and never delays input. A level win or loss is decided in the core at t = 0. The panel shows at 600 ms (win) or 450 ms (loss, same as §13.2). On a loss, Space, Enter and R restart from 0 ms (R4).
+
+### 24.16 Traceability for pass 3
+| RT | Used for |
+|---|---|
+| RT1, RT2 | goals, not random payouts; several activities (Classic targets, missions, Adventure) |
+| RT4, RT12, RT13 | cut list: no degrade-and-sell, no lives, no loot boxes, no grinding gates |
+| RT6, RT7 | "Next" target pill, real progress bars only |
+| RT8, RT25 | missions carry over and wait to be claimed; Wizard's Vault deck |
+| RT9, RT10 | forgiving streaks; the win streak is small and loss-light |
+| RT14, RT15 | win streak and boosters as honest counter-examples; no extra moves at a loss |
+| RT16, RT17, RT27 | sawtooth, hard-but-short, complexity staircase, assist after 3 losses |
+| RT18, RT19 | Adventure levels with goals alongside endless Classic; no fake "x% of players" |
+| RT23 | every attempt banks something (loss: 5 XP, 2 coins; targets +5 coins) |
