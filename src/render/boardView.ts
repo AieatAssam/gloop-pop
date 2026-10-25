@@ -47,7 +47,7 @@ export function createBoardView(): BoardView {
   const slotsFor = (layout: Layout, state: GameState): SlotView[] => {
     const result: SlotView[] = [];
     for (let i = 0; i < 3; i += 1) {
-      const rect = slotRect(i, layout); const cell = layout.trayCellSize;
+      const rect = traySlotRect(i, layout); const cell = layout.trayCellSize;
       result.push({ rect, piece: state.tray[i] ?? null, cell });
     }
     return result;
@@ -141,7 +141,7 @@ function drawJiggledGloop(ctx: CanvasRenderingContext2D, gloop: ReturnType<typeo
 // SG §9.13.e: travel, anticipation and land use one shared jelly silhouette.
 function drawPlacement(ctx: CanvasRenderingContext2D, placement: { piece: Piece; cells: readonly number[]; row: number; col: number; slot: number; at: number; originX?: number; originY?: number; bodyCells?: readonly number[]; bodySet?: ReadonlySet<number>; shape: readonly (readonly [number, number])[]; bodyShape?: readonly (readonly [number, number])[]; bodyAmplitude: number; reduced: boolean; previousX: number; previousY: number; previousAge: number; layerReady: boolean; stripSy: SpringState[]; stripStarted: boolean[]; stripStartAt: number[]; stripBottom: number[]; fingerColumn: number }, layout: Layout, gx: number, gy: number, cell: number, elapsed: number, age: number, reducedMotion: boolean, hitScale: number, boardDt: number, realNow: number, layer?: HTMLCanvasElement): void {
   const def = PIECES[placement.piece.defId]!;
-  const sourceSlot = slotRect(placement.slot, layout);
+  const sourceSlot = traySlotRect(placement.slot, layout);
   const sourceX = placement.originX === undefined ? sourceSlot.x + sourceSlot.width / 2 : placement.originX + def.w * cell / 2;
   const sourceY = placement.originY === undefined ? sourceSlot.y + sourceSlot.height / 2 : placement.originY + def.h * cell / 2;
   const targetX = gx + (placement.col + def.w / 2) * cell; const targetY = gy + (placement.row + def.h / 2) * cell;
@@ -219,7 +219,7 @@ function drawHeldShadow(ctx: CanvasRenderingContext2D, cache: Map<string, [HTMLC
   ctx.globalAlpha = alpha * blend; ctx.drawImage(sprites[1], x - margin * pieceScale, y - margin * pieceScale, sprites[1].width * scale * pieceScale, sprites[1].height * scale * pieceScale); ctx.restore();
 }
 
-function slotRect(index: number, layout: Layout): Rect {
+export function traySlotRect(index: number, layout: Layout): Rect {
   if (layout.portrait) { const width = Math.min(122 * layout.height / 844, layout.tray.width / 3 - 4); const gap = 8; const total = width * 3 + gap * 2; const x = layout.tray.x + (layout.tray.width - total) / 2 + index * (width + gap); return { x, y: layout.tray.y + 4, width, height: Math.max(80, layout.tray.height - 8) }; }
   const width = layout.tray.width; const height = layout.tray.height / 3 - 8; return { x: layout.tray.x, y: layout.tray.y + index * (height + 12), width, height };
 }

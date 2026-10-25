@@ -7,9 +7,21 @@ import type { Layout } from '../render/layout';
 import { createHeldPiece, resetHeldPiece, updateHeldPiece, type HeldPieceState } from '../render/heldPiece';
 
 export interface PointerInput { drag: DragView | undefined; returning: ReturnView | undefined; snapChanged: boolean; placementOrigin: { x: number; y: number } | undefined; pointerMove(x: number, y: number, pointerType: string): void; pointerDown(x: number, y: number, pointerType: string): void; pointerUp(x: number, y: number, pointerType: string): void; advance(realDtMs: number, reduced: boolean): void; cancel(): void }
+export interface PointerCanvasRect { left: number; top: number; width: number; height: number }
 export function snapVelocityAllowed(speedCellsPerSecond: number): boolean { return Number.isFinite(speedCellsPerSecond) && speedCellsPerSecond <= 8; }
 export function fingerBoardOrigin(x: number, y: number, pointerType: string, width: number, height: number, cellSize: number): { x: number; y: number } {
   return { x: x - width * cellSize / 2, y: pointerType === 'touch' ? y - height * cellSize - cellSize * 1.1 : y - height * cellSize / 2 };
+}
+export function pointerReleaseCell(x: number, y: number, pointerType: string, width: number, height: number, layout: Layout): { row: number; col: number; x: number; y: number } {
+  const origin = fingerBoardOrigin(x, y, pointerType, width, height, layout.cellSize);
+  const gx = layout.board.x + (layout.board.width - layout.cellSize * 8) / 2; const gy = layout.board.y + (layout.board.height - layout.cellSize * 8) / 2;
+  return { row: Math.round((origin.y - gy) / layout.cellSize), col: Math.round((origin.x - gx) / layout.cellSize), x: origin.x, y: origin.y };
+}
+// spec-note: The debug contract has no pointer type, so its drop point targets the mouse-centred anchor used by browser automation. Touch retains its higher finger offset through pointerReleaseCell.
+export function pointerDropPoint(row: number, col: number, width: number, height: number, layout: Layout, rect: PointerCanvasRect): { x: number; y: number } {
+  const gx = layout.board.x + (layout.board.width - layout.cellSize * 8) / 2; const gy = layout.board.y + (layout.board.height - layout.cellSize * 8) / 2;
+  const localX = gx + col * layout.cellSize + width * layout.cellSize / 2; const localY = gy + row * layout.cellSize + height * layout.cellSize / 2;
+  return { x: rect.left + localX * rect.width / layout.width, y: rect.top + localY * rect.height / layout.height };
 }
 export function createPointerInput(view: BoardView, getLayout: () => Layout, getState: () => GameState, place: (slot: number, row: number, col: number) => void): PointerInput {
   type DragModel = DragView & { held: HeldPieceState };
@@ -35,8 +47,8 @@ export function createPointerInput(view: BoardView, getLayout: () => Layout, get
       if (!drag) return; const released = drag; const slot = released.slot; const selected = released.selected; drag = undefined;
       const layout = getLayout(); const state = getState(); const piece = state.tray[slot]; if (!piece) return;
       const def = PIECES[piece.defId]!; const c = layout.cellSize; const gx = layout.board.x + (layout.board.width - c * 8) / 2; const gy = layout.board.y + (layout.board.height - c * 8) / 2;
-      const origin = fingerBoardOrigin(x, y, type, def.w, def.h, c); const px = origin.x; const py = origin.y;
-      const col = Math.round((px - gx) / c); const row = Math.round((py - gy) / c);
+      const target = pointerReleaseCell(x, y, type, def.w, def.h, layout); const px = target.x; const py = target.y;
+      const { row, col } = target;
       const best = nearestSnap(state, slot, px, py, gx, gy, c, row, col); let placed = false;
       if (best) { pointerOrigin(released, def.w, def.h, c); placed = tryPlace(slot, best.row, best.col); clickSelected = -1; }
       else if (selected && view.cellAt(x, y, layout)) { const cell = view.cellAt(x, y, layout)!; placed = tryPlace(slot, cell.row, cell.col); }

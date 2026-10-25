@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { fingerBoardOrigin } from './pointer';
+import { computeLayout } from '../render/layout';
+import { fingerBoardOrigin, pointerDropPoint, pointerReleaseCell } from './pointer';
 
 describe('SG §9.13.c snap coordinates', () => {
   it('derives the target origin only from the finger and fixed touch offset', () => {
@@ -23,6 +24,16 @@ describe('SG §9.13.c snap coordinates', () => {
         const sameFinger = fingerBoardOrigin(x, y, 'touch', 2, 2, 44);
         expect({ row: Math.round((sameFinger.y - 20) / 44), col: Math.round((sameFinger.x - 18) / 44) }).toEqual(target);
       }
+    }
+  });
+
+  it('maps debug drop points back to the requested anchor through pointer release math', () => {
+    const layout = computeLayout(390, 844, {}, true); const rect = { left: 17, top: 23, width: 390, height: 844 };
+    for (const [row, col] of [[0, 0], [2, 5], [6, 3]] as const) {
+      const point = pointerDropPoint(row, col, 3, 2, layout, rect);
+      const localX = (point.x - rect.left) * layout.width / rect.width; const localY = (point.y - rect.top) * layout.height / rect.height;
+      const target = pointerReleaseCell(localX, localY, 'mouse', 3, 2, layout);
+      expect({ row: target.row, col: target.col }).toEqual({ row, col });
     }
   });
 });

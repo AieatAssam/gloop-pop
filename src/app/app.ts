@@ -5,11 +5,11 @@ import { createBackground } from '../render/background';
 import { computeLayout, type Layout } from '../render/layout';
 import { startRenderLoop } from '../render/loop';
 import { PALETTE } from '../render/palette';
-import { createBoardView } from '../render/boardView';
+import { createBoardView, traySlotRect } from '../render/boardView';
 import { drawHud } from '../render/hudView';
 import { createDirector } from '../render/director';
 import { dispatchImmediately } from '../render/fx/hitStop';
-import { createPointerInput } from '../input/pointer';
+import { createPointerInput, pointerDropPoint } from '../input/pointer';
 import { attachKeyboard } from '../input/keyboard';
 import { createSession, runToResumeOnBoot } from './session';
 import { createGameUi } from '../ui/dom';
@@ -80,6 +80,8 @@ export async function bootApp(): Promise<void> {
   if (!canvas || !uiRoot) throw new Error('Missing game surface.');
   const gameCanvas = canvas;
   const query = new URLSearchParams(window.location.search); const debug = query.get('debug') === '1'; const veteranDemo = debug && query.get('save') === 'veteran';
+  // spec-note: Load the validation-only Adventure bot only on debug URLs so regular play keeps the small entry path.
+  const chooseAdventureBot = debug ? (await import('../core/levelBot')).chooseLevelMove : undefined;
   setSaveWritesDisabled(veteranDemo || (debug && (query.has('demo') || query.has('level'))));
   let save = veteranDemo ? migrate(veteranSave) : loadSave(); save = rollDay(save, dayKeyFromMs(Date.now()));
   if (debug && (query.get('demo') === 'missions' || query.get('demo') === 'missions-done')) {
@@ -202,6 +204,34 @@ export async function bootApp(): Promise<void> {
   uiRoot.addEventListener('click', (event) => { const button = (event.target as Element | null)?.closest('button'); if (!button || button === topBar.muteButton) return; enableAudio(); if (button.getAttribute('role') === 'switch') { if (button.getAttribute('aria-checked') === 'true') sfx.toggleOn(); return; } sfx.uiTap(); });
   window.addEventListener('pointerdown', () => { lastAudioInputAt = performance.now(); enableAudio(); });
   const pointer = createPointerInput(view, () => layout, () => session.state, (slot, row, col) => apply({ type: 'place', slot: slot as 0 | 1 | 2, row, col }));
+  if (debug) {
+    type DebugApi = {
+      screen(): string;
+      state(): { mode: string; score: number; movesLeft?: number; goals?: unknown; status: string; tray: { slot: number; defId: number; cells: number[][] }[]; board: number[]; level?: number };
+      trayPoint(slot: number): { x: number; y: number };
+      dropPoint(slot: number, row: number, col: number): { x: number; y: number };
+      botMove(): { slot: number; row: number; col: number } | null;
+    };
+    const clientPoint = (x: number, y: number): { x: number; y: number } => { const rect = canvas.getBoundingClientRect(); return { x: rect.left + x * rect.width / layout.width, y: rect.top + y * rect.height / layout.height }; };
+    (window as Window & { __gloopDebug?: DebugApi }).__gloopDebug = {
+      screen: () => router.current,
+      state: () => {
+        const state = session.state; const adventure = state.adventure;
+        return { mode: state.mode, score: state.score, ...(adventure ? { movesLeft: adventure.movesLeft, goals: adventure.goals.map((goal) => ({ ...goal })), level: adventure.level } : state.goals ? { goals: structuredClone(state.goals) } : {}), status: state.status,
+          tray: state.tray.flatMap((piece, slot) => piece ? [{ slot, defId: piece.defId, cells: PIECES[piece.defId]!.cells.map(([row, col]) => [row, col]) }] : []), board: [...state.board] };
+      },
+      trayPoint: (slot) => { const rect = traySlotRect(slot, layout); return clientPoint(rect.x + rect.width / 2, rect.y + rect.height / 2); },
+      dropPoint: (slot, row, col) => {
+        const piece = session.state.tray[slot]; if (!piece || slot < 0 || slot > 2) return { x: 0, y: 0 };
+        return pointerDropPoint(row, col, PIECES[piece.defId]!.w, PIECES[piece.defId]!.h, layout, canvas.getBoundingClientRect());
+      },
+      botMove: () => {
+        const state = session.state; const rng = seededRng(`${state.seed}/gloop-debug-bot`);
+        if (state.mode === 'adventure' && chooseAdventureBot) { const move = chooseAdventureBot(state, rng); return move?.type === 'place' ? { slot: move.slot, row: move.row, col: move.col } : null; }
+        const move = chooseBotMove(state, rng); return move ? { slot: move.slot, row: move.row, col: move.col } : null;
+      },
+    };
+  }
   const boosterBar = createBoosterBar((id) => { if (id === 'shuffle') pointer.cancel(); apply({ type: 'booster', id }); }); uiRoot.append(boosterBar.element);
   boosterBar.update(session.state, layout);
   const keyboard = attachKeyboard(view, () => layout, () => session.state, (slot, row, col) => apply({ type: 'place', slot: slot as 0 | 1 | 2, row, col }), () => pointer.cancel(), () => { if (router.current === 'play') showPause(); else router.back(); }, () => sfx.snapTick(), (id) => { if (id === 'shuffle') pointer.cancel(); apply({ type: 'booster', id }); });
