@@ -30,6 +30,11 @@ describe('sample event mapping', () => {
       group: 'ladder', priority: 'ladder', gain: 10 ** (-10 / 20),
     });
   });
+  it('plays target and mini-goal cues at their specified gains', () => {
+    sfx.coinTick({ gainDb: -6 }); sfx.chime({ gainDb: -14 });
+    expect(fixture.playSegment).toHaveBeenNthCalledWith(1, 'coin1', expect.objectContaining({ gain: 10 ** (-6 / 20), group: 'coin' }));
+    expect(fixture.playSegment).toHaveBeenNthCalledWith(2, 'chime', expect.objectContaining({ gain: 10 ** (-14 / 20), group: 'ladder' }));
+  });
 
   it('deals three no-repeat variants in tray timing order', () => {
     sfx.deal();

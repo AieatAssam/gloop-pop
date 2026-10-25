@@ -13,6 +13,24 @@ describe('game reducer', () => {
     const right = step(restored, { type: 'place', slot: 0, row: 0, col: 0 });
     expect(left).toEqual(right); expect(original.moves).toBe(0);
   });
+  it('emits crossed target events after scoring and resumes mini progress', () => {
+    const state = newGame('classic', 'target-resume', { goals: true }).state; state.score = 4880; state.board = [...makeBoard()];
+    for (let col = 0; col < 7; col += 1) state.board[7 * 8 + col] = 2;
+    state.tray = [{ defId: 0, flavour: 2 }, { defId: 0, flavour: 2 }, { defId: 0, flavour: 2 }];
+    const result = step(state, { type: 'place', slot: 0, row: 7, col: 7 });
+    const scoreIndex = result.events.findIndex((event) => event.type === 'scored'); const targetIndex = result.events.findIndex((event) => event.type === 'targetReached');
+    expect(targetIndex).toBeGreaterThan(scoreIndex); expect(result.events[targetIndex]).toMatchObject({ type: 'targetReached', target: 5000 });
+    const restored = JSON.parse(JSON.stringify(result.state)) as GameState; expect(restored.goals?.targetsHit).toBe(1);
+  });
+  it('keeps the Classic reducer stream identical with targets enabled', () => {
+    let plain = newGame('classic', 'goal-neutral').state; let tracked = newGame('classic', 'goal-neutral', { goals: true, best: 40000 }).state;
+    for (let move = 0; move < 5; move += 1) {
+      let action: { type: 'place'; slot: 0 | 1 | 2; row: number; col: number } | undefined;
+      for (let slot = 0; slot < 3 && !action; slot += 1) for (let row = 0; row < 8 && !action; row += 1) for (let col = 0; col < 8 && !action; col += 1) if (canPlace(plain, slot, row, col)) action = { type: 'place', slot: slot as 0 | 1 | 2, row, col };
+      expect(action).toBeDefined(); const left = step(plain, action!); const right = step(tracked, action!); plain = left.state; tracked = right.state;
+      expect({ board: tracked.board, tray: tracked.tray, score: tracked.score, rng: tracked.rng }).toEqual({ board: plain.board, tray: plain.tray, score: plain.score, rng: plain.rng });
+    }
+  });
   it('returns the same state and no events for an invalid action', () => {
     const state = newGame('classic', 'invalid').state;
     const result = step(state, { type: 'place', slot: 0, row: -1, col: 0 });

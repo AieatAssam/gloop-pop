@@ -1,0 +1,582 @@
+{
+  "v": 1,
+  "createdAt": 123,
+  "tutorialDone": true,
+  "settings": {
+    "sfx": true,
+    "music": true,
+    "muted": false,
+    "haptics": true,
+    "reducedMotion": "system",
+    "cbPatterns": true,
+    "sfxVolume": 0.6,
+    "musicVolume": 0.3
+  },
+  "profile": {
+    "xp": 11030,
+    "level": 23,
+    "stars": 0,
+    "coins": 4310,
+    "coinsEarned": 9000
+  },
+  "owned": {
+    "themes": [
+      "midnight",
+      "sunset",
+      "aquarium",
+      "observatory",
+      "kitchen"
+    ],
+    "skins": [
+      "plain",
+      "googly",
+      "freckles",
+      "catears",
+      "glasses"
+    ],
+    "pops": [
+      "sparkles",
+      "hearts",
+      "stars",
+      "bubbles",
+      "fireworks"
+    ],
+    "modes": [
+      "classic",
+      "daily",
+      "zen",
+      "expert"
+    ]
+  },
+  "equipped": {
+    "theme": "aquarium",
+    "skin": "freckles",
+    "pop": "hearts"
+  },
+  "best": {
+    "classic": 42,
+    "expert": 0
+  },
+  "stats": {
+    "runs": {
+      "classic": 55,
+      "daily": 14
+    },
+    "bestClassic": 8400,
+    "bestExpert": 3200,
+    "linesCleared": 1200,
+    "extraCellsPopped": 400,
+    "biggestPop": 18,
+    "bestCombo": 12,
+    "allClears": 5,
+    "piecesPlaced": 900,
+    "timePlayedMs": 7200000,
+    "dailiesFinished": 14,
+    "bestDaily": 9000
+  },
+  "recentClassic": [
+    1000,
+    1150,
+    1300,
+    1450,
+    1600,
+    1750,
+    1900,
+    2050,
+    2200,
+    2350,
+    2500,
+    2650,
+    2800,
+    2950,
+    3100,
+    3250,
+    3400,
+    3550,
+    3700,
+    3850
+  ],
+  "achievements": {
+    "first_line": 1,
+    "big_pop": 2,
+    "long_gloop": 3,
+    "combo_5": 4,
+    "combo_10": 5,
+    "all_clear": 6,
+    "score_5k": 7,
+    "score_20k": 8,
+    "daily_1": 9,
+    "streak_7": 10,
+    "runs_10": 11,
+    "lines_100": 12,
+    "pops_500": 13,
+    "collector": 14,
+    "expert_25k": 15,
+    "best_5k": 16,
+    "bigPopCount": 17
+  },
+  "daily": {
+    "records": {
+      "2026-10-01": {
+        "score": 500,
+        "finished": true,
+        "trays": [
+          1,
+          2,
+          3
+        ],
+        "bestCombo": 4,
+        "lines": 5,
+        "biggestPop": 8,
+        "allClears": 0,
+        "freezeUsed": 0
+      },
+      "2026-10-02": {
+        "score": 600,
+        "finished": true,
+        "trays": [
+          1,
+          2,
+          3
+        ],
+        "bestCombo": 4,
+        "lines": 5,
+        "biggestPop": 8,
+        "allClears": 0,
+        "freezeUsed": 0
+      },
+      "2026-10-03": {
+        "score": 700,
+        "finished": true,
+        "trays": [
+          1,
+          2,
+          3
+        ],
+        "bestCombo": 4,
+        "lines": 5,
+        "biggestPop": 8,
+        "allClears": 0,
+        "freezeUsed": 0
+      },
+      "2026-10-04": {
+        "score": 800,
+        "finished": true,
+        "trays": [
+          1,
+          2,
+          3
+        ],
+        "bestCombo": 4,
+        "lines": 5,
+        "biggestPop": 8,
+        "allClears": 0,
+        "freezeUsed": 0
+      },
+      "2026-10-05": {
+        "score": 900,
+        "finished": true,
+        "trays": [
+          1,
+          2,
+          3
+        ],
+        "bestCombo": 4,
+        "lines": 5,
+        "biggestPop": 8,
+        "allClears": 0,
+        "freezeUsed": 0
+      },
+      "2026-10-06": {
+        "score": 1000,
+        "finished": true,
+        "trays": [
+          1,
+          2,
+          3
+        ],
+        "bestCombo": 4,
+        "lines": 5,
+        "biggestPop": 8,
+        "allClears": 0,
+        "freezeUsed": 0
+      },
+      "2026-10-07": {
+        "score": 1100,
+        "finished": true,
+        "trays": [
+          1,
+          2,
+          3
+        ],
+        "bestCombo": 4,
+        "lines": 5,
+        "biggestPop": 8,
+        "allClears": 0,
+        "freezeUsed": 0
+      },
+      "2026-10-08": {
+        "score": 1200,
+        "finished": true,
+        "trays": [
+          1,
+          2,
+          3
+        ],
+        "bestCombo": 4,
+        "lines": 5,
+        "biggestPop": 8,
+        "allClears": 0,
+        "freezeUsed": 0
+      },
+      "2026-10-09": {
+        "score": 1300,
+        "finished": true,
+        "trays": [
+          1,
+          2,
+          3
+        ],
+        "bestCombo": 4,
+        "lines": 5,
+        "biggestPop": 8,
+        "allClears": 0,
+        "freezeUsed": 0
+      },
+      "2026-10-10": {
+        "score": 1400,
+        "finished": true,
+        "trays": [
+          1,
+          2,
+          3
+        ],
+        "bestCombo": 4,
+        "lines": 5,
+        "biggestPop": 8,
+        "allClears": 0,
+        "freezeUsed": 0
+      },
+      "2026-10-11": {
+        "score": 1500,
+        "finished": true,
+        "trays": [
+          1,
+          2,
+          3
+        ],
+        "bestCombo": 4,
+        "lines": 5,
+        "biggestPop": 8,
+        "allClears": 0,
+        "freezeUsed": 0
+      },
+      "2026-10-12": {
+        "score": 1600,
+        "finished": true,
+        "trays": [
+          1,
+          2,
+          3
+        ],
+        "bestCombo": 4,
+        "lines": 5,
+        "biggestPop": 8,
+        "allClears": 0,
+        "freezeUsed": 0
+      },
+      "2026-10-13": {
+        "score": 1700,
+        "finished": true,
+        "trays": [
+          1,
+          2,
+          3
+        ],
+        "bestCombo": 4,
+        "lines": 5,
+        "biggestPop": 8,
+        "allClears": 0,
+        "freezeUsed": 0
+      },
+      "2026-10-14": {
+        "score": 1800,
+        "finished": true,
+        "trays": [
+          1,
+          2,
+          3
+        ],
+        "bestCombo": 4,
+        "lines": 5,
+        "biggestPop": 8,
+        "allClears": 0,
+        "freezeUsed": 0
+      }
+    },
+    "finished": 14,
+    "best": 9000
+  },
+  "streak": {
+    "current": 12,
+    "best": 16,
+    "lastDay": "2026-10-25",
+    "freezes": 1,
+    "frozenDays": [
+      "2026-10-20",
+      "2026-10-21",
+      "2026-10-22"
+    ]
+  },
+  "weekly": {
+    "weekIndex": 1,
+    "progress": 87,
+    "claimed": false,
+    "runsWithCombo6": 2
+  },
+  "inProgress": {
+    "v": 1,
+    "mode": "classic",
+    "seed": "veteran/classic",
+    "rng": {
+      "a": 1,
+      "b": 2,
+      "c": 3,
+      "d": 4
+    },
+    "board": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "tray": [
+      {
+        "defId": 0,
+        "flavour": 1
+      },
+      {
+        "defId": 1,
+        "flavour": 2
+      },
+      {
+        "defId": 2,
+        "flavour": 3
+      }
+    ],
+    "traysDealt": 12,
+    "score": 6100,
+    "combo": 3,
+    "fuse": 2,
+    "bestCombo": 5,
+    "stage": 2,
+    "linesCleared": 17,
+    "rescue": {
+      "charge": 4,
+      "ready": false,
+      "used": false
+    },
+    "status": "playing",
+    "moves": 37,
+    "stats": {
+      "placements": 37,
+      "pops": 3,
+      "biggestPop": 9,
+      "allClears": 1,
+      "bigPops": 1,
+      "hugePops": 0,
+      "megaPops": 0,
+      "multiClears": 2,
+      "solverTimeMs": 0,
+      "f2Fallbacks": 0
+    }
+  },
+  "dailyInProgress": {
+    "v": 1,
+    "mode": "daily",
+    "seed": "veteran/daily",
+    "rng": {
+      "a": 1,
+      "b": 2,
+      "c": 3,
+      "d": 4
+    },
+    "board": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "tray": [
+      {
+        "defId": 0,
+        "flavour": 1
+      },
+      {
+        "defId": 1,
+        "flavour": 2
+      },
+      {
+        "defId": 2,
+        "flavour": 3
+      }
+    ],
+    "traysDealt": 12,
+    "score": 3300,
+    "combo": 3,
+    "fuse": 2,
+    "bestCombo": 5,
+    "stage": 2,
+    "linesCleared": 17,
+    "rescue": {
+      "charge": 4,
+      "ready": false,
+      "used": false
+    },
+    "status": "playing",
+    "moves": 18,
+    "stats": {
+      "placements": 18,
+      "pops": 3,
+      "biggestPop": 9,
+      "allClears": 1,
+      "bigPops": 1,
+      "hugePops": 0,
+      "megaPops": 0,
+      "multiClears": 2,
+      "solverTimeMs": 0,
+      "f2Fallbacks": 0
+    }
+  },
+  "ui": {
+    "runsFinished": 1,
+    "seenTips": []
+  },
+  "firsts": {
+    "line": true,
+    "double": true,
+    "bigPop": true,
+    "allClear": true,
+    "combo5": true
+  }
+}

@@ -8,15 +8,15 @@ export interface Session { readonly state: GameState; readonly best: number; dis
 export function runToResumeOnBoot(inProgress: GameState | null): GameState | null {
   return inProgress?.mode === 'daily' ? null : inProgress;
 }
-export function createSession(options: { state?: GameState | null; best?: number; mode?: ModeId } = {}): Session {
+export function createSession(options: { state?: GameState | null; best?: number; mode?: ModeId; goals?: boolean } = {}): Session {
   let mode = options.state?.mode ?? options.mode ?? 'classic';
-  let result = options.state ? { state: options.state, events: [] as GameEvent[] } : newGame(mode, seed(mode));
+  let result = options.state ? { state: options.state, events: [] as GameEvent[] } : newGame(mode, seed(mode), { best: options.best, goals: options.goals });
   let state = result.state; const best = options.best ?? 0;
   return {
     get state() { return state; }, get best() { return best; },
     dispatch(action) { const next = step(state, action); state = next.state; return next.events; },
     replace(nextState) { state = nextState; mode = nextState.mode; },
-    restart(nextMode = mode) { mode = nextMode; result = newGame(mode, seed(mode)); state = result.state; },
+    restart(nextMode = mode) { mode = nextMode; result = newGame(mode, seed(mode), { best: options.best, goals: options.goals }); state = result.state; },
   };
 }
 function seed(mode: ModeId): string {

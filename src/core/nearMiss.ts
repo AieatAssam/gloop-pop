@@ -1,5 +1,6 @@
 import { cellIndex } from './board';
 import { PIECES } from './pieces';
+import { nextTarget } from './goals';
 import type { GameState } from './types';
 
 export type ShapeKey = 'dot' | 'bar2' | 'bar3' | 'bar4' | 'bar5' | 'squareSmall' | 'squareBig' | 'rectangle' | 'cornerSmall' | 'cornerL' | 'tee' | 'zigzag' | 'cornerBig';
@@ -7,7 +8,7 @@ export interface NearMissFacts {
   pieceOneCellShort: { slot: number; shape: ShapeKey; row: number; col: number } | null;
   lineOneFromFull: { kind: 'row' | 'column'; index: number } | null;
 }
-export type NearMissMessage = { kind: 'newBest' | 'bestShort' | 'piece' | 'line' | 'xp' | 'weekly' | 'achievement' | 'fallback'; amount: number; shape?: ShapeKey; lineKind?: 'row' | 'column'; index?: number; level?: number; name?: string; unit?: string };
+export type NearMissMessage = { kind: 'newBest' | 'bestShort' | 'targetShort' | 'piece' | 'line' | 'xp' | 'weekly' | 'achievement' | 'fallback'; amount: number; target?: number; shape?: ShapeKey; lineKind?: 'row' | 'column'; index?: number; level?: number; name?: string; unit?: string };
 export interface NearMissExtras { xpRemaining?: number; level?: number; levelCost?: number; weeklyRemaining?: number; weeklyTarget?: number; achievement?: { remaining: number; target: number; name: string; unit: string } }
 const shapeByFamily: Record<string, ShapeKey> = {
   Dot: 'dot', I2: 'bar2', I3: 'bar3', I4: 'bar4', I5: 'bar5', O2: 'squareSmall', O3: 'squareBig',
@@ -41,6 +42,10 @@ export function nearMissMessages(state: GameState, oldBest: number, fallbackBigg
   const facts = nearMissFacts(state); const result: NearMissMessage[] = [];
   if (oldBest > 0 && state.score > oldBest) result.push({ kind: 'newBest', amount: state.score - oldBest });
   else if (oldBest > 0 && oldBest - state.score <= oldBest * 0.15) result.push({ kind: 'bestShort', amount: oldBest - state.score });
+  if (result.length < 2 && state.goals && (state.mode === 'classic' || state.mode === 'expert')) {
+    const target = nextTarget(state.score, state.goals.floor); const remaining = target - state.score;
+    if (remaining > 0 && remaining <= target * 0.1) result.push({ kind: 'targetShort', amount: remaining, target });
+  }
   if (result.length < 2 && facts.pieceOneCellShort) result.push({ kind: 'piece', amount: 1, shape: facts.pieceOneCellShort.shape });
   if (result.length < 2 && facts.lineOneFromFull) result.push({ kind: 'line', amount: 1, lineKind: facts.lineOneFromFull.kind, index: facts.lineOneFromFull.index });
   if (result.length < 2 && extras.xpRemaining !== undefined && extras.levelCost !== undefined && extras.xpRemaining <= extras.levelCost * 0.25) result.push({ kind: 'xp', amount: extras.xpRemaining, level: extras.level });

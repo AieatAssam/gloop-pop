@@ -15,7 +15,9 @@ import { createSession, runToResumeOnBoot } from './session';
 import { createGameUi } from '../ui/dom';
 import { createTopBar } from '../ui/topBar';
 import { S } from '../ui/strings';
-import { loadSave, saveNow } from '../platform/saveStore';
+import { loadSave, saveNow, setSaveWritesDisabled } from '../platform/saveStore';
+import veteranSave from '../meta/fixtures/save-v1-veteran.json';
+import { migrate } from '../meta/migrate';
 import type { SaveV2 } from '../meta/saveSchema';
 import { recordRun } from '../meta/stats';
 import { grantXp, rewardsForRun, totalXpForLevel, xpToNext } from '../meta/progression';
@@ -60,26 +62,32 @@ import { defaultSave } from '../meta/saveSchema';
 import { setColourBlindPatterns } from '../render/gloopRenderer';
 import { chooseBotMove } from '../core/sim';
 import { seededRng } from '../core/rng';
-import { createFeelScene } from './demoScenes';
+import { createFeelScene, createGoalScene } from './demoScenes';
 import { musicState } from '../audio/musicState';
 import { createCreditsScreen } from '../ui/screens/credits';
+import { drawGoalStrip } from '../render/goalStrip';
+import { nextTarget } from '../core/goals';
 
 export function bootApp(): void {
   const canvas = document.querySelector<HTMLCanvasElement>('#game'); const uiRoot = document.querySelector<HTMLElement>('#ui');
   if (!canvas || !uiRoot) throw new Error('Missing game surface.');
-  let save = loadSave(); const savedRun = runToResumeOnBoot(save.inProgress);
+  const gameCanvas = canvas;
+  const query = new URLSearchParams(window.location.search); const debug = query.get('debug') === '1'; const veteranDemo = debug && query.get('save') === 'veteran';
+  setSaveWritesDisabled(veteranDemo || (debug && query.has('demo')));
+  let save = veteranDemo ? migrate(veteranSave) : loadSave(); const savedRun = runToResumeOnBoot(save.inProgress);
   const skinMap: Record<string, SkinId> = { plain:'plain', googly:'googlyEyes', googlyEyes:'googlyEyes', freckles:'freckles', catears:'catEars', catEars:'catEars', glasses:'glasses', mustache:'mustache', bowtie:'bowtie', crown:'crown' };
   const syncCosmetics = (): void => setEquippedCosmetics({ theme: save.equipped.theme as keyof typeof PALETTE.theme, skin: skinMap[save.equipped.skin] ?? 'plain', popEffect: save.equipped.pop as PopEffectId });
   syncCosmetics();
   setMasterMuted(save.settings.muted); setSfxEnabled(save.settings.sfx); setMusicEnabled(save.settings.music); setEffectsVolume(save.settings.sfxVolume); setMusicVolume(save.settings.musicVolume);
   const beginTutorial = !savedRun && !save.tutorialDone;
-  let session = createSession({ state: savedRun ?? (beginTutorial ? tutorialGame(1) : null), best: bestFor(save, savedRun?.mode ?? 'classic'), mode: 'classic' });
+  let session = createSession({ state: savedRun ?? (beginTutorial ? tutorialGame(1) : null), best: bestFor(save, savedRun?.mode ?? 'classic'), mode: 'classic', goals: save.tutorialDone });
   canvas.setAttribute('aria-label', `${S.logo}. ${S.howToControls}`);
+  updateCanvasAria();
   let runBest = session.best; let runStartedAt = performance.now(); let pauseStartedAt = 0; let runReward = { xp: 0, coins: 0, progress: 0, progressMax: xpToNext(save.profile.level), currentLevel: save.profile.level, level: undefined as number | undefined };
   const router = createRouter('play'); const surface = createCanvasSurface(canvas); const background = createBackground(save.equipped.theme as keyof typeof PALETTE.theme); const view = createBoardView(); const director = createDirector();
   setColourBlindPatterns(save.settings.cbPatterns);
   let backgroundTheme = save.equipped.theme; const ui = createGameUi(uiRoot); const toast = createToasts(uiRoot); const homeHost = document.createElement('div'); uiRoot.append(homeHost);
-  let paused = false; let shownScore = 0; let shownStatus = ''; let runRecorded = false; let countedDailyThisRun = false; let comboLostAt = -1; let layout: Layout = computeLayout(window.innerWidth, window.innerHeight); let renderElapsed = 0; let gameOverAt = -1; let saveTimer = 0; let runEvents: GameEvent[] = []; let closeCall = false;
+  let paused = false; let shownScore = 0; let shownStatus = ''; let runRecorded = false; let countedDailyThisRun = false; let comboLostAt = -1; let layout: Layout = computeLayout(window.innerWidth, window.innerHeight, {}, Boolean(session.state.goals)); let renderElapsed = 0; let gameOverAt = -1; let saveTimer = 0; let runEvents: GameEvent[] = []; let closeCall = false;
   let tutorialActive = beginTutorial || savedRun?.mode === 'tutorial' || (!save.tutorialDone && save.ui.seenTips.includes('tutorialStep4Pending')); let tutorialStep = tutorialActive ? (session.state.mode === 'tutorial' ? Math.min(3, session.state.traysDealt) : 4) : 0; let tutorialTouched = false; let tutorialBubbleText = ''; let tutorialBubbleUntil = -1; let tutorialTipForGameOver = false;
   let candyFlameUntil = -1; let candyFlameFlavour = 1; let discoveryCoins = 0;
   let scoreAnimFrom = 0; let scoreAnimStart = 0; let scoreAnimDuration = 600; let scoreAnimPoints = 0;
@@ -87,8 +95,9 @@ export function bootApp(): void {
   let flameBreakAt = -1;
   let comboPulseAt = -1; let scoreSparkleAt = -1;
   let effectFrameMs = 0;
+  let goalCrossingTarget = -1; let goalCrossingCoins = 0; let goalCrossingAt = -1; let goalCrossingWorldAt = -1; let goalCrossingCuePlayed = false; let miniDoneAt = -1; let miniDoneWorldAt = -1;
   let lastSlowMoAt = -10000; let newBestShown = false;
-  const query = new URLSearchParams(window.location.search); const demoBoard = query.get('demo') === 'board'; const demoFaces = query.get('demo') === 'faces'; const demoBg = query.get('demo') === 'bg'; const demoThemes = query.get('demo') === 'themes'; const demoMega = query.get('demo') === 'mega'; const debug = query.get('debug') === '1'; const autoplay = debug && (query.get('autoplay') === '1' || demoMega); const autoplayInterval = query.get('speed') === 'fast' ? 150 : 450; let autoplayAt = 0; let rescueOfferAt = -1; const botRng = seededRng('gloop-pop/debug-autoplay');
+  const demoBoard = query.get('demo') === 'board'; const demoFaces = query.get('demo') === 'faces'; const demoBg = query.get('demo') === 'bg'; const demoThemes = query.get('demo') === 'themes'; const demoMega = query.get('demo') === 'mega'; const autoplay = debug && (query.get('autoplay') === '1' || demoMega); const autoplayInterval = query.get('speed') === 'fast' ? 150 : 450; let autoplayAt = 0; let rescueOfferAt = -1; const botRng = seededRng('gloop-pop/debug-autoplay');
   if (debug && demoMega) {
     // spec-note: The QA scenario builds a 28-cell apple gloop around one two-cell gap; its line clear resolves as a Mega Pop at combo tier 4.
     const state = structuredClone(session.state); state.mode = 'classic'; state.board = new Array<number>(64).fill(0);
@@ -107,6 +116,13 @@ export function bootApp(): void {
     else { state.board[7 * 8 + 0] = 3; state.board[7 * 8 + 1] = 3; state.board[6 * 8 + 6] = 5; state.tray = [{ defId: 9, flavour: 1 }, { defId: 3, flavour: 6 }, { defId: 13, flavour: 7 }]; }
     state.status = 'playing'; state.moves = 0; session = createSession({ state, best: session.best }); runBest = session.best; runEvents = []; gameOverAt = -1; shownStatus = '';
   }
+  if (debug && ['target', 'target-hit', 'mini-done'].includes(query.get('demo') ?? '')) {
+    const scene = query.get('demo') as 'target' | 'target-hit' | 'mini-done'; const state = createGoalScene(session.state, scene);
+    session = createSession({ state, best: 9000 }); runBest = 9000; shownScore = state.score; scoreAnimFrom = state.score; scoreAnimStart = 0; runEvents = []; gameOverAt = -1; shownStatus = '';
+    if (scene === 'target-hit') { goalCrossingTarget = 5000; goalCrossingCoins = 5; goalCrossingAt = 0; goalCrossingWorldAt = 0; goalCrossingCuePlayed = true; }
+    if (scene === 'mini-done') { miniDoneAt = 0; miniDoneWorldAt = 0; }
+    updateCanvasAria();
+  }
   let activeChallenge = parseChallenge(window.location.search); let challengeBeaten = false;
   if (activeChallenge) { const clean = new URL(window.location.href); clean.searchParams.delete('beat'); clean.searchParams.delete('f'); history.replaceState(history.state, '', clean); }
   const requestedSkin = query.get('skin'); if (demoFaces && requestedSkin && skinMap[requestedSkin]) setEquippedCosmetics({ theme: save.equipped.theme as keyof typeof PALETTE.theme, skin: skinMap[requestedSkin], popEffect: save.equipped.pop as PopEffectId });
@@ -124,7 +140,7 @@ export function bootApp(): void {
   const resize = (): void => {
     surface.resize(window.innerWidth, window.innerHeight);
     const rootStyle = getComputedStyle(document.documentElement); const safeTop = Number.parseFloat(rootStyle.getPropertyValue('--safe-area-top')) || 0; const safeBottom = Number.parseFloat(rootStyle.getPropertyValue('--safe-area-bottom')) || 0;
-    layout = computeLayout(surface.width, surface.height, { top: safeTop, bottom: safeBottom }); background.resize(surface.width, surface.height, layout);
+    layout = computeLayout(surface.width, surface.height, { top: safeTop, bottom: safeBottom }, Boolean(session.state.goals)); background.resize(surface.width, surface.height, layout);
     topBar.element.style.left = `${layout.column.x}px`; topBar.element.style.width = `${layout.column.width}px`; topBar.element.style.top = `${layout.topBar.y}px`; topBar.element.style.height = `${layout.topBar.height}px`;
   };
   resize(); window.addEventListener('resize', resize, { passive: true });
@@ -162,6 +178,9 @@ export function bootApp(): void {
       view.draw(ctx, layout, session.state, frame.worldNow, paused ? undefined : pointer.drag ?? keyboard.drag(), demoBoard ? 'board' : demoFaces ? 'faces' : '', gameOverAt, frame.boardNow, frame.realNow, pointer.returning, reduced, renderLoop.hitStopScale, frame.boardDt); const effectStart = performance.now(); director.draw(ctx, layout, frame.boardNow, frame.worldNow, frame.worldDt, reduced, frame.realNow, renderLoop.hitStopScale); effectFrameMs = performance.now() - effectStart; ctx.restore();
       if (paused) { ctx.fillStyle = PALETTE.ui.scrim; ctx.fillRect(0, 0, layout.width, layout.height); }
       shownScore = drawHud(ctx, layout, session.state, session.best, frame.realNow, shownScore, comboLostAt, activeChallenge?.score, candyFlameUntil, candyFlameFlavour, reduced, scoreAnimFrom, scoreAnimStart, scoreAnimDuration, newBestAt, flameBreakAt, comboPulseAt, scoreSparkleAt, scoreAnimPoints);
+      if (goalCrossingAt < 0 && goalCrossingTarget >= 0 && shownScore >= goalCrossingTarget) { goalCrossingAt = frame.realNow; goalCrossingWorldAt = frame.worldNow; if (!goalCrossingCuePlayed) { sfx.coinTick({ count: 1, gainDb: -6 }); vibrate('goal', save.settings.haptics); goalCrossingCuePlayed = true; } }
+      const holdGoalFeedback = debug && (query.get('hold') === '1' || query.get('hold') !== '0' && ['target-hit', 'mini-done'].includes(query.get('demo') ?? ''));
+      drawGoalStrip(ctx, layout, session.state, shownScore, frame.realNow, { target: goalCrossingTarget, coins: goalCrossingCoins, at: goalCrossingAt, worldAt: goalCrossingWorldAt, hold: holdGoalFeedback }, miniDoneAt, miniDoneWorldAt, frame.worldNow, reduced);
       if (tutorialActive && tutorialStep < 4 && !tutorialTouched) { const target = tutorialStep === 1 ? { row: 6, col: 6, width: 2 } : tutorialStep === 2 ? { row: 6, col: 3, width: 1 } : { row: 4, col: 6, width: 2 }; const cells = tutorialStep === 2 ? [[0, 0], [1, 0]] as const : [[0, 0], [0, 1]] as const; const hand = tutorialHandPoints(layout.board, layout.tray, layout.cellSize, target.row, target.col, target.width); drawGhostHand(ctx, elapsedMs, hand.from, hand.to, layout.cellSize, cells); }
       if (debug && query.get('overlay') !== '0') drawDebug(ctx, layout, surface.dpr, dtMs, surface, effectFrameMs, audioDebugLine());
     }
@@ -170,9 +189,16 @@ export function bootApp(): void {
     }, (elapsed) => { surface.reportFrame(elapsed); if (autoplay && router.current === 'play' && !paused && session.state.status === 'rescueOffer') { if (rescueOfferAt < 0) rescueOfferAt = renderElapsed; if (renderElapsed - rescueOfferAt >= 600) { rescueOfferAt = -1; apply({ type: 'useRescue' }); } } else if (session.state.status !== 'rescueOffer') rescueOfferAt = -1; if (autoplay && router.current === 'play' && !paused && session.state.status === 'playing' && renderElapsed >= autoplayAt) { autoplayAt = renderElapsed + autoplayInterval; enableAudio(); const move = demoMega && session.state.moves === 0 ? { slot: 0 as const, row: 3, col: 3 } : chooseBotMove(session.state, botRng); if (move) apply({ type: 'place', slot: move.slot, row: move.row, col: move.col }); } });
 
   function apply(action: Action): void {
+    const hadGoalStrip = Boolean(session.state.goals);
     if (action.type === 'place' && !shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion())) renderLoop.requestSlowMo(renderLoop.timeScale, 0, 0, 60);
     const filledBeforeResolve = action.type === 'place' ? session.state.board.filter((cell) => cell > 0).length + (PIECES[session.state.tray[action.slot]?.defId ?? -1]?.cells.length ?? 0) : 0;
     const scoreBefore = session.state.score; const pendingScoreFrom = shownScore; const events = action.type === 'place' ? dispatchImmediately(() => renderLoop.endNow(), () => session.dispatch(action)) : session.dispatch(action); const scoreDelta = session.state.score - scoreBefore; if (events.some((event) => event.type === 'cleared' || event.type === 'popped' || event.type === 'allClear' || event.type === 'gameOver')) live.textContent = `${S.score} ${new Intl.NumberFormat('en-US').format(session.state.score)}${session.state.status === 'over' ? ` · ${S.noRoom}` : ''}`; if (action.type === 'place' && tutorialActive && events.some((event) => event.type === 'placed')) advanceTutorial(); if (action.type === 'place' && filledBeforeResolve >= 52 && events.some((event) => event.type === 'cleared')) closeCall = true; runEvents.push(...events);
+    updateCanvasAria();
+    const crossings = events.filter((event) => event.type === 'targetReached'); if (crossings.length) { const last = crossings[crossings.length - 1]!; if (last.type === 'targetReached') { goalCrossingTarget = last.target; goalCrossingCoins = crossings.length * 5; goalCrossingAt = -1; goalCrossingWorldAt = -1; goalCrossingCuePlayed = false; } }
+    if (events.some((event) => event.type === 'miniDone')) { miniDoneAt = renderElapsed; miniDoneWorldAt = currentFrame.worldNow; sfx.chime({ gainDb: -14 }); vibrate('goal', save.settings.haptics); }
+    if (hadGoalStrip !== Boolean(session.state.goals)) resize();
+    // spec-note: Keep the pill short; the full mini-goal text appears as a toast on the run's first move.
+    if (action.type === 'place' && session.state.moves === 1 && session.state.goals) toast.show(S.miniToast(S.miniText(session.state.goals.mini.id, session.state.goals.mini.flavour)));
     const reduced = shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion());
     if (events.length) { const passedBest = runBest > 0 && scoreBefore <= runBest && session.state.score > runBest; const placedForLand = events.find((event) => event.type === 'placed'); const lineCountNow = events.reduce((sum, event) => sum + (event.type === 'cleared' ? event.rows.length + event.cols.length : 0), 0); const popSizeNow = events.reduce((size, event) => event.type === 'popped' ? Math.max(size, ...event.gloops.map((gloop) => gloop.size)) : size, 0); const discoveries = detectFirsts(events, save.firsts); const moment = firstMomentInfo(discoveries); if (scoreDelta > 0 && action.type === 'place') { scoreAnimFrom = pendingScoreFrom; scoreAnimStart = Number.POSITIVE_INFINITY; const scoreEvent = events.find((event) => event.type === 'scored'); scoreAnimPoints = scoreEvent?.type === 'scored' ? scoreEvent.points : scoreDelta; scoreAnimDuration = Math.min(600, 150 + scoreAnimPoints / 10); } const startScoreCountUp = (): void => { if (scoreDelta <= 0) return; scoreAnimFrom = pendingScoreFrom; scoreAnimStart = renderElapsed; const scoreEvent = events.find((event) => event.type === 'scored'); scoreAnimPoints = scoreEvent?.type === 'scored' ? scoreEvent.points : scoreDelta; scoreAnimDuration = Math.min(600, 150 + scoreAnimPoints / 10); if (scoreAnimPoints >= 1000) scoreSparkleAt = scoreAnimStart + scoreAnimDuration; }; const audioPlan = planMove(events, { combo: session.state.combo, newBest: passedBest }); playGameEvents(events.filter((event) => event.type === 'dealt' || event.type === 'stuck' || event.type === 'rescued' || event.type === 'gameOver' || event.type === 'zenShake'), { combo: session.state.combo }); director.receive(events, currentFrame.boardNow, reduced, session.state, layout, currentFrame.worldNow, (at, duration) => renderLoop.scheduleHitStop(at, duration), () => { onLand(audioPlan); if (placedForLand?.type === 'placed') vibrate('place', save.settings.haptics); if (lineCountNow === 0 && popSizeNow === 0) startScoreCountUp(); if (lineCountNow === 0 && popSizeNow === 0 && passedBest) { director.banner(S.newBest, currentFrame.worldNow, 0, 0, 40); triggerSlowMo(reduced); } }, () => { onImpact(audioPlan); if (scoreDelta > 0) startScoreCountUp(); const lineEvent: Parameters<typeof vibrate>[0] = lineCountNow >= 4 ? 'line4' : lineCountNow === 3 ? 'line3' : lineCountNow === 2 ? 'line2' : 'line1'; const tier = session.state.combo >= 12 ? 4 : session.state.combo >= 8 ? 3 : session.state.combo >= 5 ? 2 : session.state.combo >= 3 ? 1 : 0; if (lineCountNow > 0) vibrate(lineEvent, save.settings.haptics, addComboTicks(hapticPattern(lineEvent), tier)); if (passedBest) { director.banner(S.newBest, currentFrame.worldNow, 0, 0, 40); triggerSlowMo(reduced); } }, moment.text, moment.coins, currentFrame.realNow, (popTier) => { onPopFirst(audioPlan, popTier); vibrate(popTier, save.settings.haptics); }, (kind) => { onClimax(audioPlan, kind); if (kind === 'huge') vibrate('huge', save.settings.haptics, [20]); else if (kind === 'mega') { vibrate('mega', save.settings.haptics, [20, 50, 20, 50, 20]); triggerSlowMo(reduced); } else { vibrate('allClear', save.settings.haptics); triggerSlowMo(reduced); } }, pointer.placementOrigin, (order, popTier, last) => onBurst(audioPlan, order, popTier, last)); view.receive(events, currentFrame.boardNow, session.state, currentFrame.worldNow, pointer.placementOrigin, reduced, layout); pointer.placementOrigin = undefined; if (action.type === 'place' && events.some((event) => event.type === 'stuck')) { vibrate('stuck', save.settings.haptics); if (!reduced) renderLoop.requestSlowMo(0.4, 60, 240, 150); }
       const scored = events.find((event) => event.type === 'scored'); if (scored?.type === 'scored' && scored.points >= 2000) candyFlameUntil = renderElapsed + 1500;
@@ -217,11 +243,11 @@ export function bootApp(): void {
   function start(mode: ModeId): void {
     const savedForMode = mode === 'daily' ? save.dailyInProgress : save.inProgress?.mode === mode ? save.inProgress : null;
     const resume = session.state.mode === mode && session.state.status === 'playing';
-    if (!resume) { runBest = bestFor(save, mode); session = createSession({ state: savedForMode, best: runBest, mode }); runStartedAt = performance.now(); runRecorded = false; countedDailyThisRun = false; runEvents = []; closeCall = false; shownScore = 0; scoreAnimFrom = 0; scoreAnimStart = renderElapsed; scoreAnimDuration = 600; newBestAt = -1; flameBreakAt = -1; comboPulseAt = -1; scoreSparkleAt = -1; shownStatus = ''; comboLostAt = -1; gameOverAt = -1; newBestShown = false; discoveryCoins = 0; }
+    if (!resume) { runBest = bestFor(save, mode); session = createSession({ state: savedForMode, best: runBest, mode, goals: save.tutorialDone }); updateCanvasAria(); resize(); runStartedAt = performance.now(); runRecorded = false; countedDailyThisRun = false; runEvents = []; closeCall = false; shownScore = 0; scoreAnimFrom = 0; scoreAnimStart = renderElapsed; scoreAnimDuration = 600; newBestAt = -1; flameBreakAt = -1; comboPulseAt = -1; scoreSparkleAt = -1; shownStatus = ''; comboLostAt = -1; gameOverAt = -1; newBestShown = false; discoveryCoins = 0; }
     else if (pauseStartedAt > 0) { runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; }
     paused = false; setAudioPaused(false); if (audioStarted) startMusic(); ui.hide(); router.open('play'); persist(false);
   }
-  function restart(): void { renderLoop.resetEffects(); director.reset(); if (challengeBeaten) { activeChallenge = null; challengeBeaten = false; } runBest = bestFor(save, session.state.mode); session = createSession({ best: runBest, mode: session.state.mode }); runStartedAt = performance.now(); runEvents = []; closeCall = false; pauseStartedAt = 0; shownScore = 0; scoreAnimFrom = 0; scoreAnimStart = renderElapsed; scoreAnimDuration = 600; newBestAt = -1; flameBreakAt = -1; comboPulseAt = -1; scoreSparkleAt = -1; shownStatus = ''; runRecorded = false; comboLostAt = -1; gameOverAt = -1; newBestShown = false; discoveryCoins = 0; paused = false; ui.hide(); pointer.cancel(); persist(false); }
+  function restart(): void { renderLoop.resetEffects(); director.reset(); if (challengeBeaten) { activeChallenge = null; challengeBeaten = false; } runBest = bestFor(save, session.state.mode); session = createSession({ best: runBest, mode: session.state.mode, goals: save.tutorialDone }); updateCanvasAria(); resize(); runStartedAt = performance.now(); runEvents = []; closeCall = false; pauseStartedAt = 0; shownScore = 0; scoreAnimFrom = 0; scoreAnimStart = renderElapsed; scoreAnimDuration = 600; newBestAt = -1; flameBreakAt = -1; comboPulseAt = -1; scoreSparkleAt = -1; shownStatus = ''; runRecorded = false; comboLostAt = -1; gameOverAt = -1; newBestShown = false; discoveryCoins = 0; paused = false; ui.hide(); pointer.cancel(); persist(false); }
   function showPause(): void {
     if (router.current !== 'play' || session.state.status !== 'playing') return;
     paused = true; setAudioPaused(true); if (pauseStartedAt === 0) pauseStartedAt = performance.now(); persist(true); const mode = session.state.mode; const label = mode === 'daily' ? S.giveUp : mode === 'zen' ? S.endRun : S.restart;
@@ -278,12 +304,12 @@ export function bootApp(): void {
       const weeklyId = WEEKLY_POOL[((save.weekly.weekIndex % WEEKLY_POOL.length) + WEEKLY_POOL.length) % WEEKLY_POOL.length]!; const weeklyTarget = WEEKLY_TARGETS[weeklyId];
       const nearAchievement = ACHIEVEMENTS.filter((def) => !save.achievements[def.id] && COUNTER_ACHIEVEMENTS.has(def.id)).map((def) => { const progress = achievementProgress(def.id, save); return { remaining: Math.max(0, progress.target - progress.current), target: progress.target, name: S.achievementName(def.id), unit: S.achievementUnit(def.id) }; }).filter((entry) => entry.remaining <= entry.target * 0.2).sort((a, b) => a.remaining - b.remaining)[0];
       const near = nearMissMessages(session.state, runBest, session.state.stats.biggestPop, session.state.linesCleared, { xpRemaining: save.profile.level < 50 ? totalXpForLevel(save.profile.level + 1) - save.profile.xp : undefined, level: save.profile.level + 1, levelCost: save.profile.level < 50 ? xpToNext(save.profile.level) : undefined, weeklyRemaining: Math.max(0, weeklyTarget - save.weekly.progress), weeklyTarget, achievement: nearAchievement });
-      const noteLines = near.map((item) => item.kind === 'newBest' ? S.nearNewBest(item.amount) : item.kind === 'bestShort' ? S.nearBestShort(item.amount) : item.kind === 'piece' ? S.nearPiece(S.shapeName(item.shape ?? 'dot')) : item.kind === 'line' ? S.nearLine(item.lineKind ?? 'row', (item.index ?? 0) + 1) : item.kind === 'xp' ? S.nearXp(item.amount, item.level ?? 1) : item.kind === 'weekly' ? S.nearWeekly(item.amount) : item.kind === 'achievement' ? S.nearAchievement(item.amount, item.unit ?? 'more', item.name ?? '') : S.nearFallback(session.state.stats.biggestPop, session.state.linesCleared));
+      const noteLines = near.map((item) => item.kind === 'newBest' ? S.nearNewBest(item.amount) : item.kind === 'bestShort' ? S.nearBestShort(item.amount) : item.kind === 'targetShort' ? S.targetShort(item.amount, item.target ?? 0) : item.kind === 'piece' ? S.nearPiece(S.shapeName(item.shape ?? 'dot')) : item.kind === 'line' ? S.nearLine(item.lineKind ?? 'row', (item.index ?? 0) + 1) : item.kind === 'xp' ? S.nearXp(item.amount, item.level ?? 1) : item.kind === 'weekly' ? S.nearWeekly(item.amount) : item.kind === 'achievement' ? S.nearAchievement(item.amount, item.unit ?? 'more', item.name ?? '') : S.nearFallback(session.state.stats.biggestPop, session.state.linesCleared));
       const challengeNote = activeChallenge && challengeMode ? session.state.score > activeChallenge.score ? S.beatFriendBy(session.state.score - activeChallenge.score) : S.shortOfFriend(activeChallenge.score - session.state.score) : noteLines.join('\n'); const note = tutorialTipForGameOver ? `${challengeNote}${challengeNote ? '\n' : ''}${S.tutorialTip}` : challengeNote; tutorialTipForGameOver = false;
       const classicImage = (): void => { void import('../render/shareCard').then(({ renderShareCard }) => { const canvasCard = renderShareCard({ title: S.classic, date: '', score: session.state.score, combo: session.state.bestCombo, biggestPop: session.state.stats.biggestPop, lines: session.state.linesCleared, streak: 0, theme: save.equipped.theme as keyof typeof PALETTE.theme, board: session.state.board, biggestGloop: summary.biggestGloop ?? undefined }); canvasCard.toBlob((blob) => { if (blob) void shareImage(blob, `gloop-pop-classic-${session.state.score}.png`); }); }); };
       setAudioPaused(false);
       const endedBy = runEvents.find((event) => event.type === 'gameOver'); const gameOverTitle = session.state.mode === 'daily' ? endedBy?.type === 'gameOver' && endedBy.reason === 'traysDone' ? S.allTraysPlaced : S.dailyRunDone(session.state.daily?.dayNumber ?? 1) : S.noRoom;
-      ui.showGameOver(() => restart(), () => { ui.hide(); router.open('home'); }, session.state.score, session.state.mode === 'zen' ? null : runBest, S.gameOverFallback(session.state.stats.biggestPop, session.state.linesCleared), runReward, summary, challengeMode ? challengeText : undefined, challengeMode ? classicImage : undefined, note, gameOverTitle, session.state.mode === 'daily' ? () => router.open('dailyResult') : undefined);
+      ui.showGameOver(() => restart(), () => { ui.hide(); router.open('home'); }, session.state.score, session.state.mode === 'zen' ? null : runBest, S.gameOverFallback(session.state.stats.biggestPop, session.state.linesCleared), runReward, summary, challengeMode ? challengeText : undefined, challengeMode ? classicImage : undefined, note, gameOverTitle, session.state.mode === 'daily' ? () => router.open('dailyResult') : undefined, { targetsHit: session.state.goals?.targetsHit ?? 0, miniDone: session.state.goals?.mini.done ?? false });
     } else if (status === 'rescueOffer') ui.showRescue(() => apply({ type: 'useRescue' }), () => apply({ type: 'declineRescue' }));
     else if (!paused) ui.hide();
   }
@@ -293,6 +319,12 @@ export function bootApp(): void {
     }
     const writeLater = (): void => saveNow(save);
     window.clearTimeout(saveTimer); if (immediate) writeLater(); else saveTimer = window.setTimeout(writeLater, 300);
+  }
+  function updateCanvasAria(): void {
+    const goals = session.state.goals;
+    if (!goals) { gameCanvas.setAttribute('aria-label', `${S.logo}. ${S.howToControls}`); return; }
+    const target = nextTarget(session.state.score, goals.floor);
+    gameCanvas.setAttribute('aria-label', `${S.logo}. ${S.howToControls}. ${S.targetAria(target, Math.max(0, target - session.state.score))} ${S.miniAria(S.miniText(goals.mini.id, goals.mini.flavour), goals.mini.progress, goals.mini.target)}`);
   }
   function triggerSlowMo(reduced: boolean): void {
     const now = performance.now(); if (!canStartSlowMo(lastSlowMoAt, now, reduced)) return; lastSlowMoAt = now;

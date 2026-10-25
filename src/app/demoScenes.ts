@@ -1,6 +1,22 @@
 import type { GameState } from '../core/types';
+import { step } from '../core/game';
 
 export type FeelScene = 'combo' | 'mega';
+export type GoalScene = 'target' | 'target-hit' | 'mini-done';
+
+/** Deterministic M12 capture scenes built from the current in-memory run. */
+export function createGoalScene(state: GameState, scene: GoalScene): GameState {
+  const next = structuredClone(state); next.mode = 'classic'; next.status = 'playing'; next.score = 4880; next.moves = 0; next.board = new Array<number>(64).fill(0);
+  next.goals = { floor: 0, targetsHit: 0, mini: { id: 'bigpop', target: 1, progress: 0, done: false } };
+  for (let col = 0; col < 7; col += 1) next.board[7 * 8 + col] = 2;
+  next.tray = [{ defId: 0, flavour: 2 }, { defId: 1, flavour: 3 }, { defId: 2, flavour: 4 }];
+  if (scene === 'target-hit') {
+    const hit = step(next, { type: 'place', slot: 0, row: 7, col: 7 });
+    return hit.state;
+  }
+  if (scene === 'mini-done' && next.goals) next.goals.mini = { ...next.goals.mini, id: 'bigpop', progress: 1, done: true };
+  return next;
+}
 
 /** Debug capture states only. Rows/columns are deliberately isolated for repeatable engine drops. */
 export function createFeelScene(state: GameState, scene: FeelScene): GameState {

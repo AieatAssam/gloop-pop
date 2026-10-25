@@ -12,6 +12,10 @@ describe('progression', () => {
     const result = rewardsForRun(defaultSave(), { mode, score: 0, lines: 0, pops: 0, biggestPop: 0, bestCombo: 0, pieces: 0, allClears: 0 }); expect([result.xp, result.coins]).toEqual([xp, coins]);
   });
   it('adds the counted daily bonus separately', () => { const result = rewardsForRun(defaultSave(), { mode: 'classic', score: 0, lines: 0, pops: 0, biggestPop: 0, bestCombo: 0, pieces: 0, allClears: 0 }, true); expect(result.xp).toBe(120); expect(result.coins).toBe(35); });
+  it('banks five coins per passed target and the mini goal bonus', () => {
+    const run = { mode: 'classic' as const, score: 20000, lines: 0, pops: 0, biggestPop: 0, bestCombo: 0, pieces: 0, allClears: 0, goals: { targetsHit: 7, miniDone: true } };
+    const result = rewardsForRun(defaultSave(), run); expect(result.coins).toBe(155); expect(result.xp).toBe(230);
+  });
   it('grants debug XP without adding a run payout', () => { const result = grantXp(defaultSave(), 5000); expect(result.save.profile.xp).toBe(5000); expect(result.coins).toBe(0); expect(result.save.profile.level).toBe(15); expect(result.save.owned.modes).toContain('zen'); expect(result.save.owned.modes).toContain('expert'); });
   it('awards one hundred coins per star after level 50', () => { const save = defaultSave(); save.profile.level = 50; save.profile.xp = totalXpForLevel(50); const result = grantXp(save, 5000); expect(result.save.profile.stars).toBe(2); expect(result.save.profile.coins).toBe(200); });
 });

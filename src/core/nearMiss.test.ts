@@ -16,4 +16,10 @@ describe('near miss facts', () => {
     state.tray = [{ defId: 1, flavour: 1 }, null, null]; state.score = 120; for (let col = 0; col < 7; col += 1) state.board[col] = 2;
     expect(nearMissMessages(state, 100, 0, 2).map((item) => item.kind)).toEqual(['newBest', 'piece']);
   });
+  it('reports the next target within the ten percent window after best and before board facts', () => {
+    const state = newGame('classic', 'target-near', { goals: true }).state; state.score = 900; state.board = [...makeBoard()]; state.tray = [null, null, null];
+    expect(nearMissMessages(state, 0, 0, 0).map((item) => [item.kind, item.amount, item.target])).toEqual([['targetShort', 100, 1000], ['fallback', 0, undefined]]);
+    state.score = 4499; expect(nearMissMessages(state, 0, 0, 0)[0]?.kind).toBe('fallback');
+    state.score = 4500; expect(nearMissMessages(state, 0, 0, 0)[0]?.amount).toBe(500);
+  });
 });

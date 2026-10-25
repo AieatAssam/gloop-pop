@@ -8,6 +8,7 @@ export interface Layout {
   column: Rect;
   topBar: Rect;
   score: Rect;
+  goalStrip: Rect;
   board: Rect;
   combo: Rect;
   tray: Rect;
@@ -19,7 +20,7 @@ export interface Layout {
 
 export interface SafeInsets { top?: number; bottom?: number }
 
-export function computeLayout(width: number, height: number, safe: SafeInsets = {}): Layout {
+export function computeLayout(width: number, height: number, safe: SafeInsets = {}, hasGoalStrip = false): Layout {
   const w = Math.max(1, width);
   const h = Math.max(1, height);
   const safeTop = Math.max(0, safe.top ?? 0);
@@ -29,42 +30,44 @@ export function computeLayout(width: number, height: number, safe: SafeInsets = 
     // SG §15.3: sideways phones use a portrait composition in a centred column.
     const columnWidth = Math.min(w, h * 0.62);
     const left = (w - columnWidth) / 2;
-    const inner = computePortrait(columnWidth, h, safeTop, safeBottom);
+    const inner = computePortrait(columnWidth, h, safeTop, safeBottom, hasGoalStrip);
     return shiftLayout(inner, left, { x: left, y: 0, width: columnWidth, height: h });
   }
   if (portrait) {
     const columnWidth = w > 600 ? 600 : w;
     const left = (w - columnWidth) / 2;
-    const result = computePortrait(columnWidth, h, safeTop, safeBottom);
+    const result = computePortrait(columnWidth, h, safeTop, safeBottom, hasGoalStrip);
     return shiftLayout(result, left, { x: left, y: 0, width: columnWidth, height: h });
   }
-  return computeLandscape(w, h, safeTop, safeBottom);
+  return computeLandscape(w, h, safeTop, safeBottom, hasGoalStrip);
 }
 
-function computePortrait(w: number, h: number, safeTop: number, safeBottom: number): Layout {
+function computePortrait(w: number, h: number, safeTop: number, safeBottom: number, hasGoalStrip: boolean): Layout {
   const k = clamp(h / 844, 0.78, 1.15);
   const topH = 60 * k + safeTop;
   const scoreH = 84 * k;
   const comboH = 44 * k;
   const trayH = 168 * k;
   const bottomH = 16 * k + safeBottom;
-  const boardRaw = Math.min(w - 22, 560, h - 372 * k - safeTop - safeBottom);
+  const goalH = hasGoalStrip ? 30 * k : 0;
+  const boardRaw = Math.min(w - 22, 560, h - (372 + (hasGoalStrip ? 30 : 0)) * k - safeTop - safeBottom);
   const boardSize = Math.max(8, Math.floor(boardRaw / 8) * 8);
   const cellSize = (boardSize - 16) / 8;
   const boardX = (w - boardSize) / 2;
-  const used = topH + scoreH + comboH + trayH + bottomH + boardSize;
+  const used = topH + scoreH + goalH + comboH + trayH + bottomH + boardSize;
   const leftover = Math.max(0, h - used);
   const gapA = leftover * 0.25;
   const gapB = leftover * 0.25;
   const gapC = leftover * 0.5;
   const scoreY = topH + gapA;
-  const boardY = scoreY + scoreH + gapB;
+  const goalY = scoreY + scoreH;
+  const boardY = goalY + goalH + gapB;
   const comboY = boardY + boardSize;
   const trayY = comboY + comboH + gapC;
   return {
     width: w, height: h, portrait: true,
     column: { x: 0, y: 0, width: w, height: h },
-    topBar: rect(0, 0, w, topH), score: rect(0, scoreY, w, scoreH),
+    topBar: rect(0, 0, w, topH), score: rect(0, scoreY, w, scoreH), goalStrip: rect(0, goalY, w, goalH),
     board: rect(boardX, boardY, boardSize, boardSize), combo: rect(0, comboY, w, comboH),
     tray: rect(0, trayY, w, trayH), bottom: rect(0, h - bottomH, w, bottomH),
     cellSize, trayCellSize: Math.min(26.4, (Math.min(122 * k, w / 3 - 8) / 5.4)),
@@ -72,7 +75,7 @@ function computePortrait(w: number, h: number, safeTop: number, safeBottom: numb
   };
 }
 
-function computeLandscape(w: number, h: number, safeTop: number, safeBottom: number): Layout {
+function computeLandscape(w: number, h: number, safeTop: number, safeBottom: number, hasGoalStrip: boolean): Layout {
   const u = clamp(Math.min(w / 1280, h / 800), 0.6, 1.4);
   const size = 560 * u;
   const left = (w - size) / 2;
@@ -80,7 +83,7 @@ function computeLandscape(w: number, h: number, safeTop: number, safeBottom: num
   const board = rect(left, top, size, size);
   return {
     width: w, height: h, portrait: false,
-    column: rect(0, 0, w, h), topBar: rect(0, 0, w, 72 * u + safeTop),
+    column: rect(0, 0, w, h), topBar: rect(0, 0, w, 72 * u + safeTop), goalStrip: hasGoalStrip ? rect(left - 288 * u, 300 * u, 240 * u, 74 * u) : rect(0, 0, 0, 0),
     score: rect(left - 288 * u, top, 240 * u, size), board,
     combo: rect(left - 288 * u, top + 220 * u, 240 * u, 100 * u),
     tray: rect(left + size + 48 * u, top + 8 * u, 240 * u, 552 * u),
@@ -93,7 +96,7 @@ function computeLandscape(w: number, h: number, safeTop: number, safeBottom: num
 
 function shiftLayout(layout: Layout, dx: number, column: Rect): Layout {
   const shift = (r: Rect): Rect => ({ ...r, x: r.x + dx });
-  return { ...layout, width: column.width + dx * 2, column, topBar: shift(layout.topBar), score: shift(layout.score), board: shift(layout.board), combo: shift(layout.combo), tray: shift(layout.tray), bottom: shift(layout.bottom) };
+  return { ...layout, width: column.width + dx * 2, column, topBar: shift(layout.topBar), score: shift(layout.score), goalStrip: shift(layout.goalStrip), board: shift(layout.board), combo: shift(layout.combo), tray: shift(layout.tray), bottom: shift(layout.bottom) };
 }
 
 function rect(x: number, y: number, width: number, height: number): Rect { return { x, y, width, height }; }

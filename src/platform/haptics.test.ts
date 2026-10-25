@@ -3,7 +3,7 @@ import { addComboTicks, canFireHaptic, canFireSnap, comboHapticPattern, hapticPa
 
 describe('SG §9.13.k haptics', () => {
   it('keeps every event pulse short, gaps long, and patterns under 400 ms', () => {
-    const events: HapticEvent[] = ['pick', 'snap', 'place', 'line1', 'line2', 'line3', 'line4', 'big', 'huge', 'mega', 'allClear', 'stuck'];
+    const events: HapticEvent[] = ['pick', 'snap', 'place', 'goal', 'line1', 'line2', 'line3', 'line4', 'big', 'huge', 'mega', 'allClear', 'stuck'];
     for (const event of events) expect(validHapticPattern(hapticPattern(event))).toBe(true);
     expect(hapticPattern('allClear')).toEqual([20, 50, 20, 50, 20, 50, 20]);
     expect(validHapticPattern([22])).toBe(false); expect(validHapticPattern([10, 40, 10])).toBe(false);

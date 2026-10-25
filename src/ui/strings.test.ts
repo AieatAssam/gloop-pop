@@ -20,8 +20,8 @@ describe('player-facing strings', () => {
     expect(S.weeklyResetHours(1)).toBe('Resets in 1 hour');
     expect(S.daily(1200)).toBe('Daily #1,200');
   });
-  it('matches the seven How to Play rules, controls, and scoring line from design §16.5', () => {
-    expect([S.howToRule1, S.howToRule2, S.howToRule3, S.howToRule4, S.howToRule5, S.howToRule6, S.howToRule7]).toEqual([
+  it('matches the eight How to Play rules, controls, and scoring line from design §16.5', () => {
+    expect([S.howToRule1, S.howToRule2, S.howToRule3, S.howToRule4, S.howToRule5, S.howToRule6, S.howToRule7, S.howToRule8]).toEqual([
       "Drag pieces onto the board. Pieces can't be rotated.",
       'Fill a whole row or column to clear it. Clearing several at once scores much more.',
       'Same colours join into one gloop. Clear a line through any part of a gloop and the whole gloop pops for bonus points. Gloops of 8+ cells give a Big Pop bonus.',
@@ -29,6 +29,7 @@ describe('player-facing strings', () => {
       'You get 3 pieces at a time. Place all 3 to get new ones. New pieces always include at least one that fits.',
       'The game ends when none of your pieces fit. In Classic you have one rescue per run: clear 10 lines to charge it.',
       'Daily challenge: the same board and pieces for everyone, every day. Your first try counts. Share your result with friends.',
+      'Targets: in Classic and Expert, reach the next target score for +5 coins. Each run also has one mini goal.',
     ]);
     expect(S.howToControls).toBe('Drag with the mouse, or press 1, 2, 3 to pick a piece, arrow keys to move it, Space to place. Esc pauses. M mutes.');
     expect(S.howToScoring).toBe('Each cell placed: 1 · 1 line: 100 · 2 lines: 300 · 3 lines: 600 · 4 lines: 1,000 · Each popped cell: 20 · Big Pop: +200 · Huge Pop: +600 · Mega Pop: +1,500 · Empty board: +2,000 · Combo multiplies everything except placing.');
@@ -42,5 +43,10 @@ describe('player-facing strings', () => {
     expect(S.volumeValue(70)).toBe('70%');
     expect(S.creditsIntro).toBe('Gloop Pop uses free sounds and music made by these people. Thank you!');
     expect(S.creditsNote).toBe('CC0 means anyone may use it for free. We credit them anyway.');
+  });
+  it('uses the exact short and full mini-goal labels from design §24.2', () => {
+    expect(['bigpop','combo4','double','cross','flavour12','lines12','pop15','grow12'].map((id) => S.miniShort(id, 0, 4))).toEqual(['Big Pop 0/1','Combo 0/4','2 lines at once 0/1','Row + column 0/1','Apple cells 0/12','Lines 0/12','Gloop cells 0/15','12-cell gloop 0/1']);
+    expect(S.miniText('flavour12', 4)).toBe('Clear or pop 12 apple cells');
+    expect(S.targetCrossed(5000, 5)).toBe('5,000 ✓ +5 coins');
   });
 });

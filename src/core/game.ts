@@ -8,10 +8,12 @@ import { PLACEMENTS, PIECES } from './pieces';
 import { resolveBoard } from './resolve';
 import { scoreMove } from './scoring';
 import { createRng, sfc32 } from './rng';
+import { miniProgress, pickMini, targetsPassed } from './goals';
 import type { Action, GameEvent, GameState, ModeId, Piece, Preview, RngState } from './types';
 
-export function newGame(cfg: ModeId | ReturnType<typeof modeConfig>, seed: string, opts: { tutorialStep?: number } = {}): { state: GameState; events: GameEvent[] } {
+export function newGame(cfg: ModeId | ReturnType<typeof modeConfig>, seed: string, opts: { tutorialStep?: number; goals?: boolean; best?: number } = {}): { state: GameState; events: GameEvent[] } {
   void opts.tutorialStep;
+  const requestedMode = typeof cfg === 'string' ? cfg : cfg.id;
   const config = typeof cfg === 'string' ? modeConfig(cfg === 'adventure' ? 'classic' : cfg) : cfg;
   const rng = createRng(seed); for (let i = 0; i < 12; i += 1) sfc32(rng);
   const state: GameState = {
@@ -20,6 +22,9 @@ export function newGame(cfg: ModeId | ReturnType<typeof modeConfig>, seed: strin
     rescue: { charge: 0, ready: false, used: false }, status: 'playing', moves: 0,
     stats: { placements: 0, pops: 0, biggestPop: 0, allClears: 0, bigPops: 0, hugePops: 0, megaPops: 0, multiClears: 0, solverTimeMs: 0, f2Fallbacks: 0 },
   };
+  if (opts.goals === true && (requestedMode === 'classic' || requestedMode === 'expert')) {
+    state.goals = { floor: Math.floor(Math.max(0, opts.best ?? 0) / 4), targetsHit: 0, mini: pickMini(seed) };
+  }
   if (config.id === 'daily') {
     const dayKey = seed.startsWith('gloop-pop/daily/v1/') ? seed.slice('gloop-pop/daily/v1/'.length) : seed;
     const dailyDeal = createDailyDeal(dayKey);
@@ -78,6 +83,13 @@ export function step(state: GameState, action: Action): { state: GameState; even
   events.push({ type: 'scored', points: scored.points, parts: scored.parts, combo: next.combo, mult: scored.mult });
   events.push(...comboResult.events);
   if (resolved.allClear) events.push({ type: 'allClear' });
+  if (next.goals) {
+    const oldScore = state.score; const passed = targetsPassed(oldScore, next.score);
+    for (const target of passed) events.push({ type: 'targetReached', target, index: next.goals.targetsHit++ });
+    const updatedMini = miniProgress(next.goals.mini, events, next);
+    if (!next.goals.mini.done && updatedMini.done) events.push({ type: 'miniDone', id: updatedMini.id });
+    next.goals.mini = updatedMini;
+  }
 
   const config = modeConfig(next.mode === 'adventure' ? 'classic' : next.mode); const oldStage = next.stage; next.stage = Math.max(oldStage, config.stageForScore(next.score));
   if (next.stage > oldStage) events.push({ type: 'stageUp', stage: next.stage, ...(next.stage === 3 ? { newFlavour: 6 as const } : next.stage === 5 ? { newFlavour: 7 as const } : {}) });

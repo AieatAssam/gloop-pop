@@ -318,7 +318,7 @@ interface SaveV1 {
 - **Validation:** after migration, run `sanitize(save)` that clamps numbers (non-negative integers), drops unknown item ids, ensures equipped items are owned (else default), and validates `inProgress` (board length 64, values 0–7, tray length 3); if invalid, drop it.
 - Writes: debounced 300 ms, immediate on run end, purchase, settings change, and `visibilitychange: hidden` / `pagehide`.
 - **Save v2 (pass 3):** `CURRENT_VERSION = 2`. `SaveV2` preserves all v1 fields and adds Adventure progress, boosters, mission slots and five lifetime counters. The migration pipeline runs `0 → 1 → 2`; level 2+ profiles receive the Adventure unlock and one of each booster. Sanitization rules and field definitions are in design §24.14. `GameState` stays `v: 1` with optional `goals` and `adventure` fields.
-- Tests ship a fixture `fixtures/save-v1.json` and a synthetic `v0` (pre-release shape: `{ best: number, coins: number }`) migration to prove the pipeline works: `v0 → v1` maps `best → best.classic`, `coins → profile.coins`.
+- Tests ship `fixtures/save-v1.json`, `fixtures/save-v1-veteran.json` and its pinned `save-v2-veteran.expected.json`, plus a synthetic `v0` (pre-release shape: `{ best: number, coins: number }`) migration to prove the pipeline works: `v0 → v1 → v2` maps `best → best.classic`, `coins → profile.coins`. The debug veteran loader uses an in-memory migrated copy; `saveNow` is disabled for debug demo scenes.
 
 ## 9. Testing strategy (Vitest)
 ### 9.1 Unit tests (must exist; `npm test` runs them all)

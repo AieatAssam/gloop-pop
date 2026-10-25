@@ -76,6 +76,7 @@ export const sfx = {
   levelUp(): void { if (!playSegment('level', { group: 'ladder', priority: 'ladder', gain: 10 ** (-8 / 20) })) fallbackSfx.levelUp(); },
   achievement(): void { if (!playSegment('ach', { group: 'ladder', priority: 'ladder', gain: 10 ** (-10 / 20) })) fallbackSfx.achievement(); },
   rescueReady(): void { if (!playSegment('chime', { group: 'ladder', priority: 'ladder', gain: 10 ** (-18 / 20) })) tone({ frequency: 2093, duration: 0.28, peak: 10 ** (-18 / 20), priority: 'ladder' }); },
+  chime(params: { gainDb?: number } = {}): void { const gain = 10 ** ((params.gainDb ?? -14) / 20); if (!playSegment('chime', { group: 'ladder', priority: 'ladder', gain })) tone({ frequency: 2093, duration: 0.28, peak: gain, priority: 'ladder' }); },
   rescue(): void {
     const at = scheduleAt();
     const swell = playSegment('swell', { at, group: 'rescue', priority: 'ladder', gain: 10 ** (-12 / 20) });
@@ -97,11 +98,11 @@ export const sfx = {
       tone({ frequency: PENTATONIC[rung]!, duration: 0.9, peak: 10 ** (-14 / 20), at: at + 0.33, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
     }
   },
-  coinTick(params: { count?: number } = {}): void {
+  coinTick(params: { count?: number; gainDb?: number } = {}): void {
     const count = coinTicksForCount(params.count ?? 1); const at = scheduleAt();
     for (let i = 0; i < count; i += 1) {
       const when = at + i * 0.05;
-      if (!playSegment('coin1', { at: when, group: 'coin', variants: 4, priority: 'coin', gain: 10 ** (-20 / 20), rateVariation: 0.04, gainDbVariation: 1 })) fallbackSfx.coinTick({ count: 1 });
+      if (!playSegment('coin1', { at: when, group: 'coin', variants: 4, priority: 'coin', gain: 10 ** ((params.gainDb ?? -20) / 20), rateVariation: 0.04, gainDbVariation: 1 })) fallbackSfx.coinTick({ count: 1 });
       tone({ frequency: 1568, duration: 0.04, peak: 10 ** (-26 / 20), at: when, priority: 'coin' });
       tone({ frequency: 2093, duration: 0.04, peak: 10 ** (-26 / 20), at: when, priority: 'coin' });
     }

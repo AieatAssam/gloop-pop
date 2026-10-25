@@ -8,9 +8,10 @@ export function totalXpForLevel(level: number): number { let total = 0; for (let
 export function rewardsForRun(save: SaveV2, run: RunSummary, countedDaily = false): RewardResult {
   const mult = run.mode === 'expert' ? 1.5 : run.mode === 'zen' ? 0.5 : 1;
   const xp = Math.floor((20 + Math.floor(run.score / 100)) * mult) + (countedDaily ? 100 : 0);
-  const coins = Math.floor((5 + Math.floor(run.score / 200)) * mult) + (countedDaily ? 30 : 0);
-  const result = grantXp(save, xp); result.save.profile.coins += coins; result.save.profile.coinsEarned += coins;
-  return { ...result, coins };
+  const coins = Math.floor((5 + Math.floor(run.score / 200)) * mult) + (countedDaily ? 30 : 0) + (run.goals?.targetsHit ?? 0) * 5 + (run.goals?.miniDone ? 15 : 0);
+  const goalXp = run.goals?.miniDone ? 10 : 0;
+  const result = grantXp(save, xp + goalXp); result.save.profile.coins += coins; result.save.profile.coinsEarned += coins;
+  return { ...result, xp: xp + goalXp, coins };
 }
 export function grantXp(save: SaveV2, xp: number): RewardResult {
   const next = structuredClone(save); next.profile.xp += Math.max(0, Math.floor(xp));
