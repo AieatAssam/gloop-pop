@@ -1,5 +1,5 @@
 import { loadSprite } from './loader';
-import { stealCandidate } from './voices';
+import { popVoiceStealIndex, stealCandidate } from './voices';
 
 // SG §13.8: the limiter is the final safety stage; independent buses keep settings isolated.
 export type VoicePriority = 'ui' | 'deal' | 'coin' | 'pop' | 'place' | 'ladder' | 'stinger';
@@ -9,6 +9,7 @@ export interface AudioGraph {
   sfxBus: GainNode;
   musicBus: GainNode;
   musicFilter: BiquadFilterNode;
+  duckFilter: BiquadFilterNode;
   bedGain: GainNode;
   layerGain: GainNode;
   duckGain: GainNode;
@@ -17,7 +18,7 @@ export interface AudioGraph {
   noiseBuffer: AudioBuffer;
 }
 
-interface ActiveVoice { source: AudioScheduledSourceNode; priority: VoicePriority; order: number }
+interface ActiveVoice { source: AudioScheduledSourceNode; priority: VoicePriority; order: number; gain?: GainNode }
 const voices: ActiveVoice[] = [];
 let voiceOrder = 0;
 let graph: AudioGraph | null = null;
@@ -48,17 +49,19 @@ export function getAudioGraph(): AudioGraph | null { return graph; }
 
 export function initAudioOnFirstInput(): AudioGraph | null {
   if (graph) {
-    if (graph.context.state === 'suspended') void graph.context.resume();
+    if (graph.context.state === 'suspended') { try { void graph.context.resume().catch(() => undefined); } catch { /* Input must proceed if audio cannot resume. */ } }
     return graph;
   }
   if (typeof AudioContext === 'undefined') return null;
-  const context = new AudioContext();
+  let context: AudioContext;
+  try { context = new AudioContext(); } catch { return null; }
   const sfxBus = context.createGain();
   const musicBus = context.createGain();
   const musicFilter = context.createBiquadFilter();
   const bedGain = context.createGain();
   const layerGain = context.createGain();
   const duckGain = context.createGain();
+  const duckFilter = context.createBiquadFilter();
   const musicStateGain = context.createGain();
   const master = context.createGain();
   const limiter = context.createDynamicsCompressor();
@@ -69,9 +72,11 @@ export function initAudioOnFirstInput(): AudioGraph | null {
   sfxBus.gain.value = 1;
   musicBus.gain.value = 1;
   bedGain.gain.value = 0;
-  layerGain.gain.value = 0;
+  layerGain.gain.value = 1;
   musicFilter.type = 'lowpass';
   musicFilter.frequency.value = 1200;
+  duckFilter.type = 'lowpass';
+  duckFilter.frequency.value = 20000;
   master.gain.value = muted ? 0 : 1;
   limiter.threshold.value = -6;
   limiter.knee.value = 0;
@@ -82,15 +87,16 @@ export function initAudioOnFirstInput(): AudioGraph | null {
   musicFilter.connect(bedGain);
   bedGain.connect(duckGain);
   layerGain.connect(duckGain);
-  duckGain.connect(musicStateGain);
+  duckGain.connect(duckFilter);
+  duckFilter.connect(musicStateGain);
   musicStateGain.connect(musicBus);
   musicBus.connect(master);
   master.connect(limiter);
   limiter.connect(context.destination);
-  graph = { context, master, sfxBus, musicBus, musicFilter, bedGain, layerGain, duckGain, musicStateGain, limiter, noiseBuffer };
+  graph = { context, master, sfxBus, musicBus, musicFilter, duckFilter, bedGain, layerGain, duckGain, musicStateGain, limiter, noiseBuffer };
   bindVisibility();
   applyAudioSettings();
-  void context.resume();
+  try { void context.resume().catch(() => undefined); } catch { /* The gesture may not unlock audio in this browser. */ }
   // Loading starts only after the user gesture has created the context.
   void loadSprite(context);
   return graph;
@@ -106,22 +112,42 @@ function bindVisibility(): void {
   });
 }
 
-export function claimVoice(source: AudioScheduledSourceNode, priority: VoicePriority = 'place'): boolean {
+export function claimVoice(source: AudioScheduledSourceNode, priority: VoicePriority = 'place', gain?: GainNode): boolean {
+  const at = scheduleAt();
+  if (priority === 'pop') {
+    const popCount = voices.reduce((count, voice) => count + Number(voice.priority === 'pop'), 0);
+    if (popCount >= 6) { const index = popVoiceStealIndex(voices); if (index >= 0) stopVoice(voices[index]!, at); }
+  }
+  if (priority === 'place') {
+    const priorPlace = voices.find((voice) => voice.priority === 'place');
+    if (priorPlace) stopVoice(priorPlace, at, 0.01);
+  }
   if (voices.length >= 24) {
     const candidate = stealCandidate(voices);
     if (candidate < 0) return false;
     if (candidate >= 0) {
       const [oldest] = voices.splice(candidate, 1);
-      try { oldest?.source.stop(); } catch { /* Already ended. */ }
+      if (oldest) stopVoice(oldest, at);
     }
   }
-  const voice = { source, priority, order: voiceOrder++ };
+  const voice = { source, priority, order: voiceOrder++, ...(gain ? { gain } : {}) };
   voices.push(voice);
   source.addEventListener('ended', () => {
     const index = voices.indexOf(voice);
     if (index >= 0) voices.splice(index, 1);
   }, { once: true });
   return true;
+}
+
+function stopVoice(voice: ActiveVoice, at: number, fade = 0): void {
+  try {
+    if (fade > 0 && voice.gain) {
+      voice.gain.gain.cancelScheduledValues(at);
+      voice.gain.gain.setValueAtTime(voice.gain.gain.value, at);
+      voice.gain.gain.linearRampToValueAtTime(0, at + fade);
+      voice.source.stop(at + fade + 0.001);
+    } else voice.source.stop(at);
+  } catch { /* Already ended or not yet started. */ }
 }
 
 export function activeVoiceCount(): number { return voices.length; }

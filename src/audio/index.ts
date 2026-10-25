@@ -7,13 +7,14 @@
  * - playForEvents(events, ctx) translates reducer events into audio cues. `ctx` carries the current
  *   combo tier and optional run facts when the core event list does not include that information.
  */
-import { activeVoiceCount, getAudioGraph, isMasterMuted, isMusicEnabled, isSfxEnabled, setMasterMuted as setMute, setMusicEnabled as setMusic, setSfxEnabled as setSfx, toggleMasterMuted } from './engine';
+import { activeVoiceCount, getAudioGraph, isMasterMuted, isMusicEnabled, isSfxEnabled, scheduleAt, setMasterMuted as setMute, setMusicEnabled as setMusic, setSfxEnabled as setSfx, toggleMasterMuted } from './engine';
 import { music, type MusicTier } from './music';
 import { resetPopSequence, sfx } from './sfx';
 import type { GameEvent } from '../core/types';
 import { PIECES } from '../core/pieces';
 import type { MovePlan } from './movePlan';
 import { audioLoadDebug } from './loader';
+import { applyDuck } from './duck';
 
 export { initAudioOnFirstInput, getAudioGraph } from './engine';
 export { noteFor, PENTATONIC, resetPopSequence, sfx } from './sfx';
@@ -57,13 +58,14 @@ try { setMute(localStorage.getItem('gloop-pop:muted') === '1'); } catch { /* Sto
 export function playForEvents(events: readonly AudioEvent[], _ctx: AudioEventContext = {}): void {
   for (const event of events) {
     switch (event.type) {
-      case 'placed': case 'cleared': case 'popped': case 'comboUp': case 'comboLost': case 'allClear': case 'stageUp': case 'rescueReady': case 'bigGloop': case 'scored': break;
+      case 'placed': case 'cleared': case 'popped': case 'comboUp': case 'comboLost': case 'allClear': case 'stageUp': case 'bigGloop': case 'scored': break;
+      case 'rescueReady': sfx.rescueReady(); break;
       case 'dealt': sfx.deal(); break;
       case 'rescued': sfx.rescue(); break;
       case 'rescueOffered': break;
       case 'stuck': sfx.stuck(); break;
       case 'gameOver': music.setGameOver(true); break;
-      case 'zenShake': sfx.gloopPop(); break;
+      case 'zenShake': sfx.zenShake(); break;
     }
   }
   if (_ctx.levelUp) sfx.levelUp();
@@ -71,10 +73,12 @@ export function playForEvents(events: readonly AudioEvent[], _ctx: AudioEventCon
 }
 
 let lastStingerAt = -Infinity;
+export function stingerCooldownReady(now: number, last: number): boolean { return now - last >= 3; }
 function playStinger(kind: 'allClear' | 'mega' | 'newBest', combo: number): void {
   const now = getAudioGraph()?.context.currentTime ?? 0;
-  if (now - lastStingerAt < 3) return;
+  if (!stingerCooldownReady(now, lastStingerAt)) return;
   lastStingerAt = now;
+  applyDuck(scheduleAt());
   if (kind === 'allClear') sfx.allClearStinger();
   else if (kind === 'mega') sfx.megaStinger({ combo });
   else sfx.newBest();
@@ -85,7 +89,7 @@ export function onLand(plan: MovePlan): void {
   if (plan.comboLost) { sfx.comboLost(); music.setTier(0); }
   if (!plan.lines && !plan.pops.length) {
     if (plan.stageUp) sfx.stageUp();
-    if (plan.rescueReady) sfx.rescue();
+    if (plan.rescueReady) sfx.rescueReady();
     if (plan.stinger === 'newBest') playStinger('newBest', plan.combo);
   }
 }
@@ -98,15 +102,15 @@ export function onImpact(plan: MovePlan): void {
     if (plan.tier >= 2) sfx.sparkle({ combo: plan.combo, lineIndex: lastLine, delayMs: lastLine * 45 + 30 });
   }
   if (plan.stageUp) sfx.stageUp();
-  if (plan.rescueReady) sfx.rescue();
+  if (plan.rescueReady) sfx.rescueReady();
   if (plan.stinger === 'newBest') playStinger('newBest', plan.combo);
 }
-export function onBurst(plan: MovePlan, order: number, _gloopTier: string, isLastOfGloop: boolean): void {
+export function onBurst(plan: MovePlan, order: number, gloopTier: string, isLastOfGloop: boolean): void {
   if (order % 2 === 0 && order / 2 < 14) sfx.gloopPop({ index: order, base: plan.largestPop >= 24 ? -4 : plan.largestPop >= 15 ? -2 : plan.largestPop >= 8 ? 0 : 2 });
-  if (isLastOfGloop && plan.largestPop >= 8 && plan.largestPop < 15) sfx.bigPop({ combo: plan.combo });
+  if (isLastOfGloop && gloopTier === 'big') sfx.bigPop({ combo: plan.combo });
 }
 export function onPopFirst(plan: MovePlan, tier: 'big' | 'huge' | 'mega'): void {
-  sfx.gooPop({ gainDb: tier === 'mega' ? -6 : tier === 'huge' ? -9 : -12, rate: tier === 'mega' ? 0.891 : tier === 'huge' ? 0.944 : 1, delay: tier === 'mega' ? 0.025 : 0 });
+  sfx.gooPop({ gainDb: tier === 'mega' ? -6 : tier === 'huge' ? -9 : -12, rate: tier === 'mega' ? 0.891 : tier === 'huge' ? 0.944 : 1, delay: tier === 'mega' ? 0.025 : 0, sub: tier === 'mega' });
 }
 export function onClimax(plan: MovePlan, kind: 'huge' | 'mega' | 'allClear'): void {
   if (kind === 'allClear' && plan.stinger === 'allClear') playStinger('allClear', plan.combo);

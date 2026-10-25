@@ -45,6 +45,19 @@ export function voiceDue(limiter: RateLimiter, now: number): boolean {
   return true;
 }
 
+export function popVoiceStealIndex(voices: readonly VoiceEntry[]): number {
+  let oldest = -1;
+  for (let index = 0; index < voices.length; index += 1) {
+    const voice = voices[index];
+    if (voice?.priority === 'pop' && (oldest < 0 || voice.order < (voices[oldest]?.order ?? Infinity))) oldest = index;
+  }
+  return oldest;
+}
+
+export function coinTicksForCount(count: number): number {
+  return Number.isFinite(count) ? Math.min(12, Math.max(0, Math.floor(count))) : 0;
+}
+
 export function canStartVoice(priority: VoicePriority, active: number, cap = 24): boolean {
   return priority === 'stinger' || active < cap;
 }

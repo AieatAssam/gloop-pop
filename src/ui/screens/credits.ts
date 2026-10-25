@@ -2,7 +2,11 @@
 import { CREDITS, creditAriaLabel, creditLine, type CreditGroup } from '../../audio/credits';
 import { S } from '../strings';
 
-const GROUPS: readonly CreditGroup[] = ['Music', 'Sound effects', 'Code and art'];
+const GROUPS: readonly { id: CreditGroup; label: string }[] = [
+  { id: 'Music', label: S.creditsMusic },
+  { id: 'Sound effects', label: S.creditsSoundEffects },
+  { id: 'Code and art', label: S.creditsCodeAndArt },
+];
 
 export function createCreditsScreen(back: () => void): HTMLElement {
   const root = document.createElement('main'); root.className = 'screen-wrap';
@@ -13,10 +17,10 @@ export function createCreditsScreen(back: () => void): HTMLElement {
   const content = document.createElement('div'); content.className = 'credits-content';
   const intro = document.createElement('p'); intro.className = 'credits-intro'; intro.textContent = S.creditsIntro; content.append(intro);
   for (const group of GROUPS) {
-    const entries = CREDITS.filter((credit) => credit.group === group);
+    const entries = CREDITS.filter((credit) => credit.group === group.id);
     if (!entries.length) continue;
     const section = document.createElement('section'); section.className = 'credits-group';
-    const heading = document.createElement('h2'); heading.textContent = group; section.append(heading);
+    const heading = document.createElement('h2'); heading.textContent = group.label; section.append(heading);
     for (const credit of entries) {
       const line = document.createElement('p'); line.className = 'credits-line';
       if (credit.url) {

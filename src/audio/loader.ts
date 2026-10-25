@@ -91,7 +91,7 @@ export function playSegment(id: SegmentId, options: { at?: number; rate?: number
   const rate = (options.rate ?? 1) * (1 + (variantRandom.next() * 2 - 1) * rateVariation);
   const gainDbVariation = (variantRandom.next() * 2 - 1) * (options.gainDbVariation ?? 0);
   const level = (options.gain ?? 1) * 10 ** (gainDbVariation / 20);
-  const variantId = (id.endsWith(String(variant + 1)) ? id : `${id.slice(0, -1)}${variant + 1}`) as SegmentId;
+  const variantId = ((options.variants ?? 1) > 1 ? `${id.slice(0, -1)}${variant + 1}` : id) as SegmentId;
   const selected = buffers.get(variantId) ?? buffer;
   const source = graph.context.createBufferSource();
   const gain = graph.context.createGain();
@@ -100,7 +100,7 @@ export function playSegment(id: SegmentId, options: { at?: number; rate?: number
   gain.gain.setValueAtTime(level, options.at ?? scheduleAt());
   source.connect(gain);
   gain.connect(graph.sfxBus);
-  if (!claimVoice(source, options.priority ?? 'place')) return false;
+  if (!claimVoice(source, options.priority ?? 'place', gain)) return false;
   source.start(options.at ?? scheduleAt());
   return true;
 }
@@ -117,7 +117,7 @@ export function loadMusic(context: BaseAudioContext): Promise<AudioBuffer | null
         void spritePromise?.then(() => { clearTimeout(timeout); resolve(); });
       });
     }
-    const format = preferredFormat();
+    const format = selectedFormat === 'none' ? preferredFormat() : selectedFormat;
     try { return await decode(context, await fetchBytes(AUDIO_MANIFEST.files.music[format], true)); }
     catch {
       if (format !== 'ogg') return null;

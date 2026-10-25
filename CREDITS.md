@@ -4,7 +4,7 @@ The "Changes" lines match `docs/art/style-guide.md` §13.11 and are implemented 
 
 Every asset below is released under **CC0 1.0 Universal (Public Domain Dedication)**, https://creativecommons.org/publicdomain/zero/1.0/. CC0 needs no attribution. We credit the authors anyway. Each licence was checked on the asset's own page on 25 Oct 2026. Copies of the source files and their licence facts are in `assets-src/audio/`.
 
-All processed audio is mono. It is resampled to 48 kHz for editing, then encoded twice: as Ogg Opus and as MP3. Every sound-effect segment is peak-normalised to −1 dBFS after the edits listed. "Pitch ±N cents" means the speed and pitch were changed together (resampling).
+Processed sound effects are mono and resampled to 48 kHz for editing. The music loop remains mono at its native 22.05 kHz. The files are encoded as Ogg Opus and MP3. Every sound-effect segment is peak-normalised to −1 dBFS after the edits listed. "Pitch ±N cents" means the speed and pitch were changed together (resampling).
 
 ## Music
 
@@ -96,6 +96,4 @@ All processed audio is mono. It is resampled to 48 kHz for editing, then encoded
   - `Pizzicato jingles/jingles_PIZZI10.ogg` → `level`: the first 15 ms removed, pitch +496 cents.
 
 ## Code, art and synthesised sound
-Code, art and synth sounds: made for Gloop Pop.
-
-The game's code, graphics, and all synthesised sounds and music layers (the ladder instrument body, sweeps, pads and fallbacks) were made for Gloop Pop. Fonts: Baloo 2 and Nunito, via Fontsource (SIL Open Font License 1.1).
+Code, art and synth sounds were made for Gloop Pop. The game's graphics and all synthesised sounds and music layers (the ladder instrument body, sweeps, pads and fallbacks) are original. Fonts: Baloo 2 and Nunito, via Fontsource ([SIL Open Font License 1.1](https://openfontlicense.org/)).

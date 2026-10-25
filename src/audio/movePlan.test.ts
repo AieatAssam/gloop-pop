@@ -45,6 +45,17 @@ describe('SG §13.3 and §13.4 move audio plan', () => {
     expect(best).not.toHaveBeenCalled();
   });
 
+  it('routes rescue, level-up and achievement events to their v2 cues', async () => {
+    const { playForEvents } = await import('./index');
+    const ready = vi.spyOn(sfx, 'rescueReady').mockImplementation(() => undefined);
+    const rescued = vi.spyOn(sfx, 'rescue').mockImplementation(() => undefined);
+    const level = vi.spyOn(sfx, 'levelUp').mockImplementation(() => undefined);
+    const achievement = vi.spyOn(sfx, 'achievement').mockImplementation(() => undefined);
+    playForEvents([{ type: 'rescueReady' }, { type: 'rescued', poppedCells: [] }], { levelUp: true, achievement: true });
+    expect(ready).toHaveBeenCalledTimes(1); expect(rescued).toHaveBeenCalledTimes(1);
+    expect(level).toHaveBeenCalledTimes(1); expect(achievement).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps a Mega Pop burst plan within the voice cap and separates scheduled bursts', () => {
     const cells = Array.from({ length: 28 }, (_, index) => index);
     const plan = planMove([{ type: 'popped', gloops: [{ flavour: 1, size: 28, cells, bfs: cells }] }]);

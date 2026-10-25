@@ -2,7 +2,9 @@
 import { PENTATONIC, popVoiceDue, sfx as fallbackSfx } from './fallback';
 import { playSegment } from './loader';
 import { getAudioGraph, scheduleAt } from './engine';
-import { tone } from './synth';
+import { noise, tone } from './synth';
+import { playCandyBar, rungFor, rungRate, voicedLineCount } from './ladder';
+import { coinTicksForCount, voiceDue, type RateLimiter } from './voices';
 
 export { PENTATONIC, lastPopVoiceTime, noteFor, popVoiceDue, resetPopSequence } from './fallback';
 
@@ -10,13 +12,12 @@ export const sfx = {
   ...fallbackSfx,
   snapTick(): void {
     const now = getAudioGraph()?.context.currentTime ?? 0;
-    if (now - lastSnapAt < 0.12) return;
-    lastSnapAt = now; fallbackSfx.snapTick();
+    if (!voiceDue(snapLimiter, now)) return;
+    fallbackSfx.snapTick();
   },
   uiTap(): void {
     const now = getAudioGraph()?.context.currentTime ?? 0;
-    if (now - lastUiTapAt < 0.05) return;
-    lastUiTapAt = now;
+    if (!voiceDue(uiLimiter, now)) return;
     if (!playSegment('tap', { group: 'ui', priority: 'ui', gain: 10 ** (-18 / 20), rateVariation: 0.03 })) fallbackSfx.uiTap();
   },
   deal(): void {
@@ -27,58 +28,95 @@ export const sfx = {
     if (!allReady) fallbackSfx.deal();
   },
   place(params: { cells?: number } = {}): void {
+    const now = getAudioGraph()?.context.currentTime;
+    if (now !== undefined && !voiceDue(placeLimiter, now)) return;
     const cells = Math.max(1, params.cells ?? 1);
     const rate = 2 ** (-0.6 * (cells - 1) / 12);
     if (playSegment('place1', { group: 'place', variants: 5, priority: 'place', rate, rateVariation: 0.04, gain: 10 ** (-8 / 20), gainDbVariation: 1.5 })) return;
     fallbackSfx.place(params);
   },
-  gooPop(params: { gainDb?: number; rate?: number; delay?: number } = {}): void {
-    if (playSegment('goo', { at: scheduleAt() + (params.delay ?? 0), group: 'pop', priority: 'pop', gain: 10 ** ((params.gainDb ?? -12) / 20), rate: params.rate ?? 1, rateVariation: 0.03 })) return;
+  gooPop(params: { gainDb?: number; rate?: number; delay?: number; sub?: boolean } = {}): void {
+    const at = scheduleAt() + (params.delay ?? 0);
+    if (params.sub) playSegment('sub', { at, group: 'pop', priority: 'pop', gain: 10 ** (-10 / 20) });
+    if (playSegment('goo', { at, group: 'pop', priority: 'pop', gain: 10 ** ((params.gainDb ?? -12) / 20), rate: params.rate ?? 1, rateVariation: 0.03 })) return;
     fallbackSfx.gloopPop();
   },
-  gloopPop(params: { index?: number; base?: number } = {}): void {
+  gloopPop(params: { index?: number; base?: number; at?: number } = {}): void {
     const index = params.index ?? 0; const base = params.base ?? 0;
     const rate = 2 ** ((base + Math.min(0.5 * index, 10)) / 12);
     const now = getAudioGraph()?.context.currentTime;
     if (now !== undefined) { if (!popVoiceDue(lastPopVoiceAt, now)) return; lastPopVoiceAt = now; }
-    if (playSegment(`pop${(index % 6) + 1}` as 'pop1' | 'pop2' | 'pop3' | 'pop4' | 'pop5' | 'pop6', { at: scheduleAt(), group: 'pop', priority: 'pop', gain: 10 ** (-12 / 20), rate, rateVariation: 0.03, gainDbVariation: 1.5 })) return;
-    fallbackSfx.gloopPop({ index, base });
+    const at = params.at ?? scheduleAt();
+    if (playSegment('pop1', { at, group: 'pop', variants: 6, priority: 'pop', gain: 10 ** (-12 / 20), rate, rateVariation: 0.03, gainDbVariation: 1.5 })) return;
+    fallbackSfx.gloopPop({ index, base, at });
+  },
+  zenShake(): void {
+    const at = scheduleAt();
+    for (let i = 0; i < 3; i += 1) {
+      const when = at + i * 0.04;
+      if (!playSegment('pop1', { at: when, group: 'pop', variants: 6, priority: 'pop', gain: 10 ** (-12 / 20) })) fallbackSfx.gloopPop({ index: i, at: when });
+    }
   },
   lineClear(params: { combo: number; lines?: number; tier?: number }): void {
-    fallbackSfx.lineClear(params);
-    const rungs = [72, 74, 76, 79, 81, 84, 86, 88, 91, 93, 96] as const;
-    const tinkRates = [1.0595, 1.1892, 1.3348, 0.7937, 0.8909, 1.0595, 1.1892, 1.3348, 0.7937, 0.8909, 1.0595] as const;
-    const r0 = Math.min(10, Math.max(0, Math.floor(params.combo) - 1)); const at = scheduleAt();
-    for (let i = 0; i < Math.min(5, params.lines ?? 1); i += 1) { const rung = Math.min(10, r0 + i); const delta = rungs[rung]! + 24 - 95; const semitone = delta - 12 * Math.round(delta / 12); const rate = tinkRates[rung]! * 2 ** (semitone / 12); playSegment('tink', { at: at + i * 0.045, group: 'ladder', priority: 'ladder', gain: 10 ** (-14 / 20), rate, rateVariation: 2 ** (3 / 1200) - 1 }); }
+    const graph = getAudioGraph();
+    if (!graph) { fallbackSfx.lineClear(params); return; }
+    const count = voicedLineCount(params.lines ?? 1); const at = scheduleAt();
+    for (let i = 0; i < count; i += 1) playCandyBar(rungFor(params.combo, i), at + i * 0.045, 1, -10, -14);
+    if (count) noise({ duration: 0.12, peak: 10 ** (-24 / 20), filterType: 'bandpass', frequency: 3000, q: 0.7, at, priority: 'ladder' });
+  },
+  sparkle(params: { combo: number; lineIndex?: number; delayMs?: number }): void {
+    const first = rungFor(params.combo, params.lineIndex ?? 0); const at = scheduleAt() + (params.delayMs ?? 0) / 1000;
+    for (let i = 0; i < 4; i += 1) {
+      const rung = Math.min(10, first + i); const when = at + i * 0.03;
+      if (!playSegment('tink', { at: when, group: 'sparkle', priority: 'ladder', gain: 10 ** (-22 / 20), rate: rungRate(rung), rateVariation: 2 ** (3 / 1200) - 1 })) tone({ frequency: PENTATONIC[rung]!, duration: 0.04, peak: 10 ** (-22 / 20), at: when, priority: 'ladder' });
+    }
   },
   bigPop(params: { combo: number }): void { playLadderRun(params.combo, 2, 90, -14, -18); },
   hugePop(params: { combo: number }): void { playLadderRun(params.combo, 3, 70, -12, -16); },
   stageUp(): void { if (!playSegment('stage', { group: 'ladder', priority: 'ladder', gain: 10 ** (-12 / 20) })) fallbackSfx.stageUp(); },
+  rescueReady(): void { if (!playSegment('chime', { group: 'ladder', priority: 'ladder', gain: 10 ** (-18 / 20) })) tone({ frequency: 2093, duration: 0.28, peak: 10 ** (-18 / 20), priority: 'ladder' }); },
+  rescue(): void {
+    const at = scheduleAt();
+    const swell = playSegment('swell', { at, group: 'rescue', priority: 'ladder', gain: 10 ** (-12 / 20) });
+    const pop = playSegment('pop1', { at: at + 0.35, group: 'pop', variants: 6, priority: 'pop', gain: 10 ** (-10 / 20) });
+    const chime = playSegment('chime', { at: at + 0.35, group: 'ladder', priority: 'ladder', gain: 10 ** (-10 / 20) });
+    if (!swell || !pop || !chime) fallbackSfx.rescue();
+  },
   newBest(): void { if (!playSegment('best', { group: 'stinger', priority: 'stinger', gain: 10 ** (-6 / 20) })) fallbackSfx.newBest(); },
   megaStinger(params: { combo: number }): void {
     const start = Math.min(Math.max(Math.floor(params.combo) - 1, 0), 5); const at = scheduleAt();
-    for (let i = 0; i < 6; i += 1) { const rung = Math.min(10, start + i); tone({ frequency: PENTATONIC[rung]!, duration: i === 5 ? 0.6 : 0.24, peak: 10 ** (-10 / 20), attack: 0.002, at: at + i * 0.045 }); playSegment('tink', { at: at + i * 0.045, group: 'stinger', priority: 'stinger', gain: 10 ** (-14 / 20) }); }
-    tone({ frequency: PENTATONIC[Math.min(10, start + 5)]!, duration: 0.6, peak: 10 ** (-16 / 20), at: at + 0.27 }); tone({ frequency: PENTATONIC[Math.min(10, start + 3)]!, duration: 0.6, peak: 10 ** (-16 / 20), at: at + 0.27 });
+    for (let i = 0; i < 6; i += 1) playCandyBar(Math.min(10, start + i), at + i * 0.045, 1, -10, -14, 'stinger');
+    tone({ frequency: PENTATONIC[Math.min(10, start + 5)]!, duration: 0.6, peak: 10 ** (-10 / 20), at: at + 0.225, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
+    tone({ frequency: PENTATONIC[Math.min(10, start + 5)]!, duration: 0.6, peak: 10 ** (-16 / 20), at: at + 0.27, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
+    tone({ frequency: PENTATONIC[Math.min(10, start + 3)]!, duration: 0.6, peak: 10 ** (-16 / 20), at: at + 0.27, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
   },
   allClearStinger(): void {
-    const at = scheduleAt(); for (let rung = 0; rung <= 10; rung += 1) { tone({ frequency: PENTATONIC[rung]!, duration: 0.24, peak: 10 ** (-10 / 20), at: at + rung * 0.03 }); playSegment('tink', { at: at + rung * 0.03, group: 'stinger', priority: 'stinger', gain: 10 ** (-14 / 20) }); }
-    for (const rung of [5, 7, 8]) tone({ frequency: PENTATONIC[rung]!, duration: 0.9, peak: 10 ** (-14 / 20), at: at + 0.33 });
+    const at = scheduleAt(); for (let rung = 0; rung <= 10; rung += 1) playCandyBar(rung, at + rung * 0.03, 1, -10, -14, 'stinger');
+    for (const rung of [5, 7, 8]) {
+      tone({ frequency: PENTATONIC[rung]!, duration: 0.9, peak: 10 ** (-14 / 20), at: at + 0.33, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
+    }
+  },
+  coinTick(params: { count?: number } = {}): void {
+    const count = coinTicksForCount(params.count ?? 1); const at = scheduleAt();
+    for (let i = 0; i < count; i += 1) {
+      const when = at + i * 0.05;
+      if (!playSegment('coin1', { at: when, group: 'coin', variants: 4, priority: 'coin', gain: 10 ** (-20 / 20), rateVariation: 0.04, gainDbVariation: 1 })) fallbackSfx.coinTick({ count: 1 });
+      tone({ frequency: 1568, duration: 0.04, peak: 10 ** (-26 / 20), at: when, priority: 'coin' });
+      tone({ frequency: 2093, duration: 0.04, peak: 10 ** (-26 / 20), at: when, priority: 'coin' });
+    }
   },
   toggleOn(): void { fallbackSfx.toggleOn(); this.uiTap(); },
 };
 
-let lastSnapAt = -Infinity;
-let lastUiTapAt = -Infinity;
 let lastPopVoiceAt = -Infinity;
+const snapLimiter: RateLimiter = { lastAt: -Infinity, interval: 0.12 };
+const uiLimiter: RateLimiter = { lastAt: -Infinity, interval: 0.05 };
+const placeLimiter: RateLimiter = { lastAt: -Infinity, interval: 0.04 };
 
 function playLadderRun(combo: number, notes: number, spacingMs: number, bodyDb: number, tinkDb: number): void {
-  const rungs = [72, 74, 76, 79, 81, 84, 86, 88, 91, 93, 96] as const;
-  const rates = [1.0595, 1.1892, 1.3348, 0.7937, 0.8909, 1.0595, 1.1892, 1.3348, 0.7937, 0.8909, 1.0595] as const;
   const start = Math.min(notes === 2 ? 8 : 6, Math.max(0, Math.floor(combo) - 1)); const at = scheduleAt();
   for (let i = 0; i < notes; i += 1) {
     const rung = Math.min(10, start + 2 * i); const when = at + i * spacingMs / 1000;
-    tone({ frequency: PENTATONIC[rung]!, duration: 0.26, peak: 10 ** (bodyDb / 20), attack: 0.002, at: when });
-    const delta = rungs[rung]! + 24 - 95; const semitone = delta - 12 * Math.round(delta / 12);
-    playSegment('tink', { at: when, group: 'ladder', priority: 'ladder', gain: 10 ** (tinkDb / 20), rate: rates[rung]! * 2 ** (semitone / 12) });
+    playCandyBar(rung, when, 1, bodyDb, tinkDb);
   }
 }

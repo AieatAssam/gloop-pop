@@ -63,4 +63,32 @@ describe('first input audio initialization', () => {
     expect(sfxTarget.mock.lastCall?.[0]).toBe(0.25);
     expect(musicTarget.mock.lastCall?.[0]).toBeCloseTo(0.1775);
   });
+
+  it('keeps pad/twinkle layers open and steals the oldest pop after six live voices', async () => {
+    const started = { oscillator: 0 };
+    vi.stubGlobal('AudioContext', vi.fn(function () { return fakeAudioContext(started); }));
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => undefined)));
+    const engine = await import('./engine');
+    const graph = engine.initAudioOnFirstInput()!;
+    expect(graph.layerGain.gain.value).toBe(1);
+    const sources = Array.from({ length: 7 }, () => ({ stop: vi.fn(), addEventListener: vi.fn() } as unknown as AudioScheduledSourceNode));
+    const oldestStop = vi.spyOn(sources[0]!, 'stop');
+    for (const source of sources) engine.claimVoice(source, 'pop');
+    expect(oldestStop).toHaveBeenCalledTimes(1);
+    expect(sources.slice(1).every((source) => (source as unknown as { stop: ReturnType<typeof vi.fn> }).stop.mock.calls.length === 0)).toBe(true);
+  });
+
+  it('fades the previous place voice over 10 ms before a new place', async () => {
+    const started = { oscillator: 0 };
+    vi.stubGlobal('AudioContext', vi.fn(function () { return fakeAudioContext(started); }));
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => undefined)));
+    const engine = await import('./engine'); engine.initAudioOnFirstInput();
+    const source = () => ({ stop: vi.fn(), addEventListener: vi.fn() } as unknown as AudioScheduledSourceNode);
+    const parameter = { value: 1, cancelScheduledValues: vi.fn(), setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() } as unknown as AudioParam;
+    const ramp = vi.spyOn(parameter, 'linearRampToValueAtTime');
+    const gain = { gain: parameter } as GainNode;
+    engine.claimVoice(source(), 'place', gain);
+    engine.claimVoice(source(), 'place', { gain: { ...parameter } } as GainNode);
+    expect(ramp).toHaveBeenCalledWith(0, 0.015);
+  });
 });

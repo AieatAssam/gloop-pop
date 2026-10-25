@@ -24,12 +24,12 @@ export function applyDuck(start: number): number {
   duckEnd = Math.max(start + HOLD, duckEnd);
   if (!graph) return duckEnd;
   const gain = graph.duckGain.gain;
-  const filter = graph.musicFilter.frequency;
+  const filter = graph.duckFilter.frequency;
   gain.cancelScheduledValues(start);
   filter.cancelScheduledValues(start);
-  const continuing = duckEnd + RELEASE > start;
+  const continuing = schedule[0]?.gain === DUCK_GAIN;
   gain.setValueAtTime(continuing ? DUCK_GAIN : 1, start);
-  filter.setValueAtTime(continuing ? 1800 : filter.value, start);
+  filter.setValueAtTime(continuing ? 1800 : 20000, start);
   gain.linearRampToValueAtTime(DUCK_GAIN, start + ATTACK);
   filter.linearRampToValueAtTime(1800, start + ATTACK);
   gain.setValueAtTime(DUCK_GAIN, schedule[2]?.at ?? start + HOLD);

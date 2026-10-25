@@ -7,6 +7,7 @@ export function rungFor(combo: number, lineIndex = 0): number {
   const first = Math.max(0, Math.min(10, Math.floor(combo) - 1));
   return Math.min(first + Math.max(0, Math.floor(lineIndex)), 10);
 }
+export function voicedLineCount(lines: number): number { return Math.min(5, Math.max(0, Math.floor(lines))); }
 export function freq(midi: number): number { return 440 * 2 ** ((midi - 69) / 12); }
 export function rate(semitones: number, rootMidi: number): number { return 2 ** ((semitones - rootMidi) / 12); }
 export function foldRate(semitones: number, rootMidi: number): number {
@@ -16,7 +17,7 @@ export function foldRate(semitones: number, rootMidi: number): number {
 }
 export function rungRate(rung: number): number { return foldRate((rungMidi[Math.max(0, Math.min(10, Math.floor(rung)))] ?? 72) + 24, 95); }
 
-export function playCandyBar(rung: number, at = scheduleAt(), variation = 1): void {
+export function playCandyBar(rung: number, at = scheduleAt(), variation = 1, bodyDb = -10, tinkDb = -14, priority: 'ladder' | 'stinger' = 'ladder'): void {
   const graph = getAudioGraph();
   if (!graph) return;
   const midi = rungMidi[Math.max(0, Math.min(10, Math.floor(rung)))] ?? 72;
@@ -31,13 +32,14 @@ export function playCandyBar(rung: number, at = scheduleAt(), variation = 1): vo
     envelope.gain.exponentialRampToValueAtTime(0.001, at + decay);
     oscillator.connect(envelope);
     envelope.connect(graph.sfxBus);
-    if (!claimVoice(oscillator, 'ladder')) return;
+    if (!claimVoice(oscillator, priority, envelope)) return;
     oscillator.start(at);
     oscillator.stop(at + decay + 0.01);
   };
-  playPartial(fundamental, 0.316 * variation, 0.26);
-  playPartial(fundamental * 4, 0.079, 0.09);
-  if (fundamental * 10 < 12000) playPartial(fundamental * 10, 0.025, 0.035);
+  const bodyGain = 10 ** ((bodyDb + 10) / 20);
+  playPartial(fundamental, 0.316 * bodyGain * variation, 0.26);
+  playPartial(fundamental * 4, 0.079 * bodyGain, 0.09);
+  if (fundamental * 10 < 12000) playPartial(fundamental * 10, 0.025 * bodyGain, 0.035);
 
   const tinkBuffer = getSegmentBuffer('tink');
   if (!tinkBuffer) return;
@@ -45,9 +47,9 @@ export function playCandyBar(rung: number, at = scheduleAt(), variation = 1): vo
   const gain = graph.context.createGain();
   source.buffer = tinkBuffer;
   source.playbackRate.setValueAtTime(rungRate(rung), at);
-  gain.gain.setValueAtTime(0.2, at);
+  gain.gain.setValueAtTime(10 ** (tinkDb / 20), at);
   source.connect(gain);
   gain.connect(graph.sfxBus);
-  if (!claimVoice(source, 'ladder')) return;
+  if (!claimVoice(source, priority, gain)) return;
   source.start(at);
 }

@@ -115,7 +115,7 @@ export function bootApp(): void {
   const controlsHint = document.createElement('div'); controlsHint.className = 'controls-hint'; controlsHint.textContent = S.controlsHint; controlsHint.hidden = save.ui.runsFinished >= 3; uiRoot.append(controlsHint);
   const tutorialBubble = createTutorialBubble(skipTutorial); if (tutorialActive) uiRoot.append(tutorialBubble.element);
   let audioStarted = false;
-  let lastAudioInputAt = performance.now(); let audioComboLostAt: number | undefined; let musicGameRef = session.state; let fittingPieces = session.state.tray.filter((piece) => piece !== null && fitsAnywhere(session.state.board, piece.defId)).length;
+  let lastAudioInputAt = performance.now(); let audioComboLostAt: number | undefined; let lastMusicState: ReturnType<typeof musicState> | undefined; let musicGameRef = session.state; let fittingPieces = session.state.tray.filter((piece) => piece !== null && fitsAnywhere(session.state.board, piece.defId)).length;
   const enableAudio = (): void => { initAudioOnFirstInput(); if (!audioStarted && router.current === 'play') { startMusic(); audioStarted = true; } };
   uiRoot.addEventListener('click', (event) => { const button = (event.target as Element | null)?.closest('button'); if (!button || button === topBar.muteButton) return; enableAudio(); if (button.getAttribute('role') === 'switch') { if (button.getAttribute('aria-checked') === 'true') sfx.toggleOn(); return; } sfx.uiTap(); });
   window.addEventListener('pointerdown', () => { lastAudioInputAt = performance.now(); enableAudio(); });
@@ -152,7 +152,8 @@ export function bootApp(): void {
     // Design §23.9: the Daily is offered after the tutorial and the first Classic run, never before.
     const isPlay = router.current === 'play';
     if (musicGameRef !== session.state) { musicGameRef = session.state; fittingPieces = session.state.tray.filter((piece) => piece !== null && fitsAnywhere(session.state.board, piece.defId)).length; }
-    music.update(musicState({ tier: session.state.combo, filledCells: session.state.board.filter((cell) => cell > 0).length, fittingPieces, zen: session.state.mode === 'zen', idleMs: performance.now() - lastAudioInputAt, paused, screen: router.current, gameOver: session.state.status === 'over', now: performance.now() / 1000, position: music.position(), ...(audioComboLostAt === undefined ? {} : { comboLostAt: audioComboLostAt }) }));
+    lastMusicState = musicState({ tier: session.state.combo, filledCells: session.state.board.filter((cell) => cell > 0).length, fittingPieces, zen: session.state.mode === 'zen', idleMs: performance.now() - lastAudioInputAt, paused, screen: router.current, gameOver: session.state.status === 'over', now: performance.now() / 1000, position: music.position(), ...(audioComboLostAt === undefined ? {} : { comboLostAt: audioComboLostAt }) }, lastMusicState);
+    music.update(lastMusicState);
     const hideHint = !isPlay || save.ui.runsFinished >= 3; if (controlsHint.hidden !== hideHint) controlsHint.hidden = hideHint; topBar.element.style.display = isPlay ? 'flex' : 'none'; topBar.element.classList.toggle('is-tutorial', tutorialActive); topBar.dailyPill.hidden = tutorialActive || save.ui.runsFinished < 1; topBar.muteButton.hidden = tutorialActive; topBar.pauseButton.hidden = tutorialActive; topBar.tutorialSkip.style.display = tutorialActive ? 'block' : 'none';
     topBar.dailyPill.classList.toggle('is-at-risk', save.streak.current >= 2 && !save.daily.records[today] && new Date().getUTCHours() >= 18);
     if (isPlay && !demoBg) {
@@ -240,7 +241,7 @@ export function bootApp(): void {
     const result = grantAchievements(projected, { mode: session.state.mode, score: session.state.score, rescueUsed: session.state.rescue.used, closeCall, rescuedLine: rescueClearWithinThree(runEvents), events: runEvents, friendBeaten: challengeBeaten });
     if (!result.unlocked.length) return;
     save.achievements = result.save.achievements; save.profile.coins = result.save.profile.coins; save.profile.coinsEarned = result.save.profile.coinsEarned; saveNow(save);
-    for (const achievement of result.unlocked) toast.show(S.achievementUnlock(S.achievementName(achievement.id), achievement.coins));
+    for (const achievement of result.unlocked) { toast.show(S.achievementUnlock(S.achievementName(achievement.id), achievement.coins)); sfx.achievement(); }
   }
   function finishRun(): void {
     if (runRecorded) return; runRecorded = true;
@@ -260,7 +261,11 @@ export function bootApp(): void {
     const achievementResult = grantAchievements(save, { mode: completed.mode, score: completed.score, rescueUsed: completed.rescue.used, closeCall, rescuedLine: rescueClearWithinThree(runEvents), events: runEvents, friendBeaten: challengeBeaten }); save = achievementResult.save;
     const lastLevel = reward.levels[reward.levels.length - 1]; runReward = { xp: reward.xp, coins: reward.coins, progress: Math.max(0, save.profile.xp - totalXpForLevel(save.profile.level)), progressMax: xpToNext(save.profile.level), currentLevel: save.profile.level, level: lastLevel };
     runReward.coins += discoveryCoins;
-    saveNow(save); if (lastLevel) toast.show(S.levelUp(lastLevel)); for (const item of reward.unlocked) toast.show(S.unlocked(item)); for (const achievement of achievementResult.unlocked) toast.show(S.achievementUnlock(S.achievementName(achievement.id), achievement.coins));
+    saveNow(save);
+    if (lastLevel) { toast.show(S.levelUp(lastLevel)); sfx.levelUp(); }
+    for (const item of reward.unlocked) toast.show(S.unlocked(item));
+    for (const achievement of achievementResult.unlocked) { toast.show(S.achievementUnlock(S.achievementName(achievement.id), achievement.coins)); sfx.achievement(); }
+    if (runReward.coins > 0) sfx.coinTick({ count: Math.min(12, runReward.coins) });
   }
   function updateOverlay(): void {
     const status = session.state.status; if (status === 'over' && gameOverAt >= 0 && renderElapsed - gameOverAt < 450) return; if (status === shownStatus) return; shownStatus = status;

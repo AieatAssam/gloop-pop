@@ -1,4 +1,4 @@
-import { claimVoice, getAudioGraph, scheduleAt } from './engine';
+import { claimVoice, getAudioGraph, scheduleAt, type VoicePriority } from './engine';
 
 export type Wave = OscillatorType;
 
@@ -12,7 +12,7 @@ function noiseRandom(): number {
   return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
 }
 
-export function tone(options: { frequency: number; endFrequency?: number; duration: number; peak: number; wave?: Wave; bus?: 'sfx' | 'music'; at?: number; filter?: { type: BiquadFilterType; frequency: number; q?: number }; attack?: number; sustain?: number }): void {
+export function tone(options: { frequency: number; endFrequency?: number; duration: number; peak: number; wave?: Wave; bus?: 'sfx' | 'music'; at?: number; filter?: { type: BiquadFilterType; frequency: number; q?: number }; attack?: number; sustain?: number; tremolo?: { frequency: number; depth: number }; priority?: VoicePriority }): void {
   const graph = getAudioGraph();
   if (!graph) return;
   const { context } = graph;
@@ -39,13 +39,21 @@ export function tone(options: { frequency: number; endFrequency?: number; durati
     oscillator.connect(filter);
     filter.connect(envelope);
   } else oscillator.connect(envelope);
-  envelope.connect(options.bus === 'music' ? graph.layerGain : graph.sfxBus);
-  if (!claimVoice(oscillator)) return;
+  if (options.tremolo) {
+    const tremoloGain = context.createGain(); tremoloGain.gain.value = 1;
+    const lfo = context.createOscillator(); const depth = context.createGain();
+    lfo.frequency.value = options.tremolo.frequency; depth.gain.value = options.tremolo.depth;
+    lfo.connect(depth); depth.connect(tremoloGain.gain); envelope.connect(tremoloGain);
+    tremoloGain.connect(options.bus === 'music' ? graph.layerGain : graph.sfxBus);
+    if (!claimVoice(lfo, options.priority ?? 'ladder')) return;
+    lfo.start(at); lfo.stop(at + options.duration + 0.01);
+  } else envelope.connect(options.bus === 'music' ? graph.layerGain : graph.sfxBus);
+  if (!claimVoice(oscillator, options.priority ?? 'ladder', envelope)) return;
   oscillator.start(at);
   oscillator.stop(at + options.duration + 0.01);
 }
 
-export function noise(options: { duration: number; peak: number; bus?: 'sfx' | 'music'; at?: number; attack?: number; filterType?: BiquadFilterType; frequency?: number; endFrequency?: number; q?: number }): void {
+export function noise(options: { duration: number; peak: number; bus?: 'sfx' | 'music'; at?: number; attack?: number; filterType?: BiquadFilterType; frequency?: number; endFrequency?: number; q?: number; priority?: VoicePriority }): void {
   const graph = getAudioGraph();
   if (!graph) return;
   const { context } = graph;
@@ -64,7 +72,7 @@ export function noise(options: { duration: number; peak: number; bus?: 'sfx' | '
   source.connect(filter);
   filter.connect(envelope);
   envelope.connect(options.bus === 'music' ? graph.layerGain : graph.sfxBus);
-  if (!claimVoice(source)) return;
+  if (!claimVoice(source, options.priority ?? 'ladder', envelope)) return;
   source.start(at, noiseRandom() * Math.max(0, 1 - options.duration), options.duration);
   source.stop(at + options.duration + 0.01);
 }

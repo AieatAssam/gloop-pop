@@ -77,7 +77,7 @@ function setPad(on: boolean, duration = BAR): void {
   const graph = getAudioGraph(); if (!graph) return;
   if (on) ensurePad();
   const at = graph.context.currentTime;
-  for (const pad of pads) paramRamp(pad.gain.gain, on ? 0.22 : 0, at, duration);
+  for (const pad of pads) paramRamp(pad.gain.gain, on ? 1 : 0, at, duration);
 }
 function playTwinkle(at: number): void {
   const graph = getAudioGraph(); const buffer = getSegmentBuffer('tink');
@@ -116,7 +116,7 @@ function applyState(next: MusicState): void {
     const dangerExitReady = previous?.danger === true && !next.danger;
     const waitToBar = targetBar >= currentPosition ? targetBar - currentPosition : LOOP - currentPosition + targetBar;
     const when = dangerExitReady ? at : at + waitToBar;
-    setTimeout(() => { if (state && !state.menu && !state.paused && !state.gameOver) { setFilter(effectiveCutoff(state), 0.6); setPad(state.tier >= 2 && !state.danger && !state.idle); } }, Math.max(0, (when - at) * 1000));
+    setTimeout(() => { if (state && !state.menu && !state.paused && !state.gameOver) { setFilter(effectiveCutoff(state), 0.6); setPad(state.tier >= 2 && !state.danger && !state.idle); paramRamp(graph.musicStateGain.gain, mixGain(stateOffset(state)), graph.context.currentTime, 0.6); } }, Math.max(0, (when - at) * 1000));
   }
 }
 function cutoff(s: MusicState): number {
@@ -129,6 +129,12 @@ function effectiveCutoff(s: MusicState): number {
   if (s.gameOver) return 600;
   if (s.idle) return 900;
   return cutoff(s);
+}
+function stateOffset(s: MusicState): number {
+  if (s.paused || s.gameOver) return -6;
+  if (s.idle) return -4;
+  if (s.danger) return -2;
+  return 0;
 }
 function nextBarPosition(): number {
   const next = Math.ceil(position() / BAR - 1e-9) * BAR;
@@ -146,9 +152,9 @@ export const music = {
   },
   stop(): void { wanted = false; stopSource(0.12); setPad(false, 0.12); },
   update(next: MusicState): void {
-    if (!wanted && isMusicEnabled()) this.start();
     if (!isMusicEnabled()) { if (source) stopSource(0.15); state = next; return; }
     applyState(next);
+    if (!next.menu && ((!wanted) || (wanted && !loadedBuffer) || !bufferPromise)) this.start();
     const graph = getAudioGraph(); if (!graph) return;
     const at = graph.context.currentTime;
     if (source && !next.paused && !next.menu && !next.gameOver && restUntil < 0) {
@@ -157,7 +163,7 @@ export const music = {
       if (elapsed >= LOOP * 3 - 4) { const fade = Math.max(0, loopEndAt - at); restUntil = loopEndAt + 60; paramRamp(graph.bedGain.gain, 0, at, fade); try { source.stop(loopEndAt); } catch { /* already stopped */ } source = null; setPad(false, fade); }
     }
     if (restUntil > 0 && at >= restUntil && wanted && !next.paused && !next.menu && !next.gameOver) startSource(LOOP_START, 4);
-    if (next.gameOver && gameOverAt >= 0 && at >= gameOverAt + 7 && source) stopSource(0);
+    if (next.gameOver && gameOverAt >= 0 && at >= gameOverAt + 4 && source) stopSource(3);
     if (next.tier >= 4 && !next.paused && !next.menu && !next.gameOver && at >= nextTwinkleAt) { playTwinkle(at + 0.005); nextTwinkleAt = at + 0.3 + nextFloat(rng) * 0.4; }
   },
   setTier(value: number): void { if (state) this.update({ ...state, tier: Math.max(0, Math.min(4, Math.floor(value))) as MusicState['tier'] }); },

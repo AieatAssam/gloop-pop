@@ -72,6 +72,25 @@ describe('sampled music transport', () => {
     const bars = ((resumedStart?.[1] as number) - 0.25) / (4 * 60 / 120.04);
     expect(bars).toBeCloseTo(Math.round(bars), 5);
   });
+  it('starts a deferred music load when music is enabled from a menu', async () => {
+    const music = await importMusic();
+    music.update({ ...playState, menu: true });
+    expect(fixtures.load).not.toHaveBeenCalled();
+    music.start();
+    expect(fixtures.load).not.toHaveBeenCalled();
+    music.update(playState);
+    await Promise.resolve(); await Promise.resolve();
+    expect(fixtures.load).toHaveBeenCalledTimes(1);
+    expect(fixtures.sources).toHaveLength(1);
+  });
+  it('applies the danger bus offset without replacing the tier low-pass cutoff', async () => {
+    const music = await importMusic(); music.start(); await Promise.resolve(); await Promise.resolve();
+    const duckFilterState = vi.spyOn(fixtures.graph!.musicStateGain.gain, 'linearRampToValueAtTime');
+    const tierFilter = vi.spyOn(fixtures.graph!.musicFilter.frequency, 'setTargetAtTime');
+    music.update({ ...playState, danger: true }); vi.runOnlyPendingTimers();
+    expect(duckFilterState).toHaveBeenCalledWith(10 ** (-2 / 20), 0.6);
+    expect(tierFilter).toHaveBeenCalledWith(1600, 0, expect.closeTo(0.2, 6));
+  });
   it('ramps game over to half speed and restarts at normal speed', async () => {
     const music = await importMusic(); music.start(); await Promise.resolve(); await Promise.resolve();
     fixtures.context!.currentTime = 4;
@@ -83,5 +102,11 @@ describe('sampled music transport', () => {
     const rampCalls = fixtures.bedGainRamp.mock.calls;
     expect(rampCalls[rampCalls.length - 1]?.[0]).toBe(1);
     expect(rampCalls[rampCalls.length - 1]?.[1]).toBeCloseTo(4.32, 5);
+    music.update({ ...playState, gameOver: true });
+    fixtures.context!.currentTime = 8;
+    music.update({ ...playState, gameOver: true });
+    const fadeCalls = fixtures.bedGainRamp.mock.calls;
+    expect(fadeCalls[fadeCalls.length - 1]?.[0]).toBe(0);
+    expect(fadeCalls[fadeCalls.length - 1]?.[1]).toBe(11);
   });
 });

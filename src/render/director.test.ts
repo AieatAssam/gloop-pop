@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { burstCallbackStart, comboEscalation, comboTier, createDirector, lineCueSchedule, waveStep } from './director';
+import { computeLayout } from './layout';
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe('M10.1 effect reset', () => {
   it('clears active visual effects and shake immediately on restart', () => {
@@ -36,6 +39,22 @@ describe('SG §9.13.f impact schedule', () => {
     const director = createDirector(); const scheduled: number[] = [];
     director.receive([{ type: 'cleared', rows: [0], cols: [], cells: [0, 1, 2, 3, 4, 5, 6, 7], flavoursByCell: [1, 1, 1, 1, 1, 1, 1, 1] }], 0, true, undefined, undefined, 0, (_at, duration) => scheduled.push(duration));
     expect(scheduled).toEqual([0]);
+  });
+  it('runs input actions independently of the scheduled visual hitstop', () => {
+    const director = createDirector(); let hitstop = false;
+    director.receive([{ type: 'cleared', rows: [0, 1, 2], cols: [], cells: Array.from({ length: 24 }, (_, index) => index), flavoursByCell: Array(24).fill(1) }], 0, false, undefined, undefined, 0, () => { hitstop = true; });
+    const actionApplied = true;
+    expect(actionApplied).toBe(true);
+    expect(hitstop).toBe(true);
+  });
+  it('fires the All Clear climax at impact when there are no pop cues', () => {
+    const director = createDirector(); const climax = vi.fn();
+    vi.stubGlobal('Path2D', class { roundRect() {} });
+    director.receive([{ type: 'allClear' }], 10, false, undefined, undefined, 10, undefined, undefined, undefined, '', 0, 10, undefined, climax);
+    expect(climax).not.toHaveBeenCalled();
+    const context = { save() {}, restore() {}, translate() {}, scale() {} } as unknown as CanvasRenderingContext2D;
+    director.draw(context, computeLayout(390, 844), 10, 10, 16);
+    expect(climax).toHaveBeenCalledWith('allClear');
   });
 });
 

@@ -59,7 +59,7 @@ npm run check      # palette check, typecheck, lint, tests, build, bundle size
 npm run sim -- --runs 100   # balance simulation with the bot
 ```
 
-The stack is Vite, strict TypeScript, Canvas 2D and Vitest. Sound effects mix CC0 samples with WebAudio synthesis, and the music is a CC0 loop with synthesised layers. The audio files are about 0.8–1 MB, are loaded after your first tap, and are cached for offline play. The production bundle is about 65 KB of gzipped JavaScript. A service worker caches the game for offline play.
+The stack is Vite, strict TypeScript, Canvas 2D and Vitest. Sound effects mix CC0 samples with WebAudio synthesis, and the music is a CC0 loop with synthesised layers. The audio files are about 0.8–1 MB, are loaded after your first tap, and are cached for offline play. The production bundle is about 85 KB of gzipped JavaScript. A service worker caches the game for offline play.
 
 ## Credits
 
