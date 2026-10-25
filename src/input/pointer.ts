@@ -65,7 +65,7 @@ export function createPointerInput(view: BoardView, getLayout: () => Layout, get
       } else if (drag.ghostScale !== undefined) drag.ghostScale = 1 + (drag.ghostScale - 1) * Math.max(0, 1 - realDtMs / 90);
       drag.row = snap?.row; drag.col = snap?.col;
       const followRate = drag.selected ? 12 : 7; const damping = drag.selected ? 0.8 : 0.75;
-      const transform = updateHeldPiece(drag.held, target.x, target.y, realDtMs, c, reduced, target.x + magnetX, target.y + magnetY, followRate, damping);
+      const transform = updateHeldPiece(drag.held, target.x, target.y, realDtMs, c, reduced, target.x + magnetX, target.y + magnetY, followRate, damping, layout.trayCellSize / c);
       drag.drawX = transform.x; drag.drawY = transform.y; drag.tilt = transform.tilt; drag.stretch = transform.stretch; drag.stretchAngle = transform.stretchAngle; drag.shear = transform.shear; drag.pickupScale = transform.pickupScale; drag.lift = transform.lift; drag.grabSx = transform.grabSx; drag.grabSy = transform.grabSy;
     },
     cancel() { drag = undefined; returning = undefined; clickSelected = -1; },

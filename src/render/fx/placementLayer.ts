@@ -3,5 +3,8 @@ export function visiblePlacementCells(placed: readonly number[], removed: readon
   const removedSet = new Set(removed);
   return placed.filter((cell) => !removedSet.has(cell));
 }
+export function placementCellsForFrame(piece: readonly number[], mergedBody: readonly number[] | undefined, removed: readonly number[], landed: boolean): number[] {
+  return visiblePlacementCells(landed && mergedBody ? mergedBody : piece, removed);
+}
 
 export function placementLayerLifetimeMs(): number { return 324; }

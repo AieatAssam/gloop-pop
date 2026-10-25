@@ -311,7 +311,7 @@ Spec: SG §9.13 (read §9.13.a first). Research: `research/game-feel.md`. Before
     - `place` calls `endNow()` and the 60 ms slow-mo release
     - `triggerSlowMo` and the streak `setTimeScale(0)` go through the controllers; no `setTimeout`
     - pass `boardNow`/`worldNow`/`realNow` to director, boardView and hudView
-  - `src/render/director.ts`: cues on B; particles, texts and shake on W; `hitStop.schedule(F, T)` at F = release + 76 ms.
+  - `src/render/director.ts`: cues on B; particles, texts and shake on W; `hitStop.schedule(F, T)` at F = release + 60 ms.
   - `src/render/boardView.ts`: placement on B, tray and drag on R.
   - `docs/architecture.md` §6: record the three clocks and the new files.
 - **Done when:**

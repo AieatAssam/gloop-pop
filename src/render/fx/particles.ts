@@ -25,7 +25,7 @@ export function createParticles(seed = 0x504f5058) {
     },
     dust(x: number, y: number, count: number): void { const budgetScale = pool.items.length > 300 ? Math.max(0, (420 - pool.items.length) / 120) : 1; const scaledCount = Math.floor(count * budgetScale); for (let i = 0; i < scaledCount; i += 1) { const angle = random() < 0.5 ? Math.PI + (random() - 0.5) * Math.PI / 3 : (random() - 0.5) * Math.PI / 3; const speed = 40 + random() * 50; pool.spawn(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, 0, 0, random() * Math.PI * 2, (random() - 0.5) * 8, 1.5 + random() * 1.5, 0, 0.28, PALETTE.fx.sugar, 'sparkles', 0, false); } },
     update(dt: number): void {
-      for (const p of pool.items) {
+      for (let index = 0; index < pool.items.length; index += 1) { const p = pool.items[index]!;
         const threshold = p.kind === 'fireworks' ? 0.7 : p.kind === 'bubbles' ? 1 : 2;
         if (!p.burst && p.age < p.life * threshold && p.age + dt >= p.life * threshold) {
           p.burst = true; const dots = p.kind === 'fireworks' ? 2 : 3;
@@ -33,9 +33,9 @@ export function createParticles(seed = 0x504f5058) {
         }
       }
       pool.update(dt);
-      for (const p of pool.items) if (p.kind === 'jelly' && p.y >= 8 * 68) { if (p.bounce === 0) { p.y = 8 * 68; p.vy *= -0.4; p.age = Math.max(p.age, p.life - 0.2); p.bounce = 1; } else p.age = p.life; }
+      for (let index = 0; index < pool.items.length; index += 1) { const p = pool.items[index]!; if (p.kind === 'jelly' && p.y >= 8 * 68) { if (p.bounce === 0) { p.y = 8 * 68; p.vy *= -0.4; p.age = Math.max(p.age, p.life - 0.2); p.bounce = 1; } else p.age = p.life; } }
     },
-    draw(ctx: CanvasRenderingContext2D): void { for (const p of pool.items) drawParticle(ctx, p); },
+    draw(ctx: CanvasRenderingContext2D): void { for (let index = 0; index < pool.items.length; index += 1) drawParticle(ctx, pool.items[index]!); },
     get count(): number { return pool.items.length; },
     clear(): void { pool.clear(); },
   };

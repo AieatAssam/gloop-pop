@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { comboEscalation, comboTier, createDirector, waveStep } from './director';
+import { comboEscalation, comboTier, createDirector, lineCueSchedule, waveStep } from './director';
 
 describe('M10.1 effect reset', () => {
   it('clears active visual effects and shake immediately on restart', () => {
@@ -15,6 +15,27 @@ describe('SG §9.13.g pop wave', () => {
     expect(waveStep(27)).toBe(330 / 27);
     expect((27 - 1) * waveStep(27)).toBeLessThanOrEqual(330);
     expect(waveStep(3)).toBe(38);
+  });
+});
+
+describe('SG §9.13.f impact schedule', () => {
+  it('keeps B cue times independent of hitstop duration', () => {
+    const cue = lineCueSchedule(0, 0, 0);
+    expect(cue.impactAt).toBe(60); expect(cue.flashAt).toBe(60); expect(cue.sweepAt).toBe(60); expect(cue.burstAt).toBe(90);
+    expect(lineCueSchedule(0, 0, 7).squashAt).toBe(256);
+  });
+  it('arms a reduced-motion-free line freeze at F through director.receive', () => {
+    const director = createDirector(); const scheduled: number[] = [];
+    director.receive([
+      { type: 'placed', slot: 0, piece: { defId: 1, flavour: 1 }, cells: [0], mergedInto: [] },
+      { type: 'cleared', rows: [0], cols: [], cells: [0, 1, 2, 3, 4, 5, 6, 7], flavoursByCell: [1, 1, 1, 1, 1, 1, 1, 1] },
+    ], 0, false, undefined, undefined, 0, (at, duration) => { scheduled.push(at, duration); });
+    expect(scheduled).toEqual([60, 50]);
+  });
+  it('requests no hitstop in reduced motion', () => {
+    const director = createDirector(); const scheduled: number[] = [];
+    director.receive([{ type: 'cleared', rows: [0], cols: [], cells: [0, 1, 2, 3, 4, 5, 6, 7], flavoursByCell: [1, 1, 1, 1, 1, 1, 1, 1] }], 0, true, undefined, undefined, 0, (_at, duration) => scheduled.push(duration));
+    expect(scheduled).toEqual([0]);
   });
 });
 

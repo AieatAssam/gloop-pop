@@ -24,7 +24,7 @@ export function resetHeldPiece(state: HeldPieceState, x: number, y: number): voi
   state.fingerX = x; state.fingerY = y; state.velocityX = 0; state.velocityY = 0; state.elapsedMs = 0; state.pickupMs = 0;
 }
 
-export function updateHeldPiece(state: HeldPieceState, fingerX: number, fingerY: number, dtMs: number, cellSize: number, reducedMotion = state.reducedMotion, followX = fingerX, followY = fingerY, frequency = 7, damping = 0.75): HeldPieceTransform {
+export function updateHeldPiece(state: HeldPieceState, fingerX: number, fingerY: number, dtMs: number, cellSize: number, reducedMotion = state.reducedMotion, followX = fingerX, followY = fingerY, frequency = 7, damping = 0.75, trayRatio = 0.6): HeldPieceTransform {
   const dt = Math.max(0, dtMs) / 1000; const previousVx = state.velocityX;
   if (dt > 0) {
     const instantX = (fingerX - state.fingerX) / dt / cellSize; const instantY = (fingerY - state.fingerY) / dt / cellSize;
@@ -35,7 +35,7 @@ export function updateHeldPiece(state: HeldPieceState, fingerX: number, fingerY:
   if (reducedMotion) {
     state.x.x = fingerX; state.y.x = fingerY; state.x.v = 0; state.y.v = 0;
     state.tilt.x = 0; state.tilt.v = 0; state.stretch.x = 1; state.stretch.v = 0; state.shear.x = 0; state.shear.v = 0; state.grab.x = 1; state.grab.v = 0;
-    return { x: fingerX, y: fingerY, tilt: 0, stretch: 1, stretchAngle: 0, shear: 0, pickupScale: Math.min(1, state.elapsedMs / 100), lift: 0, grabSx: 1, grabSy: 1 };
+    return { x: fingerX, y: fingerY, tilt: 0, stretch: 1, stretchAngle: 0, shear: 0, pickupScale: trayRatio + (1 - trayRatio) * Math.min(1, state.elapsedMs / 100), lift: 0, grabSx: 1, grabSy: 1 };
   }
   const age = state.elapsedMs - state.pickupMs; const pickupT = Math.min(1, Math.max(0, age / 140));
   const lift = easeOutCubic(Math.min(1, age / 120));
@@ -51,5 +51,5 @@ export function updateHeldPiece(state: HeldPieceState, fingerX: number, fingerY:
   spring(state.stretch, targetStretch, 6, 0.5, dt); spring(state.shear, 0, 4, 0.3, dt);
   state.shear.v += 0.3 * (state.velocityX - previousVx); state.shear.x = Math.max(-0.15, Math.min(0.15, state.shear.x));
   spring(state.grab, 1, 8, 0.4, dt); const grabScale = reciprocalScale(state.grab.x);
-  return { x: state.x.x, y: state.y.x, tilt: state.tilt.x, stretch: state.stretch.x, stretchAngle: Math.atan2(state.y.v, state.x.v), shear: state.shear.x, pickupScale: 0.6 + 0.4 * easeOutBack(pickupT), lift, grabSx: grabScale.sx, grabSy: grabScale.sy };
+  return { x: state.x.x, y: state.y.x, tilt: state.tilt.x, stretch: state.stretch.x, stretchAngle: Math.atan2(state.y.v, state.x.v), shear: state.shear.x, pickupScale: trayRatio + (1 - trayRatio) * easeOutBack(pickupT), lift, grabSx: grabScale.sx, grabSy: grabScale.sy };
 }

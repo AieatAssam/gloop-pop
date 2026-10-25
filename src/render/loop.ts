@@ -38,9 +38,9 @@ export function startRenderLoop(draw: FrameCallback, frameEnded?: (frameMs: numb
     const start = performance.now();
     const raw = previous === 0 ? 0 : Math.min(50, Math.max(0, now - previous)) * debugSlow;
     previous = now;
-    realNow += raw;
-    const slowScale = slowMo.step(realNow);
-    const h = hitStop.step(realNow, boardNow);
+    const nextRealNow = realNow + raw;
+    const slowScale = slowMo.step(nextRealNow);
+    const h = hitStop.step(nextRealNow, boardNow);
     frameState.realNow = realNow; frameState.worldNow = worldNow; frameState.boardNow = boardNow;
     advanceClocks(frameState, raw, slowScale, h);
     realNow = frameState.realNow; worldNow = frameState.worldNow; boardNow = frameState.boardNow;

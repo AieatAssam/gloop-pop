@@ -1,5 +1,5 @@
-// SG §7.2, §8.4, §5.3, §9.13.c–d: mould tray, live previews and spring-held piece.
-import { components } from '../core/gloops';
+// SG §7.2, §8.4, §5.3, §9.13.c–g: mould tray, spring-held piece and pop anticipation.
+import { components, largestSquare } from '../core/gloops';
 import { PIECES } from '../core/pieces';
 import { canPlace, previewPlacement } from '../core/game';
 import type { GameEvent, GameState, Piece, Preview } from '../core/types';
@@ -9,32 +9,40 @@ import { drawGloop, drawPiece } from './gloopRenderer';
 import { roundRectPath } from './silhouette';
 import { S } from '../ui/strings';
 import type { Layout, Rect } from './layout';
-import { easeOutBack, easeInBack, easeInQuad, easeOutElastic } from './easing';
+import { easeOutBack, easeInBack, easeInQuad } from './easing';
 import { nearMissFacts, type NearMissFacts } from '../core/nearMiss';
 import { spring, type SpringState } from './fx/spring';
-import { placementLayerLifetimeMs, visiblePlacementCells } from './fx/placementLayer';
+import { placementCellsForFrame, placementLayerLifetimeMs } from './fx/placementLayer';
+import { getEquippedTheme } from './themes';
+import type { Gloop } from '../core/types';
 
 export interface SlotView { rect: Rect; piece: Piece | null; cell: number }
 export interface ReturnView { slot: number; defId: number; flavour: Piece['flavour']; x: number; y: number; alpha: number; scale: number; lift: number }
 export interface BoardView {
-  draw(context: CanvasRenderingContext2D, layout: Layout, state: GameState, worldNow: number, drag?: DragView, demo?: string, gameOverAt?: number, boardNow?: number, realNow?: number, returning?: ReturnView): SlotView[];
-  receive(events: readonly GameEvent[], boardNow: number, state: GameState, worldNow?: number, placementOrigin?: { x: number; y: number }): void;
+  draw(context: CanvasRenderingContext2D, layout: Layout, state: GameState, worldNow: number, drag?: DragView, demo?: string, gameOverAt?: number, boardNow?: number, realNow?: number, returning?: ReturnView, reducedMotion?: boolean, hitScale?: number, boardDt?: number): SlotView[];
+  receive(events: readonly GameEvent[], boardNow: number, state: GameState, worldNow?: number, placementOrigin?: { x: number; y: number }, reducedMotion?: boolean, layout?: Layout): void;
   cellAt(x: number, y: number, layout: Layout): { row: number; col: number } | null;
   slotAt(x: number, y: number, layout: Layout, state: GameState): number;
 }
 export interface DragView { slot: number; x: number; y: number; pointerType: string; selected: boolean; row?: number; col?: number; ghostRow?: number; ghostCol?: number; drawX?: number; drawY?: number; tilt?: number; stretch?: number; stretchAngle?: number; shear?: number; pickupScale?: number; lift?: number; grabSx?: number; grabSy?: number; ghostAlpha?: number; ghostScale?: number; ghostTargetAlpha?: number; ghostFadeLeft?: number; ghostValid?: boolean; reducedMotion?: boolean }
+export function placementTravelProgress(ageMs: number, reducedMotion: boolean): number { return reducedMotion ? 1 : Math.min(1, Math.max(0, ageMs / 60)); }
 
 export function createBoardView(): BoardView {
+  const squashLayers: HTMLCanvasElement[] = []; if (typeof document !== 'undefined') for (let i = 0; i < 3; i += 1) squashLayers.push(document.createElement('canvas'));
+  let nextSquashLayer = 0;
   let boardCache: HTMLCanvasElement | undefined; let boardCacheKey = ''; let previousTrayCount = -1; let trayDealAt = -1;
   const slotLightGradients: (CanvasGradient | undefined)[] = []; const slotLightGeometry: { y: number; height: number }[] = [];
-  let previousSeed: string | undefined; let previousBoard: number[] | undefined; let waveGroups: ReturnType<typeof components> = []; let waveAt = -1;
-  let placement: { piece: Piece; cells: readonly number[]; row: number; col: number; slot: number; at: number; originX?: number; originY?: number; bodyCells?: readonly number[]; bodyAmplitude: number } | undefined;
+  let previousSeed: string | undefined; let previousBoard: number[] | undefined; let waveGroups: ReturnType<typeof components> = []; let waveAt = -1; let cachedBoard: readonly number[] | undefined; let currentGroups: ReturnType<typeof components> = []; let currentGroupGeometry: { gloop: ReturnType<typeof components>[number]; anchor: number; minRow: number; minCol: number }[] = []; let showcaseGroups: ReturnType<typeof components> | undefined;
+  const cacheGroupGeometry = (groups: ReturnType<typeof components>): void => { currentGroups = groups; currentGroupGeometry = groups.map((gloop) => { let anchor = 64; let minRow = 8; let minCol = 8; for (const index of gloop.cells) { if (index < anchor) anchor = index; minRow = Math.min(minRow, Math.floor(index / 8)); minCol = Math.min(minCol, index % 8); } return { gloop, anchor, minRow, minCol }; }); };
+  let placement: { piece: Piece; cells: readonly number[]; row: number; col: number; slot: number; at: number; originX?: number; originY?: number; bodyCells?: readonly number[]; bodySet?: ReadonlySet<number>; shape: readonly (readonly [number, number])[]; bodyShape?: readonly (readonly [number, number])[]; bodyAmplitude: number; reduced: boolean; previousX: number; previousY: number; previousAge: number; layerIndex: number; layerReady: boolean; stripSy: SpringState[]; stripStarted: boolean[]; stripStartAt: number[]; stripBottom: number[]; fingerColumn: number } | undefined;
   let entryAt = -1;
   let lossNearMiss: NearMissFacts | undefined;
   const heldShadows = new Map<string, [HTMLCanvasElement, HTMLCanvasElement]>();
   let keyboardHeld: { slot: number; x: SpringState; y: SpringState } | undefined; let keyboardAt = -1;
   let releasedGhost: { piece: Piece; preview: Preview; row: number; col: number; alpha: number; scale: number; at: number } | undefined;
   const happyUntil = new Map<number, number>(); const grinUntil = new Map<number, number>(); let allClearUntil = -1;
+  const jiggles = new Map<number, { startAt: number; pushX: number; pushY: number; offsetX: SpringState; offsetY: SpringState; squash: SpringState; active: boolean }>(); let jiggleClock = -1;
+  const swellingBodies: { gloop: Gloop; peakAt: number }[] = [];
   const slotsFor = (layout: Layout, state: GameState): SlotView[] => {
     const result: SlotView[] = [];
     for (let i = 0; i < 3; i += 1) {
@@ -44,23 +52,26 @@ export function createBoardView(): BoardView {
     return result;
   };
   return {
-    draw(ctx, layout, state, worldNow, drag, demo = '', gameOverAt = -1, boardNow = worldNow, realNow = worldNow, returning) {
+    draw(ctx, layout, state, worldNow, drag, demo = '', gameOverAt = -1, boardNow = worldNow, realNow = worldNow, returning, reducedMotion = false, hitScale = 1, boardDt = 0) {
       const elapsed = worldNow;
       if (demo === 'faces') { drawFaceDemo(ctx, layout, elapsed); return []; }
       const board = layout.board; const c = layout.cellSize; const gx = board.x + (board.width - c * 8) / 2; const gy = board.y + (board.height - c * 8) / 2;
       if (!layout.portrait) drawDesktopPanelBacking(ctx, layout);
       const firstBoardFrame = previousSeed === undefined;
-      if (previousSeed !== undefined && previousSeed !== state.seed) { waveGroups = previousBoard ? components(previousBoard) : []; waveAt = elapsed; }
+      if (previousSeed !== undefined && previousSeed !== state.seed) { waveGroups = previousBoard ? components(previousBoard) : []; waveAt = elapsed; jiggles.clear(); jiggleClock = -1; }
       previousSeed = state.seed; previousBoard = state.board;
       const key = `${board.width}:${board.height}:${c}`;
       if (!boardCache || boardCacheKey !== key) { boardCache = createBoardLayer(board.width, board.height, c); boardCacheKey = key; }
       ctx.drawImage(boardCache, board.x, board.y, board.width, board.height);
-      const groups = demo === 'board' ? showcase() : components(state.board); const filled = state.board.reduce((sum, value) => sum + (value > 0 ? 1 : 0), 0);
+      if (demo === 'board') { if (!showcaseGroups) showcaseGroups = showcase(); if (currentGroups !== showcaseGroups) cacheGroupGeometry(showcaseGroups); } else if (cachedBoard !== state.board) { cacheGroupGeometry(components(state.board)); cachedBoard = state.board; }
+      const filled = state.board.reduce((sum, value) => sum + (value > 0 ? 1 : 0), 0);
       if (firstBoardFrame && (state.mode === 'daily' || state.mode === 'tutorial') && state.moves === 0 && filled > 0) entryAt = elapsed;
-      for (const gloop of groups) { if (placement?.bodyCells && boardNow - placement.at >= 60 && gloop.cells.some((index) => placement!.bodyCells!.includes(index))) continue; const anchor = Math.min(...gloop.cells); const expression = state.status === 'over' ? elapsed - gameOverAt >= 300 ? 'dizzy' : 'worried' : state.combo >= 8 ? 'starEyes' : state.status === 'stuck' || filled >= 45 ? 'worried' : allClearUntil > elapsed ? 'happy' : happyUntil.get(anchor) !== undefined && happyUntil.get(anchor)! > elapsed ? 'happy' : grinUntil.get(anchor) !== undefined && grinUntil.get(anchor)! > elapsed ? 'grin' : 'idle'; if (entryAt >= 0) { const minRow = Math.min(...gloop.cells.map((cell) => Math.floor(cell / 8))); const minCol = Math.min(...gloop.cells.map((cell) => cell % 8)); const t = Math.min(1, Math.max(0, (elapsed - entryAt - (minRow + minCol) * 15) / 250)); const scale = easeOutBack(t); const centreX = gx + (minCol + 1) * c; const centreY = gy + (minRow + 1) * c; ctx.save(); ctx.translate(centreX, centreY); ctx.scale(scale, scale); drawGloop(ctx, gloop, c, gx - centreX, gy - centreY, elapsed, expression); ctx.restore(); } else drawGloop(ctx, gloop, c, gx, gy, elapsed, expression); }
-      if (placement) { const age = boardNow - placement.at; if (age >= 60 + placementLayerLifetimeMs()) placement = undefined; else drawPlacement(ctx, placement, layout, gx, gy, c, worldNow, age); }
+      for (let i = swellingBodies.length - 1; i >= 0; i -= 1) { const body = swellingBodies[i]!; if (boardNow > body.peakAt) { swellingBodies[i] = swellingBodies[swellingBodies.length - 1]!; swellingBodies.pop(); continue; } if (!reducedMotion) { const age = Math.min(1, Math.max(0, (boardNow - body.peakAt + 60) / 60)); const swell = 1 + 0.06 * (age * (2 - age)); const jitter = hitScale < 1 ? 0.03 * c * (1 - hitScale) : 0; ctx.save(); ctx.translate(gx + 4 * c + Math.sin(realNow * 0.1885) * jitter, gy + 4 * c + Math.sin(realNow * 0.1885 + 1) * jitter); ctx.scale(swell, swell); ctx.translate(-(gx + 4 * c), -(gy + 4 * c)); drawGloop(ctx, body.gloop, c, gx, gy, elapsed, 'popping'); ctx.restore(); } }
+      const jiggleDt = jiggleClock < 0 ? 0 : Math.min(50, Math.max(0, boardNow - jiggleClock)) / 1000; jiggleClock = boardNow;
+      for (const geometry of currentGroupGeometry) { const { gloop, anchor, minRow, minCol } = geometry; if (placement?.bodySet && boardNow - placement.at >= 60 && gloop.cells.some((index) => placement!.bodySet!.has(index))) continue; const expression = state.status === 'over' ? elapsed - gameOverAt >= 300 ? 'dizzy' : 'worried' : state.combo >= 8 ? 'starEyes' : state.status === 'stuck' || filled >= 45 ? 'worried' : allClearUntil > elapsed ? 'happy' : happyUntil.get(anchor) !== undefined && happyUntil.get(anchor)! > elapsed ? 'happy' : grinUntil.get(anchor) !== undefined && grinUntil.get(anchor)! > elapsed ? 'grin' : 'idle'; const jiggle = jiggles.get(anchor); let offsetX = 0; let offsetY = 0; let sx = 1; if (jiggle && boardNow >= jiggle.startAt && !reducedMotion) { if (!jiggle.active) { jiggle.offsetX.x = jiggle.pushX * 0.04; jiggle.offsetY.x = jiggle.pushY * 0.04; jiggle.squash.x = jiggle.pushX || jiggle.pushY ? 0.05 : 0.015; jiggle.active = true; } spring(jiggle.offsetX, 0, 8, 0.3, jiggleDt); spring(jiggle.offsetY, 0, 8, 0.3, jiggleDt); spring(jiggle.squash, 0, 8, 0.3, jiggleDt); offsetX = jiggle.offsetX.x * c; offsetY = jiggle.offsetY.x * c; sx = 1 + jiggle.squash.x; } if (entryAt >= 0) { const t = Math.min(1, Math.max(0, (elapsed - entryAt - (minRow + minCol) * 15) / 250)); const scale = easeOutBack(t); const centreX = gx + (minCol + 1) * c; const centreY = gy + (minRow + 1) * c; ctx.save(); ctx.translate(centreX, centreY); ctx.scale(scale, scale); drawJiggledGloop(ctx, gloop, c, gx - centreX, gy - centreY, elapsed, expression, gx, gy, minCol, minRow, offsetX, offsetY, sx); ctx.restore(); } else drawJiggledGloop(ctx, gloop, c, gx, gy, elapsed, expression, gx, gy, minCol, minRow, offsetX, offsetY, sx); }
+      if (placement) { const age = boardNow - placement.at; if (age >= (placement.reduced ? 150 : 60 + placementLayerLifetimeMs())) placement = undefined; else drawPlacement(ctx, placement, layout, gx, gy, c, worldNow, age, reducedMotion, hitScale, boardDt, realNow, squashLayers[placement.layerIndex]); }
       if (entryAt >= 0 && elapsed - entryAt > 490) entryAt = -1;
-      if (waveAt >= 0) { for (let i = waveGroups.length - 1; i >= 0; i -= 1) { const old = waveGroups[i]!; const minRow = Math.min(...old.cells.map((cell) => Math.floor(cell / 8))); const minCol = Math.min(...old.cells.map((cell) => cell % 8)); const age = elapsed - waveAt - (minRow + minCol) * 12; if (age >= 250) { if (i === 0) { waveGroups = []; waveAt = -1; } continue; } if (age < 0) continue; const t = age / 250; const scale = Math.max(0, 1 - easeInBack(t)); const centreX = gx + (minCol + 1) * c; const centreY = gy + (minRow + 1) * c; ctx.save(); ctx.translate(centreX, centreY); ctx.scale(scale, scale); drawGloop(ctx, old, c, gx - centreX, gy - centreY, elapsed, 'popping'); ctx.restore(); } }
+      if (waveAt >= 0) { for (let i = waveGroups.length - 1; i >= 0; i -= 1) { const old = waveGroups[i]!; let minRow = 8; let minCol = 8; for (const cell of old.cells) { minRow = Math.min(minRow, Math.floor(cell / 8)); minCol = Math.min(minCol, cell % 8); } const age = elapsed - waveAt - (minRow + minCol) * 12; if (age >= 250) { if (i === 0) { waveGroups = []; waveAt = -1; } continue; } if (age < 0) continue; const t = age / 250; const scale = Math.max(0, 1 - easeInBack(t)); const centreX = gx + (minCol + 1) * c; const centreY = gy + (minRow + 1) * c; ctx.save(); ctx.translate(centreX, centreY); ctx.scale(scale, scale); drawGloop(ctx, old, c, gx - centreX, gy - centreY, elapsed, 'popping'); ctx.restore(); } }
       if (state.status === 'over' && lossNearMiss?.pieceOneCellShort && gameOverAt >= 0) { const age = elapsed - gameOverAt - 200; if (age >= 0 && age < 700) { const fact = lossNearMiss.pieceOneCellShort; const piece = state.tray[fact.slot]; const def = piece ? PIECES[piece.defId]! : undefined; const pulse = 0.5 + 0.5 * Math.sin(age / 350 * Math.PI * 2); if (def) { ctx.save(); ctx.fillStyle = PALETTE.face.eyeWhite; ctx.strokeStyle = PALETTE.face.eyeWhite; ctx.lineWidth = Math.max(2, c * 0.045); for (const [dr, dc] of def.cells) { const x = gx + (fact.col + dc) * c; const y = gy + (fact.row + dr) * c; ctx.globalAlpha = 0.12; ctx.fill(roundRectPath(x + 3, y + 3, c - 6, c - 6, c * 0.2)); ctx.globalAlpha = 0.65 + pulse * 0.25; ctx.stroke(roundRectPath(x + 3, y + 3, c - 6, c - 6, c * 0.2)); } ctx.restore(); } for (const [dr, dc] of def?.cells ?? []) { const blockedRow = fact.row + dr; const blockedCol = fact.col + dc; const blocked = (state.board[blockedRow * 8 + blockedCol] ?? 0) > 0; if (blocked) { ctx.save(); ctx.globalAlpha = pulse; ctx.strokeStyle = PALETTE.fx.popPreview; ctx.lineWidth = c * 0.07; ctx.beginPath(); ctx.arc(gx + (blockedCol + 0.5) * c, gy + (blockedRow + 0.5) * c, c * (0.28 + 0.08 * pulse), 0, Math.PI * 2); ctx.stroke(); ctx.restore(); } } } }
       const slotViews = slotsFor(layout, state);
       if (previousTrayCount !== state.traysDealt) { previousTrayCount = state.traysDealt; trayDealAt = realNow; }
@@ -98,13 +109,18 @@ export function createBoardView(): BoardView {
       if (returning) { const piece = state.tray[returning.slot]; if (piece) { const def = PIECES[returning.defId]!; const shownCell = c * returning.scale; drawHeldShadow(ctx, heldShadows, returning.defId, def.cells, c, returning.x + c * 0.03 * returning.lift, returning.y + c * (0.05 + 0.12 * returning.lift), returning.lift, def.w, def.h, returning.scale); ctx.save(); ctx.globalAlpha = returning.alpha; ctx.translate(returning.x + def.w * shownCell / 2, returning.y + def.h * shownCell / 2); ctx.scale(returning.scale, returning.scale); drawPiece(ctx, returning.flavour, def.cells, c, -def.w * c / 2, -def.h * c / 2, worldNow); ctx.restore(); } }
       return slotViews;
     },
-    receive(events, boardNow, state, worldNow = boardNow, placementOrigin) { const groups = components(state.board); if (state.status === 'over') lossNearMiss = nearMissFacts(state); else lossNearMiss = undefined; for (const event of events) {
+    receive(events, boardNow, state, worldNow = boardNow, placementOrigin, reducedMotion = false, layout) { const groups = components(state.board); cachedBoard = state.board; cacheGroupGeometry(groups); if (state.status === 'over') lossNearMiss = nearMissFacts(state); else lossNearMiss = undefined; for (const event of events) {
       if (event.type === 'allClear') allClearUntil = worldNow + 700;
+      if (event.type === 'popped' && !reducedMotion) for (const group of event.gloops) if (swellingBodies.length < 128) swellingBodies.push({ gloop: { flavour: group.flavour, cells: group.cells, bfs: group.bfs, largestSquare: largestSquare(group.cells) }, peakAt: boardNow + 60 });
       if (event.type === 'placed') {
         const removed: number[] = [];
         for (const entry of events) if (entry.type === 'cleared') removed.push(...entry.cells); else if (entry.type === 'popped') for (const group of entry.gloops) removed.push(...group.cells);
-        const body = event.mergedInto.length ? groups.find((group) => event.cells.some((cell) => group.cells.includes(cell))) : undefined; const bodyCells = body ? visiblePlacementCells(body.cells, removed) : undefined;
-        placement = { piece: event.piece, cells: visiblePlacementCells(event.cells, removed), row: Math.min(...event.cells.map((index) => Math.floor(index / 8))), col: Math.min(...event.cells.map((index) => index % 8)), slot: event.slot, at: boardNow, bodyCells, bodyAmplitude: body ? Math.max(0.4, Math.sqrt(event.cells.length / body.cells.length)) : 1, ...(placementOrigin ? { originX: placementOrigin.x, originY: placementOrigin.y } : {}) };
+        const body = event.mergedInto.length ? groups.find((group) => event.cells.some((cell) => group.cells.includes(cell))) : undefined; const bodyCells = body ? placementCellsForFrame(body.cells, undefined, removed, false) : undefined; const placedCells = placementCellsForFrame(event.cells, undefined, removed, false);
+        let row = 8; let col = 8; for (const index of event.cells) { row = Math.min(row, Math.floor(index / 8)); col = Math.min(col, index % 8); }
+        const shape = placedCells.map((index) => [Math.floor(index / 8) - row, index % 8 - col] as const); const bodyShape = bodyCells?.map((index) => [Math.floor(index / 8) - row, index % 8 - col] as const); const fingerColumn = layout && placementOrigin ? Math.max(0, Math.min(7, Math.floor((placementOrigin.x + PIECES[event.piece.defId]!.w * layout.cellSize / 2 - (layout.board.x + (layout.board.width - layout.cellSize * 8) / 2)) / layout.cellSize))) : 3;
+        const stripBottom = [-1, -1, -1, -1, -1, -1, -1, -1]; for (const [dr, dc] of bodyShape ?? shape) stripBottom[dc + col] = Math.max(stripBottom[dc + col] ?? -1, dr + row);
+        placement = { piece: event.piece, cells: placedCells, row, col, slot: event.slot, at: boardNow, bodyCells, bodySet: bodyCells ? new Set(bodyCells) : undefined, shape, bodyShape, bodyAmplitude: body ? Math.max(0.4, Math.sqrt(event.cells.length / body.cells.length)) : 1, reduced: reducedMotion, previousX: -1, previousY: -1, previousAge: -1, layerIndex: nextSquashLayer, layerReady: false, stripSy: Array.from({ length: 8 }, () => ({ x: 1, v: 0 })), stripStarted: [false, false, false, false, false, false, false, false], stripStartAt: [0, 0, 0, 0, 0, 0, 0, 0], stripBottom, fingerColumn, ...(placementOrigin ? { originX: placementOrigin.x, originY: placementOrigin.y } : {}) }; nextSquashLayer = (nextSquashLayer + 1) % 3;
+        jiggles.clear(); for (const group of groups) { if (group.cells.some((cell) => event.cells.includes(cell))) continue; let minDistance = 99; let pushX = 0; let pushY = 0; for (const groupCell of group.cells) for (const placedCell of event.cells) { const dx = groupCell % 8 - placedCell % 8; const dy = Math.floor(groupCell / 8) - Math.floor(placedCell / 8); const distance = Math.abs(dx) + Math.abs(dy); if (distance < minDistance) { minDistance = distance; pushX = dx; pushY = dy; } } if (minDistance >= 99) continue; const touching = minDistance === 1; const length = Math.hypot(pushX, pushY) || 1; let groupAnchor = 64; for (const cell of group.cells) groupAnchor = Math.min(groupAnchor, cell); jiggles.set(groupAnchor, { startAt: boardNow + 20 + (touching ? 0 : 12 * Math.min(6, minDistance)), pushX: touching ? pushX / length : 0, pushY: touching ? pushY / length : 0, offsetX: { x: 0, v: 0 }, offsetY: { x: 0, v: 0 }, squash: { x: 0, v: 0 }, active: false }); }
       }
       if (event.type === 'cleared') for (const group of groups) if (group.cells.some((cell) => event.cells.some((clearCell) => Math.abs(cell % 8 - clearCell % 8) + Math.abs(Math.floor(cell / 8) - Math.floor(clearCell / 8)) <= 2))) happyUntil.set(Math.min(...group.cells), worldNow + 700);
       if (event.type === 'placed' && event.mergedInto.length > 0) for (const group of groups) if (event.cells.some((cell) => group.cells.includes(cell))) grinUntil.set(Math.min(...group.cells), worldNow + 800);
@@ -118,22 +134,44 @@ export function createBoardView(): BoardView {
   };
 }
 
-// SG §9.2: the placed cells squash together as one jelly body, with the lower edge held in place.
-function drawPlacement(ctx: CanvasRenderingContext2D, placement: { piece: Piece; cells: readonly number[]; row: number; col: number; slot: number; at: number; originX?: number; originY?: number; bodyCells?: readonly number[]; bodyAmplitude: number }, layout: Layout, gx: number, gy: number, cell: number, elapsed: number, age: number): void {
+function drawJiggledGloop(ctx: CanvasRenderingContext2D, gloop: ReturnType<typeof components>[number], cell: number, ox: number, oy: number, elapsed: number, expression: string, gx: number, gy: number, minCol: number, minRow: number, offsetX: number, offsetY: number, sx: number): void { ctx.save(); if (offsetX || offsetY || sx !== 1) { const pivotX = gx + (minCol + 1) * cell; const pivotY = gy + (minRow + 1) * cell; ctx.translate(pivotX + offsetX, pivotY + offsetY); ctx.scale(sx, 1 / sx); ctx.translate(-pivotX, -pivotY); } drawGloop(ctx, gloop, cell, ox, oy, elapsed, expression); ctx.restore(); }
+
+// SG §9.13.e: travel, anticipation and land use one shared jelly silhouette.
+function drawPlacement(ctx: CanvasRenderingContext2D, placement: { piece: Piece; cells: readonly number[]; row: number; col: number; slot: number; at: number; originX?: number; originY?: number; bodyCells?: readonly number[]; bodySet?: ReadonlySet<number>; shape: readonly (readonly [number, number])[]; bodyShape?: readonly (readonly [number, number])[]; bodyAmplitude: number; reduced: boolean; previousX: number; previousY: number; previousAge: number; layerReady: boolean; stripSy: SpringState[]; stripStarted: boolean[]; stripStartAt: number[]; stripBottom: number[]; fingerColumn: number }, layout: Layout, gx: number, gy: number, cell: number, elapsed: number, age: number, reducedMotion: boolean, hitScale: number, boardDt: number, realNow: number, layer?: HTMLCanvasElement): void {
   const def = PIECES[placement.piece.defId]!;
-  // spec-note: keyboard and click-click placements have no release point, so they travel from the slot centre.
-  const travel = Math.min(1, Math.max(0, age / 60)); const sourceSlot = slotRect(placement.slot, layout); const sourceCell = placement.originX === undefined ? Math.min(layout.trayCellSize, sourceSlot.width / (def.w + 1), sourceSlot.height / (def.h + 1)) : cell; const sourceX = placement.originX === undefined ? sourceSlot.x + sourceSlot.width / 2 : placement.originX + def.w * cell / 2; const sourceY = placement.originY === undefined ? sourceSlot.y + sourceSlot.height / 2 : placement.originY + def.h * cell / 2; const targetX = gx + (placement.col + def.w / 2) * cell; const targetY = gy + (placement.row + def.h / 2) * cell;
-  const dx = targetX - sourceX; const dy = targetY - sourceY; const length = Math.hypot(dx, dy); const backX = length < cell * 0.3 ? 0 : -dx / length * cell * 0.05; const backY = length < cell * 0.3 ? -cell * 0.05 : -dy / length * cell * 0.05;
-  let centreX: number; let centreY: number;
-  if (age < 20) { const anticipation = age / 20; centreX = sourceX + backX * anticipation; centreY = sourceY + backY * anticipation; }
-  else { const slam = easeInQuad(Math.min(1, (age - 20) / 40)); centreX = sourceX + backX + (targetX - sourceX - backX) * slam; centreY = sourceY + backY + (targetY - sourceY - backY) * slam; }
-  const squashAge = Math.max(0, age - 60); const squash = Math.min(1, squashAge / 55); const elastic = squashAge < 55 ? 0 : easeOutElastic((squashAge - 55) / 225); const amplitude = placement.bodyAmplitude; const scaleX = age < 60 ? 1 : squashAge < 55 ? 1 + 0.16 * amplitude * squash : 1 + 0.16 * amplitude * (1 - elastic); const scaleY = 1 / scaleX;
-  for (const index of placement.cells) { const x = gx + (index % 8) * cell; const y = gy + Math.floor(index / 8) * cell; ctx.fillStyle = PALETTE.theme.midnight.cell; ctx.beginPath(); ctx.roundRect(x + 1, y + 1, cell - 2, cell - 2, cell * 0.18); ctx.fill(); }
-  const body = placement.bodyCells && age >= 60 ? placement.bodyCells : placement.cells; const visibleShape = body.map((index) => [Math.floor(index / 8) - placement.row, index % 8 - placement.col] as const); const pieceScale = sourceCell / cell + (1 - sourceCell / cell) * travel; const smearDistance = Math.hypot(dx, dy); const smear = age >= 28 && age < 60 && smearDistance >= 0.3 * cell && !placement.bodyCells ? 1 + Math.min(0.3, 0.15 * smearDistance / cell) : 1; const smearAngle = Math.atan2(dy, dx);
-  if (visibleShape.length) {
-    if (smear > 1) { ctx.save(); ctx.globalAlpha = 0.3; ctx.translate(centreX - dx * 0.03, centreY - dy * 0.03); ctx.scale(pieceScale, pieceScale); ctx.rotate(smearAngle); ctx.scale(smear, 1 / smear); ctx.rotate(-smearAngle); drawPiece(ctx, placement.piece.flavour, visibleShape, cell, -def.w * cell / 2, -def.h * cell / 2, elapsed); ctx.restore(); }
-    ctx.save(); ctx.translate(centreX, centreY); ctx.scale(pieceScale, pieceScale); if (smear > 1) { ctx.rotate(smearAngle); ctx.scale(smear, 1 / smear); ctx.rotate(-smearAngle); } if (age >= 60) ctx.scale(scaleX, scaleY); drawPiece(ctx, placement.piece.flavour, visibleShape, cell, -def.w * cell / 2, -def.h * cell / 2, elapsed); ctx.restore();
+  const sourceSlot = slotRect(placement.slot, layout);
+  const sourceX = placement.originX === undefined ? sourceSlot.x + sourceSlot.width / 2 : placement.originX + def.w * cell / 2;
+  const sourceY = placement.originY === undefined ? sourceSlot.y + sourceSlot.height / 2 : placement.originY + def.h * cell / 2;
+  const targetX = gx + (placement.col + def.w / 2) * cell; const targetY = gy + (placement.row + def.h / 2) * cell;
+  const dx = targetX - sourceX; const dy = targetY - sourceY; const distance = Math.hypot(dx, dy);
+  const targetCells = placement.bodyCells ?? placement.cells;
+  for (const index of placement.cells) { const x = gx + (index % 8) * cell; const y = gy + Math.floor(index / 8) * cell; ctx.fillStyle = PALETTE.theme[getEquippedTheme()].cell; ctx.beginPath(); ctx.roundRect(x + 1, y + 1, cell - 2, cell - 2, cell * 0.18); ctx.fill(); }
+  if (reducedMotion || placement.reduced) {
+    const alpha = Math.min(1, age / 150);
+    for (const index of placement.cells) { const x = gx + (index % 8) * cell; const y = gy + Math.floor(index / 8) * cell; ctx.save(); ctx.globalAlpha = alpha * (1 - alpha); ctx.fillStyle = PALETTE.light.flash; ctx.beginPath(); ctx.roundRect(x + 1, y + 1, cell - 2, cell - 2, cell * 0.18); ctx.fill(); ctx.restore(); }
+    if (targetCells.length) drawPiece(ctx, placement.piece.flavour, placement.bodyShape ?? placement.shape, cell, targetX - def.w * cell / 2, targetY - def.h * cell / 2, elapsed, 'idle', 1);
+    return;
   }
+  if (age >= 60) { drawLandedPlacement(ctx, placement, layer, gx, gy, cell, elapsed, age - 60, boardDt, hitScale, realNow); return; }
+  const t = placementTravelProgress(age, false); const backX = distance < cell * 0.3 ? 0 : -dx / distance * cell * 0.05; const backY = distance < cell * 0.3 ? -cell * 0.05 : -dy / distance * cell * 0.05;
+  let centreX: number; let centreY: number; let sx = 1; let sy = 1;
+  if (age < 20) { const anticipation = age / 20; centreX = sourceX + backX * anticipation; centreY = sourceY + backY * anticipation; sy = 1 + 0.06 * anticipation; sx = 1 / sy; }
+  else { const slam = easeInQuad((age - 20) / 40); centreX = sourceX + backX + (targetX - sourceX - backX) * slam; centreY = sourceY + backY + (targetY - sourceY - backY) * slam; }
+  const moving = age < 60 && age >= 60 - 2 * boardDt && distance >= cell * 0.3 && placement.previousX >= 0;
+  if (moving) { const vx = centreX - placement.previousX; const vy = centreY - placement.previousY; if (Math.hypot(vx, vy) > 0.01) { const smear = 1 + Math.min(0.3, 0.15 * distance / cell); const angle = Math.atan2(dy, dx); ctx.save(); ctx.globalAlpha = 0.3; ctx.translate(placement.previousX, placement.previousY); ctx.scale(t, t); ctx.rotate(angle); ctx.scale(smear, 1 / smear); ctx.rotate(-angle); drawPiece(ctx, placement.piece.flavour, placement.shape, cell, -def.w * cell / 2, -def.h * cell / 2, elapsed); ctx.restore(); } }
+  placement.previousX = centreX; placement.previousY = centreY; placement.previousAge = age;
+  const jitter = 0.03 * cell * (1 - hitScale); const jitterX = hitScale < 1 ? Math.sin(realNow * 0.1885) * jitter : 0; const jitterY = hitScale < 1 ? Math.sin(realNow * 0.1885 + 1) * jitter : 0;
+  ctx.save(); ctx.translate(centreX + jitterX, centreY + jitterY); ctx.scale(t * sx, t * sy); drawPiece(ctx, placement.piece.flavour, placement.shape, cell, -def.w * cell / 2, -def.h * cell / 2, elapsed); ctx.restore();
+}
+
+function drawLandedPlacement(ctx: CanvasRenderingContext2D, placement: { piece: Piece; row: number; col: number; bodyAmplitude: number; shape: readonly (readonly [number, number])[]; bodyShape?: readonly (readonly [number, number])[]; layerReady: boolean; stripSy: SpringState[]; stripStarted: boolean[]; stripStartAt: number[]; stripBottom: number[]; fingerColumn: number }, layer: HTMLCanvasElement | undefined, gx: number, gy: number, cell: number, elapsed: number, age: number, boardDt: number, hitScale: number, realNow: number): void {
+  const shape = placement.bodyShape ?? placement.shape; if (!shape.length) return;
+  if (layer && !placement.layerReady) { const size = Math.ceil(cell * 8); if (layer.width !== size || layer.height !== size) { layer.width = size; layer.height = size; } const offscreen = layer.getContext('2d'); if (offscreen) { offscreen.clearRect(0, 0, size, size); drawPiece(offscreen, placement.piece.flavour, shape, cell, placement.col * cell, placement.row * cell, elapsed); placement.layerReady = true; } }
+  if (!layer || !placement.layerReady) { const def = PIECES[placement.piece.defId]!; const sx = 1 + 0.16 * placement.bodyAmplitude * Math.max(0, 1 - age / 300); ctx.save(); ctx.translate(gx + (placement.col + def.w / 2) * cell, gy + (placement.row + def.h) * cell); ctx.scale(1 / (1 / sx), 1 / sx); ctx.translate(-(gx + (placement.col + def.w / 2) * cell), -(gy + (placement.row + def.h) * cell)); drawPiece(ctx, placement.piece.flavour, shape, cell, gx + placement.col * cell, gy + placement.row * cell, elapsed); ctx.restore(); return; }
+  const dt = Math.max(0, Math.min(50, boardDt)) / 1000; let meanSy = 0; let columns = 0;
+  for (let col = 0; col < 8; col += 1) { if (placement.stripBottom[col]! < 0) continue; const delay = Math.min(24, Math.abs(col - placement.fingerColumn) * 8); const strip = placement.stripSy[col]!; if (!placement.stripStarted[col] && age >= delay) { strip.x = 1 / (1 + 0.16 * placement.bodyAmplitude); strip.v = 0; placement.stripStarted[col] = true; placement.stripStartAt[col] = age; } else if (placement.stripStarted[col] && age - placement.stripStartAt[col]! > Math.max(1, boardDt)) spring(strip, 1, 6, 0.22, dt); meanSy += strip.x; columns += 1; }
+  if (!columns) return; const sx = 1 / (meanSy / columns); const jitter = hitScale < 1 ? 0.03 * cell * (1 - hitScale) : 0; const jitterX = Math.sin(realNow * 0.1885) * jitter; const jitterY = Math.sin(realNow * 0.1885 + 1) * jitter;
+  for (let col = 0; col < 8; col += 1) { const bottom = placement.stripBottom[col]!; if (bottom < 0) continue; const strip = placement.stripSy[col]!; const left = gx + col * cell; const bottomY = gy + (bottom + 1) * cell; ctx.save(); ctx.beginPath(); ctx.rect(left, gy, cell, cell * 8); ctx.clip(); ctx.translate(gx + 4 * cell + jitterX, bottomY + jitterY); ctx.scale(sx, strip.x); ctx.translate(-(gx + 4 * cell), -bottomY); ctx.drawImage(layer, gx, gy, cell * 8, cell * 8); ctx.restore(); }
 }
 
 // SG §11.3: desktop HUD and tray each sit on an opaque panel backing.

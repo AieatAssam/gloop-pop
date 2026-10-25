@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { scoreAt, scorePunchScale, scorePunchSize } from './scorePunch';
 
 describe('SG §9.13.i score motion', () => {
+  it('holds the prior display value until impact starts the count', () => {
+    expect(scoreAt(302, 6546, Number.NEGATIVE_INFINITY, 600, false)).toBe(302);
+  });
   it('updates at most every 40 ms and is exact at D', () => {
     expect(scoreAt(0, 1000, 39, 250, false)).toBe(0);
     expect(scoreAt(0, 1000, 40, 250, false)).toBeGreaterThan(0);

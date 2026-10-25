@@ -11,10 +11,10 @@ export function dispatchImmediately<T>(endNow: () => void, dispatch: () => T): T
 export function hitStopMs(cells: number, tier: HitStopTier, comboTier: number): number {
   if (cells <= 0) return 0;
   const floor = tier === 'lines' ? 34 : tier === 'big' ? 50 : tier === 'huge' ? 60 : 70;
-  const cap = tier === 'lines' ? 100 : tier === 'big' ? 120 : tier === 'huge' ? 130 : 150;
+  const cap = tier === 'lines' ? 80 : tier === 'big' ? 100 : tier === 'huge' ? 110 : 120;
   const base = Math.min(cap, floor + cells * 2);
   const multiplier = [1, 0.9, 0.8, 0.7, 0.6][Math.max(0, Math.min(4, Math.floor(comboTier)))] ?? 1;
-  return Math.min(150, Math.max(Math.min(base, 50), Math.round(base * multiplier)));
+  return Math.min(120, Math.max(Math.min(base, 50), Math.round(base * multiplier)));
 }
 
 export interface HitStopController {

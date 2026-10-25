@@ -36,13 +36,13 @@ export function createCamera(seed = 0xca0e): Camera {
     trauma(value, atLeast = false, horizontalOnly = false) {
       if (atLeast) tau = Math.max(tau, value); else tau = Math.min(1, tau + value);
       xOnly = horizontalOnly;
-      const strength = traumaShake(tau) * (desktop ? 0.7 : 1);
+      const strength = traumaShake(tau);
       offset.x = (0.35 * cellSize * strength * sample(0, 0)) * (desktop ? 0.7 : 1);
       offset.y = horizontalOnly ? 0 : (0.35 * cellSize * strength * sample(0, 1)) * (desktop ? 0.7 : 1);
       offset.roll = horizontalOnly ? 0 : 1.5 * strength * sample(0, 2) * (desktop ? 0.7 : 1);
     },
     setTrauma(value, horizontalOnly = false) { tau = clamp(value, 0, 1); xOnly = horizontalOnly; },
-    kick(distance, x, y) { kickX.x += x * distance; kickY.x += y * distance; },
+    kick(distance, x, y) { const nextX = x * distance; const nextY = y * distance; if (Math.abs(nextX) > Math.abs(kickX.x)) kickX.x = nextX; if (Math.abs(nextY) > Math.abs(kickY.x)) kickY.x = nextY; },
     update(dtMs, time, reduced = false) {
       const dt = Math.max(0, dtMs) / 1000;
       if (reduced) { tau = 0; kickX.x = 0; kickX.v = 0; kickY.x = 0; kickY.v = 0; offset.x = 0; offset.y = 0; offset.roll = 0; return; }
@@ -50,8 +50,8 @@ export function createCamera(seed = 0xca0e): Camera {
       spring(kickX, 0, 9, 0.55, dt); spring(kickY, 0, 9, 0.55, dt);
       const magnitude = traumaShake(tau); const scale = desktop ? 0.7 : 1;
       const maxOffset = 0.45 * cellSize;
-      offset.x = clamp((kickX.x + 0.35 * cellSize * magnitude * sample(time, 0)) * scale, -maxOffset, maxOffset);
-      offset.y = clamp((kickY.x + (xOnly ? 0 : 0.35 * cellSize * magnitude * sample(time, 1))) * scale, -maxOffset, maxOffset);
+      offset.x = clamp(kickX.x + 0.35 * cellSize * magnitude * sample(time, 0) * scale, -maxOffset, maxOffset);
+      offset.y = clamp(kickY.x + (xOnly ? 0 : 0.35 * cellSize * magnitude * sample(time, 1) * scale), -maxOffset, maxOffset);
       offset.roll = xOnly ? 0 : 1.5 * magnitude * sample(time, 2) * scale;
     },
     reset() { tau = 0; xOnly = false; kickX.x = 0; kickX.v = 0; kickY.x = 0; kickY.v = 0; offset.x = 0; offset.y = 0; offset.roll = 0; },

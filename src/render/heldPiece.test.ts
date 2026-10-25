@@ -11,9 +11,9 @@ describe('SG §9.13 held piece transforms', () => {
   });
 
   it('sets the drawn position to the finger in reduced motion', () => {
-    const state = createHeldPiece(0, 0); const result = updateHeldPiece(state, 32, 48, 16, 44, true);
+    const state = createHeldPiece(0, 0); const result = updateHeldPiece(state, 32, 48, 16, 44, true, 32, 48, 7, 0.75, 0.4);
     expect(result.x).toBe(32); expect(result.y).toBe(48);
     expect(result.tilt).toBe(0); expect(result.stretch).toBe(1); expect(result.shear).toBe(0);
-    expect(result.grabSx).toBe(1); expect(result.pickupScale).toBeCloseTo(0.16);
+    expect(result.grabSx).toBe(1); expect(result.pickupScale).toBeCloseTo(0.496);
   });
 });
