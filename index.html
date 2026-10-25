@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="" />
+    <meta name="description" content="Drag jelly blocks onto the board to fill rows. Same-colour jellies join up and pop together. Free, no install, new daily challenge every day." />
+    <meta property="og:title" content="Gloop Pop: a jelly block puzzle" />
+    <meta property="og:description" content="Drag jelly blocks onto the board to fill rows. Same-colour jellies join up and pop together. Free, no install, new daily challenge every day." />
+    <meta property="og:image" content="%VITE_SITE_URL%og.png" />
+    <meta property="og:url" content="%VITE_SITE_URL%" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>Gloop Pop: a jelly block puzzle</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; touch-action: none; background: var(--bg, canvas); }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="ui"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

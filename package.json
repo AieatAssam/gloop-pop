@@ -1,0 +1,37 @@
+{
+  "name": "gloop-pop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . && node tools/check-no-hex.mjs",
+    "test": "vitest run",
+    "gen:palette": "node tools/gen-palette.mjs",
+    "gen:icons": "node tools/gen-icons.mjs",
+    "size": "node tools/check-size.mjs",
+    "check": "node tools/gen-palette.mjs --check && npm run typecheck && npm run lint && npm run test && npm run build && npm run size",
+    "sim": "vite build --ssr src/core/sim.ts --outDir .sim --emptyOutDir && node tools/sim.mjs"
+  },
+  "dependencies": {
+    "@fontsource/baloo-2": "5.3.0",
+    "@fontsource/nunito": "5.3.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.6.5",
+    "eslint": "10.13.0",
+    "globals": "17.13.0",
+    "jsdom": "29.1.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0",
+    "vite": "8.3.5",
+    "vitest": "4.1.12"
+  }
+}
