@@ -22,9 +22,8 @@ export const sfx = {
   },
   deal(): void {
     const at = scheduleAt();
-    const ids = ['deal1', 'deal2', 'deal3'] as const;
     let allReady = true;
-    for (let slot = 0; slot < ids.length; slot += 1) allReady = playSegment(ids[slot]!, { at: at + slot * 0.06, group: 'deal', priority: 'deal', gain: 10 ** (-20 / 20), rateVariation: 0.05, gainDbVariation: 1 }) && allReady;
+    for (let slot = 0; slot < 3; slot += 1) allReady = playSegment('deal1', { at: at + slot * 0.06, group: 'deal', variants: 3, priority: 'deal', gain: 10 ** (-20 / 20), rateVariation: 0.05, gainDbVariation: 1 }) && allReady;
     if (!allReady) fallbackSfx.deal();
   },
   place(params: { cells?: number } = {}): void {
@@ -74,6 +73,8 @@ export const sfx = {
   bigPop(params: { combo: number }): void { playLadderRun(params.combo, 2, 90, -14, -18); },
   hugePop(params: { combo: number }): void { playLadderRun(params.combo, 3, 70, -12, -16); },
   stageUp(): void { if (!playSegment('stage', { group: 'ladder', priority: 'ladder', gain: 10 ** (-12 / 20) })) fallbackSfx.stageUp(); },
+  levelUp(): void { if (!playSegment('level', { group: 'ladder', priority: 'ladder', gain: 10 ** (-8 / 20) })) fallbackSfx.levelUp(); },
+  achievement(): void { if (!playSegment('ach', { group: 'ladder', priority: 'ladder', gain: 10 ** (-10 / 20) })) fallbackSfx.achievement(); },
   rescueReady(): void { if (!playSegment('chime', { group: 'ladder', priority: 'ladder', gain: 10 ** (-18 / 20) })) tone({ frequency: 2093, duration: 0.28, peak: 10 ** (-18 / 20), priority: 'ladder' }); },
   rescue(): void {
     const at = scheduleAt();

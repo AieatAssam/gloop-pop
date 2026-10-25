@@ -1017,6 +1017,7 @@ pad + twinkle voices → layerGain ─────────────┴→
 - `master` = 1.0, or 0 when muted (top-bar button, M key).
 - **Limiter** (replaces v1's −14 dB / 4:1 glue compressor, which pumped on the bed): `DynamicsCompressorNode`, threshold −6 dB, knee 0, ratio 20, attack 2 ms, release 150 ms. It is a safety net; levels are set offline.
 - **Loudness target:** −18 LUFS integrated ± 2 over ≥ 5 min of gameplay, true peak ≤ −1 dBTP (A13: −18 portable; A14: phones gain nothing above about −16). Measure it by recording the tab's output during a 5-minute session and running `ffmpeg -af ebur128=peak=true` on the recording. **Not measured yet** (§13.13).
+- Revision 2026-10-25: the bed's about −24 LUFS is the mono-file figure; it reads about −21 LUFS in a stereo tab capture. The master gain is trimmed to 0.674 to cancel DynamicsCompressorNode automatic makeup gain (+3.42 dB).
 - **Asset normalisation (offline):**
   - One-shots: sample peak −1 dBFS after edits. Short sounds are under the 400 ms EBU gating block, so peak is the reliable measure. The §13.4 gains set the loudness balance.
   - Bed: static gain to `min(−18 LUFS, −2 dBTP)`, which gives −21.2 LUFS (above).

@@ -103,10 +103,15 @@ describe('sampled music transport', () => {
     expect(rampCalls[rampCalls.length - 1]?.[0]).toBe(1);
     expect(rampCalls[rampCalls.length - 1]?.[1]).toBeCloseTo(4.32, 5);
     music.update({ ...playState, gameOver: true });
-    fixtures.context!.currentTime = 8;
+    fixtures.context!.currentTime = 8.44;
+    const rampsBeforeCut = fixtures.bedGainRamp.mock.calls.length;
+    music.update({ ...playState, gameOver: true });
+    expect(fixtures.bedGainRamp).toHaveBeenCalledTimes(rampsBeforeCut);
+    fixtures.context!.currentTime = 8.45;
     music.update({ ...playState, gameOver: true });
     const fadeCalls = fixtures.bedGainRamp.mock.calls;
     expect(fadeCalls[fadeCalls.length - 1]?.[0]).toBe(0);
-    expect(fadeCalls[fadeCalls.length - 1]?.[1]).toBe(11);
+    expect(fadeCalls[fadeCalls.length - 1]?.[1]).toBe(11.45);
+    expect(fixtures.sources[1]?.stop.mock.lastCall?.[0]).toBeCloseTo(11.47, 8);
   });
 });

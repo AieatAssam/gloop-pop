@@ -64,6 +64,20 @@ describe('first input audio initialization', () => {
     expect(musicTarget.mock.lastCall?.[0]).toBeCloseTo(0.1775);
   });
 
+  it('trims the unmuted master to 0.674 and sets it to zero when muted', async () => {
+    const started = { oscillator: 0 };
+    vi.stubGlobal('AudioContext', vi.fn(function () { return fakeAudioContext(started); }));
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => undefined)));
+    const engine = await import('./engine');
+    const graph = engine.initAudioOnFirstInput()!;
+    const masterTarget = vi.spyOn(graph.master.gain, 'setTargetAtTime');
+    expect(graph.master.gain.value).toBe(0.674);
+    engine.setMasterMuted(true);
+    expect(masterTarget).toHaveBeenLastCalledWith(0, 0, 0.01);
+    engine.setMasterMuted(false);
+    expect(masterTarget).toHaveBeenLastCalledWith(0.674, 0, 0.01);
+  });
+
   it('keeps pad/twinkle layers open and steals the oldest pop after six live voices', async () => {
     const started = { oscillator: 0 };
     vi.stubGlobal('AudioContext', vi.fn(function () { return fakeAudioContext(started); }));

@@ -163,7 +163,7 @@ export const music = {
       if (elapsed >= LOOP * 3 - 4) { const fade = Math.max(0, loopEndAt - at); restUntil = loopEndAt + 60; paramRamp(graph.bedGain.gain, 0, at, fade); try { source.stop(loopEndAt); } catch { /* already stopped */ } source = null; setPad(false, fade); }
     }
     if (restUntil > 0 && at >= restUntil && wanted && !next.paused && !next.menu && !next.gameOver) startSource(LOOP_START, 4);
-    if (next.gameOver && gameOverAt >= 0 && at >= gameOverAt + 4 && source) stopSource(3);
+    if (next.gameOver && gameOverAt >= 0 && at >= gameOverAt + 4.45 && source) stopSource(3);
     if (next.tier >= 4 && !next.paused && !next.menu && !next.gameOver && at >= nextTwinkleAt) { playTwinkle(at + 0.005); nextTwinkleAt = at + 0.3 + nextFloat(rng) * 0.4; }
   },
   setTier(value: number): void { if (state) this.update({ ...state, tier: Math.max(0, Math.min(4, Math.floor(value))) as MusicState['tier'] }); },

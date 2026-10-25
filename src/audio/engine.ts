@@ -1,6 +1,9 @@
 import { loadSprite } from './loader';
 import { popVoiceStealIndex, stealCandidate } from './voices';
 
+// spec-note: DynamicsCompressorNode adds automatic makeup gain of (1 / full-range gain)^0.6, which is +3.42 dB at threshold −6, knee 0, ratio 20. This trim cancels it so the limiter stays a safety net (SG §13.8).
+const MASTER_TRIM = 0.674;
+
 // SG §13.8: the limiter is the final safety stage; independent buses keep settings isolated.
 export type VoicePriority = 'ui' | 'deal' | 'coin' | 'pop' | 'place' | 'ladder' | 'stinger';
 export interface AudioGraph {
@@ -77,7 +80,7 @@ export function initAudioOnFirstInput(): AudioGraph | null {
   musicFilter.frequency.value = 1200;
   duckFilter.type = 'lowpass';
   duckFilter.frequency.value = 20000;
-  master.gain.value = muted ? 0 : 1;
+  master.gain.value = muted ? 0 : MASTER_TRIM;
   limiter.threshold.value = -6;
   limiter.knee.value = 0;
   limiter.ratio.value = 20;
@@ -169,7 +172,7 @@ export function applyAudioSettings(): void {
   if (!graph) return;
   const { context } = graph;
   const now = context.currentTime;
-  graph.master.gain.setTargetAtTime(muted ? 0 : 1, now, 0.01);
+  graph.master.gain.setTargetAtTime(muted ? 0 : MASTER_TRIM, now, 0.01);
   graph.sfxBus.gain.setTargetAtTime(sfxEnabled ? sfxVolume ** 2 : 0, now, 0.01);
   graph.musicBus.gain.setTargetAtTime(musicEnabled ? 0.71 * musicVolume ** 2 : 0, now, 0.01);
 }
