@@ -61,7 +61,7 @@ export function createPointerInput(view: BoardView, getLayout: () => Layout, get
       if (snap && (drag.row !== snap.row || drag.col !== snap.col)) {
         const hadTarget = drag.row !== undefined && drag.col !== undefined; drag.ghostScale = reduced ? 1 : hadTarget ? 1.06 : 0.92; drag.ghostRow = snap.row; drag.ghostCol = snap.col;
         if (hadTarget && !reduced && drag.held) { drag.held.x.v += Math.sign(magnetX) * c * 0.02; drag.held.y.v += Math.sign(magnetY) * c * 0.02; }
-        snapChanged = hadTarget && drag.pointerType === 'touch' && Math.hypot(drag.held.velocityX, drag.held.velocityY) <= 8;
+        snapChanged = hadTarget && Math.hypot(drag.held.velocityX, drag.held.velocityY) <= 8;
       } else if (drag.ghostScale !== undefined) drag.ghostScale = 1 + (drag.ghostScale - 1) * Math.max(0, 1 - realDtMs / 90);
       drag.row = snap?.row; drag.col = snap?.col;
       const followRate = drag.selected ? 12 : 7; const damping = drag.selected ? 0.8 : 0.75;

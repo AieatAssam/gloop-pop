@@ -73,6 +73,7 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   ├─ app/
 │   │   ├─ app.ts             # top-level state machine (§5), wires everything
 │   │   ├─ session.ts         # owns current GameState, autosave, resume
+│   │   ├─ demoScenes.ts      # debug-only deterministic capture states for game-feel QA
 │   │   ├─ router.ts          # screen stack + history.pushState
 │   │   └─ clock.ts           # injectable now() for UTC day logic (tests can fake it)
 │   ├─ input/
@@ -99,6 +100,7 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   │   ├─ miniGloop.ts       # small gloop illustrations for DOM cards/badges
 │   │   └─ shareCard.ts       # SG §12
 │   ├─ audio/
+│   │   ├─ movePlan.ts        # pure per-move cue plan released by input/frame callbacks (SG §13.4)
 │   │   ├─ credits.ts          # source and licence metadata for the Credits screen (design §16.4)
 │   │   ├─ manifest.ts         # generated audio paths, sprite offsets, durations and source hashes (SG §13.9, §13.11)
 │   │   ├─ sprite.ts           # pure decoder-delay marker lookup (SG §13.11)

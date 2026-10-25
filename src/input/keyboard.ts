@@ -5,7 +5,7 @@ import type { GameState } from '../core/types';
 import type { BoardView, DragView } from '../render/boardView';
 import type { Layout } from '../render/layout';
 
-export function attachKeyboard(view: BoardView, layout: () => Layout, state: () => GameState, place: (slot: number, row: number, col: number) => void, cancel: () => void, pause: () => void): { drag: () => DragView | undefined } {
+export function attachKeyboard(view: BoardView, layout: () => Layout, state: () => GameState, place: (slot: number, row: number, col: number) => void, cancel: () => void, pause: () => void, onTargetChange?: () => void): { drag: () => DragView | undefined } {
   let slot = -1; let row = 0; let col = 0; let x = 0; let y = 0;
   const onKey = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') { cancel(); slot = -1; pause(); return; }
@@ -14,7 +14,7 @@ export function attachKeyboard(view: BoardView, layout: () => Layout, state: () 
     if (event.key === 'ArrowLeft') col -= 1; else if (event.key === 'ArrowRight') col += 1; else if (event.key === 'ArrowUp') row -= 1; else if (event.key === 'ArrowDown') row += 1;
     else if (event.key === ' ' || event.key === 'Enter') { if (canPlace(state(), slot, row, col)) place(slot, row, col); slot = -1; event.preventDefault(); return; }
     else return;
-    const piece = state().tray[slot]; const def = piece && PIECES[piece.defId]; row = Math.max(0, Math.min(8 - (def?.h ?? 1), row)); col = Math.max(0, Math.min(8 - (def?.w ?? 1), col)); updateXY(); event.preventDefault();
+    const previousRow = row; const previousCol = col; const piece = state().tray[slot]; const def = piece && PIECES[piece.defId]; row = Math.max(0, Math.min(8 - (def?.h ?? 1), row)); col = Math.max(0, Math.min(8 - (def?.w ?? 1), col)); updateXY(); if ((row !== previousRow || col !== previousCol) && canPlace(state(), slot, row, col)) onTargetChange?.(); event.preventDefault();
   };
   window.addEventListener('keydown', onKey);
   return { drag: () => slot < 0 ? undefined : { slot, x, y, pointerType: 'keyboard', selected: true, row, col } };

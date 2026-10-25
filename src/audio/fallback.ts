@@ -20,6 +20,7 @@ export function lastPopVoiceTime(): number { return lastPopAt; }
 
 export const sfx = {
   pickUp(): void { tone({ frequency: 620, endFrequency: 880, duration: 0.07, peak: 0.16 }); },
+  snapTick(): void { tone({ frequency: 1568, duration: 0.012, peak: 0.032, attack: 0.001 }); },
   place(params: { cells?: number } = {}): void {
     const pitch = (0.96 + random() * 0.08) * (1 - 0.03 * Math.max(0, (params.cells ?? 1) - 1));
     tone({ frequency: 240 * pitch, endFrequency: 110 * pitch, duration: 0.09, peak: 0.42, attack: 0.002 });
@@ -29,30 +30,31 @@ export const sfx = {
   invalidHover(): void { /* Silent by design. */ },
   deal(): void { for (let i = 0; i < 3; i += 1) tone({ frequency: 1320, duration: 0.025, peak: 0.07, at: scheduleAt() + i * 0.06 }); },
   lineClear(params: { combo: number; lines?: number; tier?: number }): void {
-    for (let i = 0; i < (params.lines ?? 1); i += 1) {
+    const count = Math.min(5, params.lines ?? 1); const start = Math.min(Math.max(Math.floor(params.combo) - 1, 0), 10);
+    for (let i = 0; i < count; i += 1) {
       const at = scheduleAt() + i * 0.045;
-      const freq = noteFor(params.combo) * 2 ** (i * 2 / 12);
+      const freq = PENTATONIC[Math.min(10, start + i)] ?? PENTATONIC[10];
       tone({ frequency: freq, duration: 0.26, peak: 0.3, wave: 'triangle', attack: 0.004, at });
-      tone({ frequency: freq * 2, duration: 0.2, peak: 0.08, at });
-      noise({ duration: 0.15, peak: 0.1, filterType: 'highpass', frequency: 4000, at });
+      tone({ frequency: freq * 1.25, duration: 0.2, peak: 0.08, at });
     }
+    if (count > 0) noise({ duration: 0.12, peak: 0.063, filterType: 'bandpass', frequency: 3000, at: scheduleAt() });
   },
-  comboHarmony(params: { combo: number; lineIndex?: number }): void {
-    const frequency = noteFor(params.combo) * 2 ** ((params.lineIndex ?? 0) * 2 / 12);
-    tone({ frequency: frequency * 1.5, duration: 0.2, peak: 0.12 });
+  comboHarmony(params: { combo: number; lineIndex?: number; delayMs?: number }): void {
+    const lastRung = Math.min(10, Math.max(0, Math.floor(params.combo) - 1) + (params.lineIndex ?? 0));
+    tone({ frequency: PENTATONIC[Math.min(10, lastRung + 2)]!, duration: 0.2, peak: 10 ** (-20 / 20), at: scheduleAt() + (params.delayMs ?? 0) / 1000 });
   },
-  sparkle(params: { combo: number; lineIndex?: number }): void {
-    const frequency = noteFor(params.combo) * 2 ** ((params.lineIndex ?? 0) * 2 / 12) * 4;
-    for (let ping = 0; ping < 4; ping += 1) tone({ frequency, duration: 0.04, peak: 0.05, at: scheduleAt() + ping * 0.03 });
+  sparkle(params: { combo: number; lineIndex?: number; delayMs?: number }): void {
+    const start = Math.min(10, Math.max(0, Math.floor(params.combo) - 1) + (params.lineIndex ?? 0)); const at = scheduleAt() + (params.delayMs ?? 0) / 1000;
+    for (let ping = 0; ping < 4; ping += 1) tone({ frequency: PENTATONIC[Math.min(10, start + ping)]!, duration: 0.04, peak: 10 ** (-22 / 20), at: at + ping * 0.03 });
   },
-  gloopPop(params: { index?: number } = {}): void {
+  gloopPop(params: { index?: number; base?: number } = {}): void {
     const graph = getAudioGraph(); if (!graph) return;
     const index = params.index ?? popIndex;
     popIndex = Math.max(popIndex, index + 1);
     const now = graph.context.currentTime;
     if (!popVoiceDue(lastPopAt, now)) return;
     lastPopAt = now;
-    const frequency = 380 * 1.045 ** Math.min(index, 30) * 2 ** ((random() * 20 - 10) / 1200);
+    const frequency = 380 * 2 ** (((params.base ?? 0) + Math.min(0.5 * index, 10)) / 12) * 2 ** ((random() * 20 - 10) / 1200);
     tone({ frequency, endFrequency: frequency * 1.6, duration: 0.07, peak: 0.2, attack: 0.002, filter: { type: 'bandpass', frequency, q: 4 } });
   },
   bigPop(params: { combo: number }): void { const at = scheduleAt(); [1, 1.5].forEach((ratio, i) => tone({ frequency: noteFor(params.combo) * ratio, duration: 0.09, peak: 0.18, wave: 'square', at: at + i * 0.09, filter: { type: 'lowpass', frequency: 2200 } })); },

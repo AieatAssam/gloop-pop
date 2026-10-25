@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { comboEscalation, comboTier, createDirector, lineCueSchedule, waveStep } from './director';
+import { burstCallbackStart, comboEscalation, comboTier, createDirector, lineCueSchedule, waveStep } from './director';
 
 describe('M10.1 effect reset', () => {
   it('clears active visual effects and shake immediately on restart', () => {
@@ -36,6 +36,14 @@ describe('SG §9.13.f impact schedule', () => {
     const director = createDirector(); const scheduled: number[] = [];
     director.receive([{ type: 'cleared', rows: [0], cols: [], cells: [0, 1, 2, 3, 4, 5, 6, 7], flavoursByCell: [1, 1, 1, 1, 1, 1, 1, 1] }], 0, true, undefined, undefined, 0, (_at, duration) => scheduled.push(duration));
     expect(scheduled).toEqual([0]);
+  });
+});
+
+describe('SG §13.10 reduced-motion audio callbacks', () => {
+  it('fires burst callbacks at their visual burst frame in either motion mode', () => {
+    const normalPopAt = 90; const reducedPopAt = 150;
+    expect(burstCallbackStart(0, normalPopAt, false) + 70).toBe(normalPopAt);
+    expect(burstCallbackStart(0, reducedPopAt, true) + 70).toBe(reducedPopAt);
   });
 });
 

@@ -7,11 +7,12 @@
  * - playForEvents(events, ctx) translates reducer events into audio cues. `ctx` carries the current
  *   combo tier and optional run facts when the core event list does not include that information.
  */
-import { isMasterMuted, isMusicEnabled, isSfxEnabled, setMasterMuted as setMute, setMusicEnabled as setMusic, setSfxEnabled as setSfx, toggleMasterMuted } from './engine';
+import { getAudioGraph, isMasterMuted, isMusicEnabled, isSfxEnabled, setMasterMuted as setMute, setMusicEnabled as setMusic, setSfxEnabled as setSfx, toggleMasterMuted } from './engine';
 import { music, type MusicTier } from './music';
 import { resetPopSequence, sfx } from './sfx';
 import type { GameEvent } from '../core/types';
 import { PIECES } from '../core/pieces';
+import type { MovePlan } from './movePlan';
 
 export { initAudioOnFirstInput, getAudioGraph } from './engine';
 export { noteFor, PENTATONIC, resetPopSequence, sfx } from './sfx';
@@ -52,39 +53,64 @@ export function toggleMute(): boolean {
 // Restore the top-bar master mute preference without creating an AudioContext.
 try { setMute(localStorage.getItem('gloop-pop:muted') === '1'); } catch { /* Storage can be unavailable. */ }
 
-export function playForEvents(events: readonly AudioEvent[], ctx: AudioEventContext = {}): void {
-  let combo = ctx.combo ?? 1;
-  let tier = ctx.tier ?? 0;
+export function playForEvents(events: readonly AudioEvent[], _ctx: AudioEventContext = {}): void {
   for (const event of events) {
     switch (event.type) {
-      case 'placed': sfx.place({ cells: event.piece.cells.length }); break;
-      case 'cleared': sfx.lineClear({ combo, lines: event.rows.length + event.cols.length, tier }); break;
-      case 'popped': {
-        resetPopSequence();
-        const ordered = event.gloops.flatMap((gloop) => gloop.bfs?.length ? gloop.bfs : gloop.cells);
-        ordered.forEach((_, index) => sfx.gloopPop({ index }));
-        const size = Math.max(0, ...event.gloops.map((gloop) => gloop.size));
-        if (size >= 24) sfx.megaPop({ combo });
-        else if (size >= 15) sfx.hugePop({ combo });
-        else if (size >= 8) sfx.bigPop({ combo });
-        break;
-      }
-      case 'comboUp': combo = event.combo; tier = event.tier as MusicTier; music.setTier(tier); sfx.lineClear({ combo, tier }); break;
-      case 'comboLost': sfx.comboLost(); music.setTier(0); break;
-      case 'allClear': sfx.allClear(); break;
-      case 'stageUp': sfx.stageUp(); break;
+      case 'placed': case 'cleared': case 'popped': case 'comboUp': case 'comboLost': case 'allClear': case 'stageUp': case 'rescueReady': case 'bigGloop': case 'scored': break;
       case 'dealt': sfx.deal(); break;
-      case 'rescued': case 'rescueReady': case 'rescueOffered': sfx.rescue(); break;
+      case 'rescued': sfx.rescue(); break;
+      case 'rescueOffered': break;
       case 'stuck': sfx.stuck(); break;
       case 'gameOver': music.setGameOver(true); break;
       case 'zenShake': sfx.gloopPop(); break;
-      case 'bigGloop': break;
-      case 'scored': combo = event.combo; break;
     }
   }
-  if (ctx.newBest) sfx.newBest();
-  if (ctx.levelUp) sfx.levelUp();
-  if (ctx.achievement) sfx.achievement();
+  if (_ctx.levelUp) sfx.levelUp();
+  if (_ctx.achievement) sfx.achievement();
+}
+
+let lastStingerAt = -Infinity;
+function playStinger(kind: 'allClear' | 'mega' | 'newBest', combo: number): void {
+  const now = getAudioGraph()?.context.currentTime ?? 0;
+  if (now - lastStingerAt < 3) return;
+  lastStingerAt = now;
+  if (kind === 'allClear') sfx.allClearStinger();
+  else if (kind === 'mega') sfx.megaStinger({ combo });
+  else sfx.newBest();
+}
+
+export function onLand(plan: MovePlan): void {
+  if (plan.placeCells > 0) sfx.place({ cells: plan.placeCells });
+  if (plan.comboLost) { sfx.comboLost(); music.setTier(0); }
+  if (!plan.lines && !plan.pops.length) {
+    if (plan.stageUp) sfx.stageUp();
+    if (plan.rescueReady) sfx.rescue();
+    if (plan.stinger === 'newBest') playStinger('newBest', plan.combo);
+  }
+}
+export function onImpact(plan: MovePlan): void {
+  music.setTier(plan.tier as MusicTier);
+  if (plan.lines > 0) {
+    resetPopSequence(); sfx.lineClear({ combo: plan.combo, lines: Math.min(5, plan.lines), tier: plan.tier });
+    const lastLine = Math.min(4, plan.lines - 1);
+    if (plan.tier >= 1) sfx.comboHarmony({ combo: plan.combo, lineIndex: lastLine, delayMs: lastLine * 45 });
+    if (plan.tier >= 2) sfx.sparkle({ combo: plan.combo, lineIndex: lastLine, delayMs: lastLine * 45 + 30 });
+  }
+  if (plan.stageUp) sfx.stageUp();
+  if (plan.rescueReady) sfx.rescue();
+  if (plan.stinger === 'newBest') playStinger('newBest', plan.combo);
+}
+export function onBurst(plan: MovePlan, order: number, _gloopTier: string, isLastOfGloop: boolean): void {
+  if (order % 2 === 0 && order / 2 < 14) sfx.gloopPop({ index: order, base: plan.largestPop >= 24 ? -4 : plan.largestPop >= 15 ? -2 : plan.largestPop >= 8 ? 0 : 2 });
+  if (isLastOfGloop && plan.largestPop >= 8 && plan.largestPop < 15) sfx.bigPop({ combo: plan.combo });
+}
+export function onPopFirst(plan: MovePlan, tier: 'big' | 'huge' | 'mega'): void {
+  sfx.gooPop({ gainDb: tier === 'mega' ? -6 : tier === 'huge' ? -9 : -12, rate: tier === 'mega' ? 0.891 : tier === 'huge' ? 0.944 : 1, delay: tier === 'mega' ? 0.025 : 0 });
+}
+export function onClimax(plan: MovePlan, kind: 'huge' | 'mega' | 'allClear'): void {
+  if (kind === 'allClear' && plan.stinger === 'allClear') playStinger('allClear', plan.combo);
+  else if (kind === 'mega' && plan.stinger === 'mega') playStinger('mega', plan.combo);
+  else if (kind === 'huge') sfx.hugePop({ combo: plan.combo });
 }
 
 export function playGameEvents(events: readonly GameEvent[], ctx: AudioEventContext = {}): void {
