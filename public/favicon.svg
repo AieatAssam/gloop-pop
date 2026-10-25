@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="jelly" x2="0" y2="1"><stop stop-color="mistyrose"/><stop offset=".46" stop-color="crimson"/><stop offset="1" stop-color="darkred"/></linearGradient>
+    <linearGradient id="leaf" x2="1" y2="1"><stop stop-color="palegreen"/><stop offset="1" stop-color="forestgreen"/></linearGradient>
+  </defs>
+  <path d="M34 17c-1-7 2-11 8-14" fill="none" stroke="saddlebrown" stroke-linecap="round" stroke-width="4"/>
+  <path d="M38 8c8-5 14-3 16 2-5 5-11 5-16-2Z" fill="url(#leaf)"/>
+  <path d="M9 29c0-9 10-14 23-14s23 5 23 14v17c0 9-10 14-23 14S9 55 9 46Z" fill="url(#jelly)" stroke="maroon" stroke-width="2"/>
+  <ellipse cx="22" cy="25" rx="7" ry="3" fill="white" opacity=".72"/>
+  <circle cx="24" cy="37" r="2.7" fill="midnightblue"/><circle cx="40" cy="37" r="2.7" fill="midnightblue"/>
+  <path d="M26 45q6 7 12 0" fill="none" stroke="midnightblue" stroke-linecap="round" stroke-width="2.5"/>
+</svg>

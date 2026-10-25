@@ -47,6 +47,14 @@ import { shouldReduceMotion, devicePrefersReducedMotion, canStartSlowMo } from '
 import { vibrate } from '../platform/haptics';
 import { detectFirsts } from '../meta/firsts';
 import { nearMissMessages } from '../core/nearMiss';
+import { tutorialGame } from '../core/tutorial';
+import { newGame } from '../core/game';
+import { drawGhostHand, tutorialHandPoints } from '../render/ghostHand';
+import { createTutorialBubble } from '../ui/tutorialBubble';
+import { createSettingsScreen } from '../ui/screens/settings';
+import { createHowToPlayScreen } from '../ui/screens/howToPlay';
+import { defaultSave } from '../meta/saveSchema';
+import { setColourBlindPatterns } from '../render/gloopRenderer';
 
 export function bootApp(): void {
   const canvas = document.querySelector<HTMLCanvasElement>('#game'); const uiRoot = document.querySelector<HTMLElement>('#ui');
@@ -56,11 +64,14 @@ export function bootApp(): void {
   const syncCosmetics = (): void => setEquippedCosmetics({ theme: save.equipped.theme as keyof typeof PALETTE.theme, skin: skinMap[save.equipped.skin] ?? 'plain', popEffect: save.equipped.pop as PopEffectId });
   syncCosmetics();
   setMasterMuted(save.settings.muted); setSfxEnabled(save.settings.sfx); setMusicEnabled(save.settings.music);
-  let session = createSession({ state: savedRun, best: bestFor(save, savedRun?.mode ?? 'classic'), mode: 'classic' });
+  const beginTutorial = !savedRun && !save.tutorialDone;
+  let session = createSession({ state: savedRun ?? (beginTutorial ? tutorialGame(1) : null), best: bestFor(save, savedRun?.mode ?? 'classic'), mode: 'classic' });
   let runBest = session.best; let runStartedAt = performance.now(); let pauseStartedAt = 0; let runReward = { xp: 0, coins: 0, progress: 0, progressMax: xpToNext(save.profile.level), level: undefined as number | undefined };
   const router = createRouter('play'); const surface = createCanvasSurface(canvas); const background = createBackground(save.equipped.theme as keyof typeof PALETTE.theme); const view = createBoardView(); const director = createDirector();
+  setColourBlindPatterns(save.settings.cbPatterns);
   let backgroundTheme = save.equipped.theme; const ui = createGameUi(uiRoot); const toast = createToasts(uiRoot); const homeHost = document.createElement('div'); uiRoot.append(homeHost);
-  let paused = false; let shownScore = 0; let shownStatus = ''; let runRecorded = false; let comboLostAt = -1; let layout: Layout = computeLayout(window.innerWidth, window.innerHeight); let renderElapsed = 0; let gameOverAt = -1; let saveTimer = 0; let runEvents: GameEvent[] = []; let closeCall = false;
+  let paused = false; let shownScore = 0; let shownStatus = ''; let runRecorded = false; let countedDailyThisRun = false; let comboLostAt = -1; let layout: Layout = computeLayout(window.innerWidth, window.innerHeight); let renderElapsed = 0; let gameOverAt = -1; let saveTimer = 0; let runEvents: GameEvent[] = []; let closeCall = false;
+  let tutorialActive = beginTutorial || savedRun?.mode === 'tutorial' || (!save.tutorialDone && save.ui.seenTips.includes('tutorialStep4Pending')); let tutorialStep = tutorialActive ? (session.state.mode === 'tutorial' ? Math.min(3, session.state.traysDealt) : 4) : 0; let tutorialTouched = false; let tutorialBubbleText = ''; let tutorialBubbleUntil = -1; let tutorialTipForGameOver = false;
   let candyFlameUntil = -1; let candyFlameFlavour = 1; let discoveryCoins = 0;
   let scoreAnimFrom = 0; let scoreAnimStart = 0; let scoreAnimDuration = 600;
   let newBestAt = -1;
@@ -73,6 +84,7 @@ export function bootApp(): void {
   if (activeChallenge) { const clean = new URL(window.location.href); clean.searchParams.delete('beat'); clean.searchParams.delete('f'); history.replaceState(history.state, '', clean); }
   const requestedSkin = query.get('skin'); if (demoFaces && requestedSkin && skinMap[requestedSkin]) setEquippedCosmetics({ theme: save.equipped.theme as keyof typeof PALETTE.theme, skin: skinMap[requestedSkin], popEffect: save.equipped.pop as PopEffectId });
   const topBar = createTopBar(() => goHome(), () => showPause(), () => { initAudioOnFirstInput(); save.settings.muted = !save.settings.muted; setMasterMuted(save.settings.muted); topBar.muteButton.setAttribute('aria-label', save.settings.muted ? S.unmute : S.mute); persist(true); }); uiRoot.append(topBar.element);
+  const tutorialBubble = createTutorialBubble(skipTutorial); if (tutorialActive) uiRoot.append(tutorialBubble.element);
   let audioStarted = false;
   const enableAudio = (): void => { initAudioOnFirstInput(); if (!audioStarted && router.current === 'play') { startMusic(); audioStarted = true; } };
   window.addEventListener('pointerdown', enableAudio, { once: true });
@@ -85,7 +97,7 @@ export function bootApp(): void {
     topBar.element.style.left = `${layout.column.x}px`; topBar.element.style.width = `${layout.column.width}px`; topBar.element.style.top = `${layout.topBar.y}px`; topBar.element.style.height = `${layout.topBar.height}px`;
   };
   resize(); window.addEventListener('resize', resize, { passive: true });
-  canvas.addEventListener('pointerdown', (event) => { enableAudio(); if (router.current !== 'play' || paused || session.state.status !== 'playing') return; const hadDrag = pointer.drag !== undefined; canvas.setPointerCapture(event.pointerId); pointer.pointerDown(event.offsetX, event.offsetY, event.pointerType); if (!hadDrag && pointer.drag) vibrate('pick', save.settings.haptics); });
+  canvas.addEventListener('pointerdown', (event) => { enableAudio(); if (router.current !== 'play' || paused || session.state.status !== 'playing') return; const hadDrag = pointer.drag !== undefined; canvas.setPointerCapture(event.pointerId); pointer.pointerDown(event.offsetX, event.offsetY, event.pointerType); if (!hadDrag && pointer.drag) { vibrate('pick', save.settings.haptics); if (tutorialActive) { tutorialTouched = true; tutorialBubbleText = ''; tutorialBubble.setText(''); } } });
   canvas.addEventListener('pointermove', (event) => { if (router.current === 'play' && session.state.status === 'playing') pointer.pointerMove(event.offsetX, event.offsetY, event.pointerType); });
   canvas.addEventListener('pointerup', (event) => { if (router.current !== 'play' || paused || session.state.status !== 'playing') return; pointer.pointerUp(event.offsetX, event.offsetY, event.pointerType); });
   canvas.addEventListener('pointercancel', () => pointer.cancel());
@@ -102,23 +114,26 @@ export function bootApp(): void {
     if (demoThemes) background.setTheme(THEME_KEYS[Math.floor(elapsedMs / 2400) % THEME_KEYS.length]!, elapsedMs);
     else if (backgroundTheme !== save.equipped.theme) { backgroundTheme = save.equipped.theme; background.setTheme(backgroundTheme as keyof typeof PALETTE.theme, elapsedMs); }
     const ctx = surface.context; ctx.setTransform(surface.dpr, 0, 0, surface.dpr, 0, 0); background.draw(ctx, elapsedMs, layout, session.state.stage);
-    const today = dayKeyFromMs(Date.now()); const pill = save.daily.records[today] ? S.dailyPillDone : save.streak.current >= 2 && new Date().getUTCHours() >= 18 ? S.dailyKeepStreak(save.streak.current) : S.daily(dayNumber(today)); if (topBar.dailyPill.textContent !== pill) topBar.dailyPill.textContent = pill;
+    const today = dayKeyFromMs(Date.now()); const pill = save.daily.records[today] ? S.dailyPillDone : save.streak.current >= 2 && new Date().getUTCHours() >= 18 ? S.dailyKeepStreak(dayNumber(today), save.streak.current) : S.daily(dayNumber(today)); if (topBar.dailyPill.textContent !== pill) topBar.dailyPill.textContent = pill;
     const isPlay = router.current === 'play'; topBar.element.style.display = isPlay ? 'flex' : 'none';
+    topBar.dailyPill.classList.toggle('is-at-risk', save.streak.current >= 2 && !save.daily.records[today] && new Date().getUTCHours() >= 18);
     if (isPlay && !demoBg) {
       const reduced = reducedForFrame;
       const shake = director.shakeOffset(); const shakeScale = layout.portrait ? 1 : 1.4; ctx.save(); ctx.translate(shake.x * shakeScale, shake.y * shakeScale);
       view.draw(ctx, layout, session.state, elapsedMs, paused ? undefined : pointer.drag ?? keyboard.drag(), demoBoard ? 'board' : demoFaces ? 'faces' : '', gameOverAt); director.draw(ctx, layout, elapsedMs, reduced); ctx.restore();
       if (paused) { ctx.fillStyle = PALETTE.ui.scrim; ctx.fillRect(0, 0, layout.width, layout.height); }
       shownScore = drawHud(ctx, layout, session.state, session.best, elapsedMs, shownScore, comboLostAt, activeChallenge?.score, candyFlameUntil, candyFlameFlavour, reduced, scoreAnimFrom, scoreAnimStart, scoreAnimDuration, newBestAt, flameBreakAt, comboPulseAt, scoreSparkleAt);
+      if (tutorialActive && tutorialStep < 4 && !tutorialTouched) { const target = tutorialStep === 1 ? { row: 6, col: 6, width: 2 } : tutorialStep === 2 ? { row: 6, col: 3, width: 1 } : { row: 4, col: 6, width: 2 }; const cells = tutorialStep === 2 ? [[0, 0], [1, 0]] as const : [[0, 0], [0, 1]] as const; const hand = tutorialHandPoints(layout.board, layout.tray, layout.cellSize, target.row, target.col, target.width); drawGhostHand(ctx, elapsedMs, hand.from, hand.to, layout.cellSize, cells); }
       if (debug) drawDebug(ctx, layout, surface.dpr, dtMs);
     }
+    updateTutorial(elapsedMs);
     updateOverlay();
     }, (elapsed) => surface.reportFrame(elapsed));
 
   function apply(action: Action): void {
     if (renderLoop.isHitStopped()) { queuedActions.push(action); return; }
     const filledBeforeResolve = action.type === 'place' ? session.state.board.filter((cell) => cell > 0).length + (PIECES[session.state.tray[action.slot]?.defId ?? -1]?.cells.length ?? 0) : 0;
-    const scoreBefore = session.state.score; const events = session.dispatch(action); if (session.state.score > scoreBefore) { scoreAnimFrom = shownScore; scoreAnimStart = renderElapsed; scoreAnimDuration = Math.min(600, 150 + (session.state.score - scoreBefore) / 10); if (session.state.score - scoreBefore >= 1000) scoreSparkleAt = scoreAnimStart + scoreAnimDuration; } if (action.type === 'place' && filledBeforeResolve >= 52 && events.some((event) => event.type === 'cleared')) closeCall = true; runEvents.push(...events);
+    const scoreBefore = session.state.score; const events = session.dispatch(action); if (action.type === 'place' && tutorialActive && events.some((event) => event.type === 'placed')) advanceTutorial(); if (session.state.score > scoreBefore) { scoreAnimFrom = shownScore; scoreAnimStart = renderElapsed; scoreAnimDuration = Math.min(600, 150 + (session.state.score - scoreBefore) / 10); if (session.state.score - scoreBefore >= 1000) scoreSparkleAt = scoreAnimStart + scoreAnimDuration; } if (action.type === 'place' && filledBeforeResolve >= 52 && events.some((event) => event.type === 'cleared')) closeCall = true; runEvents.push(...events);
     const reduced = shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion());
     if (events.length) { const passedBest = runBest > 0 && scoreBefore <= runBest && session.state.score > runBest; playGameEvents(events, { combo: session.state.combo, newBest: passedBest }); director.receive(events, renderElapsed, reduced, session.state, layout); view.receive(events, renderElapsed, session.state); if (action.type === 'place') { const lineCount = events.reduce((sum, event) => sum + (event.type === 'cleared' ? event.rows.length + event.cols.length : 0), 0); const peak = events.reduce((size, event) => event.type === 'popped' ? Math.max(size, ...event.gloops.map((gloop) => gloop.size)) : size, 0); const stuck = events.some((event) => event.type === 'stuck'); const mega = events.some((event) => event.type === 'allClear') || peak >= 24; vibrate(stuck ? 'stuck' : mega ? 'mega' : peak >= 8 ? 'big' : lineCount >= 2 ? 'line2' : lineCount === 1 ? 'line1' : 'place', save.settings.haptics); }
       const scored = events.find((event) => event.type === 'scored'); if (scored?.type === 'scored' && scored.points >= 2000) candyFlameUntil = renderElapsed + 1500;
@@ -146,10 +161,29 @@ export function bootApp(): void {
     paused = false; setAudioPaused(false); ui.hide(); persist(false);
     if (session.state.status === 'over') { if (gameOverAt < 0) gameOverAt = renderElapsed; finishRun(); }
   }
+  function skipTutorial(): void { if (!tutorialActive) return; tutorialActive = false; tutorialBubble.element.remove(); save.tutorialDone = true; save.ui.seenTips = save.ui.seenTips.filter((tip) => tip !== 'tutorialStep4Pending'); save.inProgress = null; start('classic'); persist(true); }
+  function updateTutorial(elapsed: number): void {
+    if (!tutorialBubble.element.isConnected) return;
+    if (!tutorialActive) { if (tutorialBubbleText === S.tutorialEnd && tutorialBubbleUntil >= 0 && elapsed >= tutorialBubbleUntil) { tutorialBubbleText = ''; tutorialBubble.setText(''); tutorialBubble.element.remove(); } return; }
+    if (tutorialBubbleUntil >= 0 && elapsed < tutorialBubbleUntil) return;
+    const text = tutorialStep === 1 && elapsed < 300 ? '' : tutorialStep === 1 ? S.tutorialStep1 : tutorialStep === 2 ? S.tutorialStep2 : tutorialStep === 3 ? S.tutorialStep3 : activeChallenge ? S.tutorialChallenge(activeChallenge.score) : S.tutorialStep4;
+    if (tutorialStep === 4 && session.state.moves >= 2) { tutorialBubbleText = ''; tutorialBubble.setText(''); if (session.state.moves >= 3) { tutorialActive = false; save.tutorialDone = true; save.ui.seenTips = save.ui.seenTips.filter((tip) => tip !== 'tutorialStep4Pending'); if (!save.ui.seenTips.includes('tutorialTipPending')) save.ui.seenTips.push('tutorialTipPending'); tutorialBubbleText = S.tutorialEnd; tutorialBubble.setText(tutorialBubbleText); tutorialBubbleUntil = elapsed + 2000; persist(true); } return; }
+    if (tutorialBubbleText !== text) { tutorialBubbleText = text; tutorialBubble.setText(text); }
+    tutorialBubble.place(layout.tray.y, layout.tray.x + layout.tray.width / 2);
+  }
+  function advanceTutorial(): void {
+    const current = session.state;
+    if (tutorialStep <= 3) {
+      const feedback = tutorialStep === 1 ? S.tutorialClear : tutorialStep === 2 ? S.tutorialTwo : S.tutorialBig;
+      if (tutorialStep < 3) { const next = tutorialGame((tutorialStep + 1) as 2 | 3); next.score = current.score; next.stats = { ...current.stats }; next.linesCleared = current.linesCleared; next.bestCombo = current.bestCombo; next.combo = current.combo; next.fuse = current.fuse; session.replace(next); tutorialStep += 1; tutorialBubbleUntil = renderElapsed + 1200; tutorialBubbleText = feedback; tutorialBubble.setText(feedback); }
+      else { const next = newGame('classic', 'tutorial/first-run').state; next.score = current.score; next.stats = { ...current.stats }; next.linesCleared = current.linesCleared; next.bestCombo = current.bestCombo; next.combo = current.combo; next.fuse = current.fuse; next.moves = 0; session.replace(next); tutorialStep = 4; tutorialBubbleUntil = -1; if (!save.ui.seenTips.includes('tutorialStep4Pending')) save.ui.seenTips.push('tutorialStep4Pending'); tutorialBubbleText = activeChallenge ? S.tutorialChallenge(activeChallenge.score) : S.tutorialStep4; tutorialBubble.setText(tutorialBubbleText); }
+      tutorialTouched = false; persist(true); return;
+    }
+  }
   function start(mode: ModeId): void {
     const savedForMode = mode === 'daily' ? save.dailyInProgress : save.inProgress?.mode === mode ? save.inProgress : null;
     const resume = session.state.mode === mode && session.state.status === 'playing';
-    if (!resume) { runBest = bestFor(save, mode); session = createSession({ state: savedForMode, best: runBest, mode }); runStartedAt = performance.now(); runRecorded = false; runEvents = []; closeCall = false; shownScore = 0; scoreAnimFrom = 0; scoreAnimStart = renderElapsed; scoreAnimDuration = 600; newBestAt = -1; flameBreakAt = -1; comboPulseAt = -1; scoreSparkleAt = -1; shownStatus = ''; comboLostAt = -1; gameOverAt = -1; newBestShown = false; discoveryCoins = 0; }
+    if (!resume) { runBest = bestFor(save, mode); session = createSession({ state: savedForMode, best: runBest, mode }); runStartedAt = performance.now(); runRecorded = false; countedDailyThisRun = false; runEvents = []; closeCall = false; shownScore = 0; scoreAnimFrom = 0; scoreAnimStart = renderElapsed; scoreAnimDuration = 600; newBestAt = -1; flameBreakAt = -1; comboPulseAt = -1; scoreSparkleAt = -1; shownStatus = ''; comboLostAt = -1; gameOverAt = -1; newBestShown = false; discoveryCoins = 0; }
     else if (pauseStartedAt > 0) { runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; }
     paused = false; setAudioPaused(false); if (audioStarted) startMusic(); ui.hide(); router.open('play'); persist(false);
   }
@@ -182,12 +216,14 @@ export function bootApp(): void {
     save = recordRun(save, completed); if (practiceDaily) { save.daily = dailyBefore; save.stats.dailiesFinished = dailiesBefore; }
     save.stats.timePlayedMs += Math.max(0, Math.floor(performance.now() - runStartedAt)); const reward = rewardsForRun(save, summarizeRun(completed, runEvents), false); save = reward.save;
     if (completed.mode === 'daily' && completed.moves > 0 && !save.daily.records[todayKey]) {
+      countedDailyThisRun = true;
       save = recordDaily(save, completed, todayKey, runEvents); const streakUpdate = updateStreak(save, todayKey); save = streakUpdate.save; save.daily.records[todayKey]!.freezeUsed = streakUpdate.freezeUsed;
       if (streakUpdate.freezeUsed > 0) toast.show(S.freezeSaved(save.streak.current)); else if (streakUpdate.endedAt > 0) toast.show(S.streakEnded(streakUpdate.endedAt));
       if (streakMilestone(save.streak.current) && save.settings.reducedMotion !== 'on') { renderLoop.setTimeScale(0); window.setTimeout(() => renderLoop.setTimeScale(1), 70); }
       save.profile.xp += 100; save.profile.coins += 30; save.profile.coinsEarned += 30;
     }
     save.inProgress = null; if (completed.mode === 'daily') save.dailyInProgress = null;
+    if (save.ui.seenTips.includes('tutorialTipPending')) { save.ui.seenTips = save.ui.seenTips.filter((tip) => tip !== 'tutorialTipPending'); tutorialTipForGameOver = true; }
     const achievementResult = grantAchievements(save, { mode: completed.mode, score: completed.score, rescueUsed: completed.rescue.used, closeCall, rescuedLine: rescueClearWithinThree(runEvents), events: runEvents, friendBeaten: challengeBeaten }); save = achievementResult.save;
     const lastLevel = reward.levels[reward.levels.length - 1]; runReward = { xp: reward.xp, coins: reward.coins, progress: Math.max(0, save.profile.xp - totalXpForLevel(save.profile.level)), progressMax: xpToNext(save.profile.level), level: lastLevel };
     runReward.coins += discoveryCoins;
@@ -197,17 +233,19 @@ export function bootApp(): void {
     const status = session.state.status; if (status === 'over' && gameOverAt >= 0 && renderElapsed - gameOverAt < 450) return; if (status === shownStatus) return; shownStatus = status;
     if (status === 'over') {
       finishRun();
+      // spec-note: A counted Daily goes straight to the existing full result screen, whose Practice, Share, and Home actions satisfy the Daily game-over actions in design §13.3.
+      if (countedDailyThisRun) { router.open('dailyResult'); return; }
       paused = false; const summary = summarizeRun(session.state, runEvents); const challengeMode = session.state.mode === 'classic' || session.state.mode === 'expert';
       const challengeText = (): void => { const flavor = summary.biggestGloop?.flavour ?? 1; const url = `${location.host}${import.meta.env.BASE_URL.replace(/\/$/, '')}/?beat=${session.state.score}&f=${flavourName(flavor as 1 | 2 | 3 | 4 | 5 | 6 | 7)}`; const text = buildChallengeText({ score: session.state.score, biggestPop: session.state.stats.biggestPop, bestCombo: session.state.bestCombo, flavour: flavor as 1 | 2 | 3 | 4 | 5 | 6 | 7 }, session.state.mode === 'expert' ? 'expert' : 'classic', url); void shareText(text, () => toast.show(S.copied)); };
       const weeklyId = WEEKLY_POOL[((save.weekly.weekIndex % WEEKLY_POOL.length) + WEEKLY_POOL.length) % WEEKLY_POOL.length]!; const weeklyTarget = WEEKLY_TARGETS[weeklyId];
       const nearAchievement = ACHIEVEMENTS.filter((def) => !save.achievements[def.id]).map((def) => { const progress = achievementProgress(def.id, save); return { remaining: Math.max(0, progress.target - progress.current), target: progress.target, name: S.achievementName(def.id), unit: S.achievementUnit(def.id) }; }).filter((entry) => entry.remaining <= entry.target * 0.2).sort((a, b) => a.remaining - b.remaining)[0];
       const near = nearMissMessages(session.state, runBest, session.state.stats.biggestPop, session.state.linesCleared, { xpRemaining: save.profile.level < 50 ? totalXpForLevel(save.profile.level + 1) - save.profile.xp : undefined, level: save.profile.level + 1, levelCost: save.profile.level < 50 ? xpToNext(save.profile.level) : undefined, weeklyRemaining: Math.max(0, weeklyTarget - save.weekly.progress), weeklyTarget, achievement: nearAchievement });
       const noteLines = near.map((item) => item.kind === 'newBest' ? S.nearNewBest(item.amount) : item.kind === 'bestShort' ? S.nearBestShort(item.amount) : item.kind === 'piece' ? S.nearPiece(S.shapeName(item.shape ?? 'dot')) : item.kind === 'line' ? S.nearLine(item.lineKind ?? 'row', (item.index ?? 0) + 1) : item.kind === 'xp' ? S.nearXp(item.amount, item.level ?? 1) : item.kind === 'weekly' ? S.nearWeekly(item.amount) : item.kind === 'achievement' ? S.nearAchievement(item.amount, item.unit ?? 'more', item.name ?? '') : S.nearFallback(session.state.stats.biggestPop, session.state.linesCleared));
-      const note = activeChallenge && challengeMode ? session.state.score > activeChallenge.score ? S.beatFriendBy(session.state.score - activeChallenge.score) : S.shortOfFriend(activeChallenge.score - session.state.score) : noteLines.join('\n');
+      const challengeNote = activeChallenge && challengeMode ? session.state.score > activeChallenge.score ? S.beatFriendBy(session.state.score - activeChallenge.score) : S.shortOfFriend(activeChallenge.score - session.state.score) : noteLines.join('\n'); const note = tutorialTipForGameOver ? `${challengeNote}${challengeNote ? '\n' : ''}${S.tutorialTip}` : challengeNote; tutorialTipForGameOver = false;
       const classicImage = (): void => { void import('../render/shareCard').then(({ renderShareCard }) => { const canvasCard = renderShareCard({ title: S.classic, date: '', score: session.state.score, combo: session.state.bestCombo, biggestPop: session.state.stats.biggestPop, lines: session.state.linesCleared, streak: 0, theme: save.equipped.theme as keyof typeof PALETTE.theme, board: session.state.board, biggestGloop: summary.biggestGloop ?? undefined }); canvasCard.toBlob((blob) => { if (blob) void shareImage(blob, `gloop-pop-classic-${session.state.score}.png`); }); }); };
       setAudioPaused(false);
       const endedBy = runEvents.find((event) => event.type === 'gameOver'); const gameOverTitle = session.state.mode === 'daily' ? endedBy?.type === 'gameOver' && endedBy.reason === 'traysDone' ? S.allTraysPlaced : S.dailyRunDone(session.state.daily?.dayNumber ?? 1) : S.noRoom;
-      ui.showGameOver(() => restart(), () => { ui.hide(); router.open('home'); }, session.state.score, session.state.mode === 'zen' ? null : runBest, S.gameOverFallback(session.state.stats.biggestPop, session.state.linesCleared), runReward, summary, challengeMode ? challengeText : undefined, challengeMode ? classicImage : undefined, note, gameOverTitle);
+      ui.showGameOver(() => restart(), () => { ui.hide(); router.open('home'); }, session.state.score, session.state.mode === 'zen' ? null : runBest, S.gameOverFallback(session.state.stats.biggestPop, session.state.linesCleared), runReward, summary, challengeMode ? challengeText : undefined, challengeMode ? classicImage : undefined, note, gameOverTitle, session.state.mode === 'daily' ? () => router.open('dailyResult') : undefined);
     } else if (status === 'rescueOffer') ui.showRescue(() => apply({ type: 'useRescue' }), () => apply({ type: 'declineRescue' }));
     else if (!paused) ui.hide();
   }
@@ -223,12 +261,14 @@ export function bootApp(): void {
     const startSlow = (): void => { renderLoop.setTimeScale(0.35); window.setTimeout(() => renderLoop.rampTimeScale(1, 200), 450); };
     if (afterHitStop) window.setTimeout(startSlow, 70); else startSlow();
   }
-  function renderScreen(screen: 'home' | 'stats' | 'play' | 'collection' | 'achievements' | 'dailyResult'): void {
+  function renderScreen(screen: 'home' | 'stats' | 'play' | 'collection' | 'achievements' | 'dailyResult' | 'settings' | 'howToPlay'): void {
     homeHost.replaceChildren(); ui.hide();
-    if (screen === 'home') { homeHost.append(createHomeScreen(save, { play: start, dailyResult: () => router.open('dailyResult'), stats: () => router.open('stats'), collection: () => router.open('collection'), achievements: () => router.open('achievements'), settings: () => undefined, howToPlay: () => undefined, debugXp: () => { const result = grantXp(save, 5000); save = result.save; saveNow(save); for (const level of result.levels) toast.show(S.levelUp(level)); for (const item of result.unlocked) toast.show(S.unlocked(item)); renderScreen('home'); } }, debug, activeChallenge ?? undefined)); }
+    if (screen === 'home') { homeHost.append(createHomeScreen(save, { play: start, dailyResult: () => router.open('dailyResult'), stats: () => router.open('stats'), collection: () => router.open('collection'), achievements: () => router.open('achievements'), settings: () => router.open('settings'), howToPlay: () => router.open('howToPlay'), debugXp: () => { const result = grantXp(save, 5000); save = result.save; saveNow(save); for (const level of result.levels) toast.show(S.levelUp(level)); for (const item of result.unlocked) toast.show(S.unlocked(item)); renderScreen('home'); } }, debug, activeChallenge ?? undefined)); }
     else if (screen === 'stats') { paused = false; homeHost.append(createStatsScreen(save, () => router.back())); }
     else if (screen === 'collection') { paused = false; homeHost.append(createCollectionScreen(save, () => router.back(), (next) => { save = next; syncCosmetics(); backgroundTheme = ''; saveNow(save); })); }
     else if (screen === 'achievements') { paused = false; homeHost.append(createAchievementsScreen(save, () => router.back())); }
+    else if (screen === 'settings') { paused = false; homeHost.append(createSettingsScreen(save, { change: (key, value) => { save.settings[key] = value; if (key === 'sfx') setSfxEnabled(value); else if (key === 'music') setMusicEnabled(value); else if (key === 'cbPatterns') setColourBlindPatterns(value); saveNow(save); }, reduce: (value) => { save.settings.reducedMotion = value; saveNow(save); }, replay: () => { save.tutorialDone = false; save.ui.seenTips = save.ui.seenTips.filter((tip) => tip !== 'tutorialStep4Pending' && tip !== 'tutorialTipPending'); runBest = bestFor(save, 'classic'); session = createSession({ state: tutorialGame(1), best: runBest }); runEvents = []; runRecorded = false; countedDailyThisRun = false; runStartedAt = performance.now(); gameOverAt = -1; shownStatus = ''; shownScore = 0; tutorialActive = true; tutorialStep = 1; tutorialTouched = false; tutorialBubbleText = ''; tutorialBubbleUntil = -1; save.inProgress = session.state; if (!tutorialBubble.element.isConnected) uiRoot?.append(tutorialBubble.element); saveNow(save); router.open('play'); }, reset: () => { save = defaultSave(Date.now()); saveNow(save); window.location.reload(); }, back: () => router.back() })); }
+    else if (screen === 'howToPlay') { paused = false; homeHost.append(createHowToPlayScreen(() => router.back())); }
     else if (screen === 'dailyResult') {
       paused = false; const key = dayKeyFromMs(Date.now()); const result = dailyResult(save, key);
       if (!result) { router.open('home'); return; }

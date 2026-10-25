@@ -10,4 +10,9 @@ describe('session restore', () => {
     expect(restored.state).toEqual(saved); expect(restored.best).toBe(1000);
   });
   it.each(['zen', 'expert'] as const)('starts %s with that mode configuration', (mode) => { expect(createSession({ mode }).state.mode).toBe(mode); });
+  it('replaces the active state when a scripted flow advances', () => {
+    const session = createSession({ mode: 'classic' }); const replacement = newGame('tutorial', 'step-two').state;
+    session.replace(replacement);
+    expect(session.state).toBe(replacement);
+  });
 });
