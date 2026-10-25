@@ -1,0 +1,366 @@
+# Gloop Pop: Architecture
+
+Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/art/style-guide.md` (the look). This file says where code goes and how parts talk.
+
+## 1. Principles
+1. **Pure deterministic core.** `src/core` has no DOM, no `Date.now()`, no `Math.random()`, no timers. Same seed + same actions = same result on every device. All rules are integers.
+2. **Events out, actions in.** The core takes actions and returns a new state plus a list of events. Rendering, audio, haptics, meta progression and UI react to events. They never change core state directly.
+3. **The core never waits for animations.** A move resolves instantly; animations are a visual replay of events (R4 in docs/research/virality.md, SG §9.4 point 6).
+4. **One canvas for the game, DOM for menus.** Canvas2D, no game engine, no runtime dependencies besides the two font packages.
+5. **Colours only from `src/render/palette.ts`. Strings only from `src/ui/strings.ts`.**
+6. **Small:** JS < 150 KB gzipped total (target < 90 KB).
+
+## 2. Stack
+- Vite 5+ (or current major), TypeScript 5 with `"strict": true`, `"noUncheckedIndexedAccess": true`, `"exactOptionalPropertyTypes": false`, `"noImplicitOverride": true`, target ES2020, module ESNext, `moduleResolution: "bundler"`.
+- Vitest (environment `node` for core/meta; `jsdom` only for the few UI tests that need it).
+- ESLint 9 flat config with `typescript-eslint` (recommended-type-checked for `src/`), plus the custom restrictions in §12.
+- Runtime dependencies: `@fontsource/baloo-2`, `@fontsource/nunito`. Nothing else. Dev dependencies: vite, typescript, vitest, jsdom, eslint, typescript-eslint, @eslint/js, globals.
+- Node ≥ 20 for tools.
+
+## 3. Folder layout
+```
+/
+├─ AGENTS.md
+├─ index.html                 # canvas + #ui root, OG/meta tags, manifest link
+├─ vite.config.ts             # base '/gloop-pop/', sw plugin (§11.1)
+├─ tsconfig.json, eslint.config.js, package.json
+├─ public/
+│   ├─ favicon.svg, icon-192.png, icon-512.png, icon-maskable-512.png, apple-touch-icon.png, og.png  (generated, committed)
+│   └─ manifest.webmanifest
+├─ tools/
+│   ├─ gen-palette.mjs        # palette.json -> src/render/palette.ts
+│   ├─ raster.mjs             # tiny pure-JS rasteriser + PNG encoder (zlib) for icons/OG
+│   ├─ gen-icons.mjs          # writes public/*.png
+│   ├─ check-size.mjs         # fails if dist JS gz > 150 KB
+│   ├─ check-no-hex.mjs       # fails if any hex colour literal outside palette.ts (src/**/*.ts, *.css, index.html)
+│   └─ sim.mjs → runs src/core/sim via vite-node or tsx-free approach (see §9.3)
+├─ docs/ (design, style guide, palette.json, architecture, milestones, research)
+├─ src/
+│   ├─ main.ts                # boot: fonts, save load, CSS vars, app start
+│   ├─ core/                  # PURE. No DOM. No time. No Math.random.
+│   │   ├─ types.ts           # Flavour, PieceDef, Piece, Board, GameState, Action, GameEvent, ModeId
+│   │   ├─ hash.ts            # cyrb128
+│   │   ├─ rng.ts             # sfc32: create, next, nextInt, pick, weightedPick, clone, serialise
+│   │   ├─ board.ts           # Uint8Array(64) helpers, fits, place, fullLines, filledCount
+│   │   ├─ pieces.ts          # catalogue (design §7.1), families, cell counts, shape names
+│   │   ├─ gloops.ts          # connected components, largest square (face box) — shared with render
+│   │   ├─ resolve.ts         # design §3.5: placement resolution → ResolveResult
+│   │   ├─ scoring.ts         # design §5 and §6 formulas
+│   │   ├─ stages.ts          # stage thresholds, weight tables, flavour counts, F2 p
+│   │   ├─ solver.ts          # can-place-all-3 DFS with budget
+│   │   ├─ generator.ts       # tray dealing with F1–F4
+│   │   ├─ modes.ts           # ModeConfig for classic/expert/zen/daily
+│   │   ├─ daily.ts           # dayKey, dayNumber, seeds, daily start board + 30 trays, flavour of the day
+│   │   ├─ weekly.ts          # weekIndex, goal for week
+│   │   ├─ game.ts            # newGame(config, seed) and step(state, action) → { state, events }
+│   │   ├─ nearMiss.ts        # design §13.4 board-derived facts (piece 1-cell-short, line 1 from full)
+│   │   ├─ shareText.ts       # design §10.6 (pure: takes a DailyRecord + streak + host)
+│   │   ├─ tutorial.ts        # scripted boards/trays for design §16.2
+│   │   └─ sim.ts             # greedy bot + batch runner (used by tests and tools/sim)
+│   ├─ meta/                  # PURE logic on the save object (no DOM); persisted by platform/storage
+│   │   ├─ saveSchema.ts      # SaveV1 type, defaultSave(), CURRENT_VERSION
+│   │   ├─ migrate.ts         # migrations[], migrate(raw) → SaveVn
+│   │   ├─ progression.ts     # xpToNext, addXp → level-ups, stars, run rewards
+│   │   ├─ catalogue.ts       # themes, skins, pop effects, prices and unlock rules (design §14)
+│   │   ├─ achievements.ts    # 40 defs + evaluate(events/runSummary/save) → unlocked ids
+│   │   ├─ stats.ts           # lifetime stat accumulation from run summaries
+│   │   ├─ streak.ts          # design §11
+│   │   ├─ weeklyGoal.ts      # progress accounting and claim (design §12)
+│   │   ├─ dailyRecord.ts     # store counted daily results, last 60 days
+│   │   └─ runSummary.ts      # fold GameEvents of a run into a RunSummary
+│   ├─ app/
+│   │   ├─ app.ts             # top-level state machine (§5), wires everything
+│   │   ├─ session.ts         # owns current GameState, autosave, resume
+│   │   ├─ router.ts          # screen stack + history.pushState
+│   │   └─ clock.ts           # injectable now() for UTC day logic (tests can fake it)
+│   ├─ input/
+│   │   ├─ pointer.ts         # pointer events → drag model (SG §8.3)
+│   │   └─ keyboard.ts        # keys 1/2/3, arrows, space, esc, M, R
+│   ├─ render/
+│   │   ├─ palette.ts         # GENERATED
+│   │   ├─ colour.ts          # withAlpha, mix (only helpers allowed)
+│   │   ├─ easing.ts          # SG §9.0
+│   │   ├─ canvas.ts          # DPR setup, resize, adaptive DPR
+│   │   ├─ layout.ts          # SG §15 (pure, tested)
+│   │   ├─ loop.ts            # rAF loop, dt, timeScale (slow-mo)
+│   │   ├─ background.ts      # SG §7, themes §14
+│   │   ├─ silhouette.ts      # SG §5.1 path builder (pure geometry, tested)
+│   │   ├─ gloopRenderer.ts   # SG §5.2–5.4 into caches
+│   │   ├─ face.ts            # SG §6 faces, expressions, toppers, skins
+│   │   ├─ boardView.ts       # board layer, animated cells, ghost/previews
+│   │   ├─ trayView.ts        # tray slots, deal animation, dragged piece
+│   │   ├─ hudView.ts         # score, best, combo meter (canvas parts)
+│   │   ├─ director.ts        # turns GameEvents into timed animations/fx/sfx cues (SG §9)
+│   │   ├─ fx/particles.ts, fx/shake.ts, fx/texts.ts, fx/tweens.ts, fx/pool.ts
+│   │   ├─ ghostHand.ts       # tutorial hand (SG §11.10)
+│   │   ├─ miniGloop.ts       # small gloop illustrations for DOM cards/badges
+│   │   └─ shareCard.ts       # SG §12
+│   ├─ audio/
+│   │   ├─ engine.ts          # context unlock, buses, compressor, voice limiter
+│   │   ├─ synth.ts           # osc/noise/envelope helpers
+│   │   ├─ sfx.ts             # SG §13.2 recipes
+│   │   └─ music.ts           # SG §13.3
+│   ├─ ui/
+│   │   ├─ strings.ts         # EVERY player-facing string (design §16.4–16.5, §15)
+│   │   ├─ cssVars.ts         # PALETTE → CSS custom properties on :root
+│   │   ├─ styles.css         # uses var(--…) only, no hex
+│   │   ├─ dom.ts             # h() element helper, no framework
+│   │   ├─ icons.ts           # SVG path strings
+│   │   ├─ topBar.ts, pauseOverlay.ts, rescuePanel.ts, gameOverPanel.ts, toasts.ts, tutorialBubble.ts
+│   │   └─ screens/home.ts, collection.ts, achievements.ts, stats.ts, settings.ts, howToPlay.ts, dailyResult.ts
+│   └─ platform/
+│       ├─ storage.ts         # localStorage wrapper with try/catch + in-memory fallback
+│       ├─ share.ts           # navigator.share / clipboard / download
+│       ├─ haptics.ts         # SG §16
+│       ├─ visibility.ts      # pause + save on hidden
+│       ├─ motion.ts          # prefers-reduced-motion
+│       └─ sw.ts              # service worker registration (prod only)
+   (tests are colocated: `foo.ts` → `foo.test.ts` in the same folder; fixtures in `src/**/fixtures/`)
+```
+
+## 4. Core
+
+### 4.1 Key types (`src/core/types.ts`)
+```ts
+export type Flavour = 1 | 2 | 3 | 4 | 5 | 6 | 7;           // design §3.2
+export type Cell = 0 | Flavour;
+export type Board = Uint8Array;                               // length 64, index r*8+c
+export interface PieceDef { id: number; family: FamilyId; cells: readonly (readonly [number, number])[]; w: number; h: number; }
+export interface Piece { defId: number; flavour: Flavour; }
+export type ModeId = 'classic' | 'expert' | 'zen' | 'daily' | 'tutorial';
+export interface RngState { a: number; b: number; c: number; d: number; }
+export interface GameState {
+  v: 1;
+  mode: ModeId;
+  seed: string;                 // classic: random hex; daily: seedString
+  rng: RngState;                // tray stream
+  board: number[];              // 64 numbers (serialisable). Converted to Uint8Array inside helpers.
+  tray: (Piece | null)[];       // length 3
+  traysDealt: number;
+  score: number;
+  combo: number; fuse: number; bestCombo: number;
+  stage: number;                // 1..6
+  linesCleared: number;
+  rescue: { charge: number; ready: boolean; used: boolean };   // charge counts lines up to 10
+  daily?: { dayNumber: number; dayKey: string; flavourOfDay: Flavour; trays: Piece[][]; trayLines: number[]; traySpecial: boolean[] };
+  status: 'playing' | 'stuck' | 'rescueOffer' | 'over';
+  moves: number;
+  stats: RunStats;              // placements, pops, biggestPop, allClears, bigPops, hugePops, megaPops, multiClears, ...
+}
+export type Action =
+  | { type: 'place'; slot: 0 | 1 | 2; row: number; col: number }
+  | { type: 'useRescue' } | { type: 'declineRescue' }
+  | { type: 'endRun' }          // zen end, daily give up
+export type GameEvent =
+  | { type: 'placed'; slot: number; piece: Piece; cells: number[]; mergedInto: number[] }
+  | { type: 'cleared'; rows: number[]; cols: number[]; cells: number[]; flavoursByCell: number[] }
+  | { type: 'popped'; gloops: { flavour: Flavour; size: number; cells: number[]; bfs: number[] }[] }
+  | { type: 'scored'; points: number; parts: ScoreParts; combo: number; mult: number }
+  | { type: 'comboUp'; combo: number; tier: number } | { type: 'comboLost'; combo: number }
+  | { type: 'allClear' } | { type: 'stageUp'; stage: number; newFlavour?: Flavour }
+  | { type: 'dealt'; tray: Piece[] } | { type: 'rescueReady' } | { type: 'rescueOffered' } | { type: 'rescued'; poppedCells: number[] }
+  | { type: 'zenShake'; poppedCells: number[] }
+  | { type: 'stuck'; unfit: number[] } | { type: 'gameOver'; reason: 'stuck' | 'traysDone' | 'endRun' }
+  | { type: 'bigGloop'; size: number }   // a gloop reached ≥ 12 cells after placement (achievement long_gloop)
+```
+`ScoreParts = { place, lineBase, pop, bigPopBonus, allClear }`.
+
+### 4.2 Board representation
+- Canonical: `number[64]` in the serialisable state; helper functions accept `ArrayLike<number>`.
+- For the solver and fit tests use precomputed occupancy masks as two uint32 (`lo` = cells 0–31, `hi` = 32–63) for every piece def × position (`pieces.ts` builds `PLACEMENTS[defId] = { pos: number, lo: number, hi: number }[]` at module load). Fit test: `(boardLo & lo) === 0 && (boardHi & hi) === 0`. Row/column full masks likewise.
+- `gloops.ts` component labelling: iterative flood fill with a fixed 64-entry stack array (no recursion, no allocation per call besides the result).
+
+### 4.3 RNG and hashing
+- `cyrb128(str): [number, number, number, number]` (standard public-domain implementation).
+- `sfc32` with state `{a,b,c,d}`; `next()` returns uint32; `nextFloat() = next() / 2^32`; `nextInt(n) = Math.floor(nextFloat() * n)`; `weightedPick(weights)` linear scan over cumulative weights using one `nextFloat()`.
+- Classic/Expert/Zen seed: 16 hex chars from `crypto.getRandomValues` in `app/session.ts` (not core), passed into `newGame`.
+- Daily: design §10.2. Three independent streams (board, trays, fod) so a change in one doesn't shift the others.
+- `newGame` warm-up: discard 12 values from each new stream.
+- Cosmetic randomness (render/audio) uses a separate `cosmeticRng` (sfc32 seeded from `performance.now()`), never the game stream.
+
+### 4.4 Reducer API (`src/core/game.ts`)
+```ts
+export function newGame(cfg: ModeConfig, seed: string, opts?: { tutorialStep?: number }): { state: GameState; events: GameEvent[] };
+export function step(state: GameState, action: Action): { state: GameState; events: GameEvent[] };
+export function canPlace(state: GameState, slot: number, row: number, col: number): boolean;
+export function previewPlacement(state: GameState, slot: number, row: number, col: number): Preview | null; // lines, popping gloops, merge targets (SG §8.4)
+export function fitsAnywhere(board: ArrayLike<number>, defId: number): boolean;
+```
+- `step` never mutates its input (copy the board array; it's 64 numbers).
+- Invalid actions return the same state and `[]` events (the UI should prevent them; tests assert this).
+- Order of events for a place action: `placed`, (`bigGloop`), `cleared`, `popped`, `scored`, `comboUp`|`comboLost`, `allClear`, `stageUp`, `rescueReady`, `dealt`, `stuck`, (`rescueOffered` | `gameOver` | `zenShake` + `dealt`).
+- `previewPlacement` is called on every drag move that changes the target cell (not every pointermove): must be < 0.3 ms.
+
+### 4.5 Mode config (`src/core/modes.ts`)
+```ts
+interface ModeConfig {
+  id: ModeId; rescue: boolean; zenShake: boolean; endless: boolean; maxTrays?: number;   // daily 30
+  stageForScore(score: number): number; weightsForStage(stage: number): FamilyWeights;
+  flavoursForStage(stage: number): Flavour[]; f2Probability(stage: number): number;
+  rewardMult: number; savesBest: boolean;
+}
+```
+All numbers from design §7.2, §9, §10. Tests snapshot the four configs.
+
+### 4.6 Generator and solver
+- `generator.ts` implements design §7.4 exactly, consuming RNG in the documented order (§7.3), returning the tray and debug info (`attempts`, `fallbackUsed`, `budgetHit`).
+- `solver.ts`: `canPlaceAll(board, pieces, budget = 200_000): 'yes' | 'no' | 'budget'`. DFS over 3! orders (dedupe identical defs) × placements, applying resolve (clears and pops) between placements via the mask representation. Early exit on the first full solution.
+- Daily trays are generated once at `newGame` and stored in `state.daily.trays` (so resume never regenerates).
+
+## 5. App state machine and data flow
+
+### 5.1 States (`src/app/app.ts`)
+```
+boot ─► play ◄──────────────┐
+         │  ⇅ paused         │
+         ├─► rescueOffer ─► play | gameOver
+         ├─► gameOver ──────┘ (play again)   ─► menu
+         └─► menu (screen stack: home, collection, achievements, stats, settings, howToPlay, dailyResult)
+```
+- `boot`: load fonts (max 1500 ms wait, then continue), load + migrate save, set CSS vars, build layout, start loop, then go straight to `play` (resume saved run, or tutorial if `!tutorialDone`, or new Classic). Target: first frame < 1 s after DOMContentLoaded on a mid-range phone; input accepted on the first frame (R2).
+- `paused`: core untouched, loop draws a dimmed frame, music filtered.
+- `menu`: the run (if any) stays in memory and saved; background keeps animating.
+- Transitions are explicit functions (`toPlay(mode)`, `toPause()`, …); the current state is a discriminated union. Unit-testable without DOM by injecting fake views.
+
+### 5.2 Data flow per move
+```
+pointer/keyboard ─► input model ─► session.dispatch(action)
+   session: { state, events } = step(state, action)
+            save.inProgress = state (debounced 300 ms; immediate on gameOver)
+            runSummary.fold(events)
+   events ─► director (render animations, fx, sfx cues, haptics)
+          ─► hud (score target, combo)
+          ─► meta.onEvents (achievements that trigger mid-run, weekly progress live)
+   on gameOver: meta.finishRun(summary) → rewards, level-ups, unlocks, achievements, stats, streak, daily record → save → UI panel
+```
+
+### 5.3 Update model
+- **Core:** event-driven (one `step` per action). No time-based gameplay.
+- **Render:** `requestAnimationFrame` loop with variable `dt` (clamped to 50 ms). `visualDt = dt × timeScale` for animations (slow-mo); input and UI use real dt.
+- Zen shake and the stuck → game-over delay (450 ms) are timed in `app` with the loop's real clock, not `setTimeout`, so pausing freezes them.
+
+## 6. Rendering and performance budget (R22)
+- **One main canvas** (`#game`) covering the viewport; `canvas.width = cssW × dpr`. `dpr = min(devicePixelRatio, 2)`. **Adaptive:** track a 120-frame moving average of frame time; if > 20 ms for 2 s, drop dpr to 1.5 (and to 1.25 below that); never raise it again during the session. Log in debug overlay.
+- **Layers via caches, not multiple canvases:** background cache (SG §7.1), board layer cache (SG §5.3), per-gloop caches, per-tray-slot caches, text sprite caches (pop labels), particle sprite caches (SG §9.12).
+- **Per-frame draw order:** background cache → animated background bits → board layer → animated cells → ghost/previews → faces/toppers (all gloops, live) → tray → dragged piece → particles → texts → HUD → vignette/flash overlays → ghost hand.
+- **Budgets (mid-range phone, e.g. 2021 Android at 60 Hz):** total frame ≤ 10 ms CPU; background ≤ 1 ms; board ≤ 2 ms; faces ≤ 1.5 ms; fx ≤ 4 ms; HUD ≤ 0.5 ms. Core `step` ≤ 2 ms; tray deal with solver ≤ 8 ms (p99).
+- **No per-frame allocation** in render: pooled particles (`fx/pool.ts`), pooled tweens, preallocated arrays; avoid closures in hot loops; no `ctx.shadowBlur`/`ctx.filter` per frame; no `getImageData`.
+- **Text:** HUD digits from cached glyph sprites (one per digit per size per colour).
+- **Debug overlay:** `?debug=1` shows fps, frame ms, dpr, particle count, cache count, last deal solver stats.
+- DOM UI: fixed elements positioned with `transform` only; no layout thrash during play (no reading layout in the loop).
+
+## 7. Bundle budget
+- JS (all chunks) gzipped < 150 KB, target < 90 KB. Fonts and PNGs are not counted but: total first-load transfer < 400 KB.
+- Lazy-load (dynamic `import()`): `shareCard.ts`, screens other than home, music generator is part of main (small).
+- `tools/check-size.mjs` gzips every `dist/assets/*.js` with `zlib.gzipSync` level 9 and fails above 150 KB total. Part of `npm run check`.
+
+## 8. Save schema, versioning and migration
+- Key: `gloop-pop:save`. Value: JSON. Backup on corrupt: `gloop-pop:save:corrupt:<timestamp>`.
+- `storage.ts`: `read(key)`, `write(key, value)` wrapped in try/catch; if localStorage throws (Safari private mode, quota), fall back to an in-memory map and show nothing scary (settings screen shows "Progress can't be saved in this browser." in small text).
+```ts
+interface SaveV1 {
+  v: 1;
+  createdAt: number;                         // ms epoch
+  tutorialDone: boolean;
+  settings: { sfx: boolean; music: boolean; muted: boolean; haptics: boolean; reducedMotion: 'system' | 'on' | 'off'; cbPatterns: boolean };
+  profile: { xp: number; level: number; stars: number; coins: number; coinsEarned: number };
+  owned: { themes: string[]; skins: string[]; pops: string[]; modes: ModeId[] };
+  equipped: { theme: string; skin: string; pop: string };
+  best: { classic: number; expert: number };
+  stats: LifetimeStats;                      // design §18 fields + counters used by achievements
+  recentClassic: number[];                   // last 20 scores
+  achievements: Record<string, number>;      // id -> unlockedAt
+  daily: { records: Record<string, DailyRecord>; finished: number; best: number };   // keyed by dayKey, keep last 60
+  streak: { current: number; best: number; lastDay: string | null; freezes: number; frozenDays: string[] };
+  weekly: { weekIndex: number; progress: number; claimed: boolean; runsWithCombo6: number };
+  inProgress: GameState | null;              // Classic/Expert/Zen run
+  dailyInProgress: GameState | null;         // counted daily attempt
+  ui: { runsFinished: number; seenTips: string[] };
+}
+```
+- `migrate(raw: unknown): SaveV1`: if missing/invalid JSON → `defaultSave()`. `migrations: Record<number, (s) => s>` keyed by *from* version; apply in sequence up to `CURRENT_VERSION`. Unknown future version (`v > CURRENT`) → keep a backup and start fresh (never crash).
+- **Validation:** after migration, run `sanitize(save)` that clamps numbers (non-negative integers), drops unknown item ids, ensures equipped items are owned (else default), and validates `inProgress` (board length 64, values 0–7, tray length 3); if invalid, drop it.
+- Writes: debounced 300 ms, immediate on run end, purchase, settings change, and `visibilitychange: hidden` / `pagehide`.
+- Tests ship a fixture `fixtures/save-v1.json` and a synthetic `v0` (pre-release shape: `{ best: number, coins: number }`) migration to prove the pipeline works: `v0 → v1` maps `best → best.classic`, `coins → profile.coins`.
+
+## 9. Testing strategy (Vitest)
+### 9.1 Unit tests (must exist; `npm test` runs them all)
+| Area | File | Tests |
+|---|---|---|
+| RNG | rng.test.ts | sfc32 golden values for seed "test"; clone/serialise round trip; `nextInt` bounds over 10k draws |
+| Hash/daily | daily.test.ts | `dayNumber('2026-10-25') = 1`, `('2026-11-24') = 31`, before epoch = 1; `dayKey` from fake UTC times near midnight in UTC±14; golden starting board + first 3 trays for `2026-11-01` (snapshot); flavour of day deterministic |
+| Board | board.test.ts | fits/out-of-bounds; full rows/cols; placement masks match cell lists for all 37 defs |
+| Gloops | gloops.test.ts | components incl. holes; largest square & tie-break |
+| Resolve | resolve.test.ts | design §3.5 cases: gloop partly in line pops; gloop entirely in line is not "popped"; two gloops; no cascade; All Clear |
+| Scoring | scoring.test.ts | both worked examples in design §5; lineBase table; mult cap ×10; daily FoD 40 pts; big pop tiers 7/8/14/15/23/24 |
+| Combo | combo.test.ts | fuse 3 → 2 → 1 → lost; reset on clear |
+| Generator | generator.test.ts | F1 on 500 random boards; F2 holds at p=1 on 500 boards; F3 caps; deterministic for same seed + same board; RNG consumption order stable (golden) |
+| Solver | solver.test.ts | known solvable/unsolvable boards; budget path |
+| Game | game.test.ts | full scripted game from seed reproduces the same score (golden); invalid action no-op; rescue charge at 10 lines, once per run, F4 tray; zen shake; daily ends after 30 trays |
+| Near miss | nearMiss.test.ts | 1-cell-short detection; line-1-from-full |
+| Share text | shareText.test.ts | exact design §10.6 example string; omissions (combo < 2, streak < 2); ⬛ for unreached; 🟪 override |
+| Save | migrate.test.ts | default save valid; v0 → v1; corrupt JSON → default + backup; future version; sanitize drops bad inProgress |
+| Progression | progression.test.ts | xpToNext table; total to 50 = 49,980; stars after 50; run XP/coins formulas and mode multipliers |
+| Streak | streak.test.ts | consecutive days; gap with enough freezes; gap without; freeze earned at 7 and 14, cap 2 |
+| Weekly | weekly.test.ts | weekIndex for 2026-10-25 = 0, for 2026-10-26 = 1; goal rotation; claim once; Zen excluded for score goal |
+| Achievements | achievements.test.ts | each of the 40 conditions fires from a synthetic summary/event list; none fire twice |
+| Layout | layout.test.ts | 390×844 matches SG §15.1 numbers (±1 px); 1280×800 matches §15.2; 360×640 and 768×1024 produce non-overlapping rects |
+| Silhouette | silhouette.test.ts | path vertex counts for single cell, L, O3, ring with hole |
+| Strings | strings.test.ts | no string contains banned hype words (SG §18.15); all keys used in design §16.4 exist |
+| Palette | palette.test.ts | `tools/check-no-hex.mjs` logic: finds hex in a sample, ignores palette.ts |
+
+### 9.2 Coverage goals
+`src/core` and `src/meta` ≥ 90% lines (`vitest --coverage` optional; not part of `check`).
+
+### 9.3 Simulation / balancing (`src/core/sim.ts`, `npm run sim`)
+- Greedy bot: for the current tray, evaluate every (piece, position) pair; score = `movePoints + 40 × lines + 6 × poppedCells − 3 × holes − 2 × bumpiness − 25 × (no piece of the remaining tray fits)`; choose the best (ties: lowest slot, lowest index). Deterministic.
+- `npm run sim -- --mode classic --runs 300 --seed 1` prints: median/mean/p10/p90 of placements, score, stage reached, % trays where F2 fallback was used, max solver time.
+- Implementation: `tools/sim.mjs` imports the compiled core via Vite's SSR build (`vite build --ssr src/core/sim.ts --outDir .sim`) then runs it in Node. Script: `"sim": "vite build --ssr src/core/sim.ts --outDir .sim --emptyOutDir && node tools/sim.mjs"`. `.sim/` is git-ignored.
+- A Vitest test runs 20 bot games in Classic and asserts median placements ≥ 40 (sanity, fast) — full targets are checked by hand in M9.3.
+
+## 10. Build and deploy
+- `vite.config.ts`: `base: '/gloop-pop/'`, `build.target: 'es2020'`, `build.assetsInlineLimit: 0` for fonts, `build.sourcemap: false`.
+- `package.json` scripts:
+```json
+{
+  "dev": "vite",
+  "build": "vite build",
+  "preview": "vite preview",
+  "typecheck": "tsc --noEmit",
+  "lint": "eslint . && node tools/check-no-hex.mjs",
+  "test": "vitest run",
+  "gen:palette": "node tools/gen-palette.mjs",
+  "gen:icons": "node tools/gen-icons.mjs",
+  "size": "node tools/check-size.mjs",
+  "check": "node tools/gen-palette.mjs --check && npm run typecheck && npm run lint && npm run test && npm run build && npm run size",
+  "sim": "vite build --ssr src/core/sim.ts --outDir .sim --emptyOutDir && node tools/sim.mjs"
+}
+```
+- GitHub Pages: `.github/workflows/deploy.yml` on push to `main`: checkout, setup-node 20, `npm ci`, `npm run check`, `actions/upload-pages-artifact` with `dist`, `actions/deploy-pages`. Permissions `pages: write`, `id-token: write`. The repo's Pages source must be "GitHub Actions" (README says so).
+- `index.html` meta: `%VITE_SITE_URL%` (Vite env replacement) used for absolute `og:image` and `og:url`; default in `.env`: `VITE_SITE_URL=https://example.github.io/gloop-pop/` with a README note to change it.
+- `404.html` = copy of index (not needed: single page, no routes). Skip.
+
+## 11. PWA and link previews
+### 11.1 Service worker (hand-written)
+- `src/sw/sw.template.js` (plain JS, ~80 lines): `install` precaches the app shell list; `activate` deletes caches whose name ≠ current; `fetch`: same-origin GET only; navigation requests → network-first with 3 s timeout falling back to cached `index.html`; hashed assets → cache-first.
+- A tiny Vite plugin in `vite.config.ts` (`closeBundle` hook) reads the emitted file list from the bundle, injects `const VERSION = '<hash of file list>'` and `const PRECACHE = [...]` into the template, and writes `dist/sw.js`. Base path aware.
+- Registered in `platform/sw.ts` only when `import.meta.env.PROD`, after the first frame, scope = base.
+- Update flow: new SW installs in background; on next load it activates (no "reload?" prompt; simplicity).
+### 11.2 Manifest
+`public/manifest.webmanifest`: name "Gloop Pop", short_name "Gloop Pop", start_url ".", scope ".", display "standalone", orientation "portrait", background_color and theme_color = `theme.midnight.skyTop` (written by `gen-icons.mjs` from palette.json so no hex is typed by hand), icons 192, 512, maskable 512.
+### 11.3 Icons and OG image (`tools/raster.mjs`, `tools/gen-icons.mjs`)
+- `raster.mjs`: RGBA float buffer, 4× supersampling, primitives: fillRect, fillRoundRect, fillCircle, fillEllipse (with rotation), strokeCapsule (thick line segment), fillPolygon (scanline, non-zero), linearGradient (vertical), radialGradient, alpha "over" blending; `encodePNG(width, height, rgba)` with `zlib.deflateSync` and CRC32. No dependencies. ~300 lines.
+- `gen-icons.mjs` reads `docs/art/palette.json` and draws:
+  - App icon (192, 512, maskable 512 with 20% safe padding, apple-touch 180): midnight sky gradient square with a big cherry gloop (rounded square body with the SG §5.2 gradient approximated: light→base→dark, outline, specular ellipse, stem + leaf topper, two eyes, smile, blush).
+  - `og.png` 1200 × 630: midnight sky, stars, a tilted board (8×8 sockets) with a few gloops including a big 3×3 lemon gloop with a large face, and the title "GLOOP POP" built from capsule strokes and circles (a hand-designed stroke font for the 7 letters G L O P; each letter as polyline + arc segments with stroke width 26 px, flavour colours, ink outline). Tagline is not rendered (text belongs in og:description).
+- Outputs committed to `public/` so the build doesn't depend on running the tool. `gen-icons.mjs` also writes `public/favicon.svg` (a cherry gloop as SVG paths, colours taken from palette.json) and `public/manifest.webmanifest`. Files in `public/` are tool output, so `check-no-hex.mjs` scans only `src/` and `index.html`.
+- `index.html` meta tags: `<title>Gloop Pop: a jelly block puzzle</title>`, description "Drag jelly blocks onto the board to fill rows. Same-colour jellies join up and pop together. Free, no install, new daily challenge every day.", `og:title`, `og:description`, `og:image` (absolute, 1200×630), `og:type=website`, `twitter:card=summary_large_image`, `theme-color`, `viewport` with `viewport-fit=cover, user-scalable=no`, `apple-mobile-web-app-capable`.
+- `index.html` inline `<style>` sets only `html,body{margin:0;height:100%;overflow:hidden;touch-action:none;background:var(--bg,canvas)}`. `cssVars.ts` sets `--bg` and every other colour variable from PALETTE at boot, before the first frame. No hex in index.html.
+
+## 12. Code rules enforced by lint/tests
+1. `no-restricted-syntax`: string literals and template elements matching `/#[0-9a-fA-F]{3,8}\b/` are errors in `src/**` except `src/render/palette.ts`. Plus `tools/check-no-hex.mjs` scans `src/**/*.{ts,css}` and `index.html` (covers CSS).
+2. `no-restricted-imports`/boundaries: files in `src/core/**` and `src/meta/**` may not import from `src/render`, `src/ui`, `src/audio`, `src/platform`, `src/app`, `src/input`. Use ESLint `no-restricted-imports` with patterns per directory override.
+3. `no-restricted-globals` in `src/core/**`: `window`, `document`, `localStorage`, `Date`, `performance`, `setTimeout`, `setInterval`, `requestAnimationFrame`; and `no-restricted-properties` for `Math.random`.
+4. Player-facing text: UI and render code take strings from `src/ui/strings.ts` (a single `S` object with functions for interpolated strings). A test greps `src/ui/screens` and `src/render` for quoted English words of 3+ letters inside `textContent =` / `fillText(` calls not coming from `S.` (simple regex heuristic; allowlist digits and symbols).
+5. No `any` (`@typescript-eslint/no-explicit-any: error`). No default exports.
+6. Comments: brief, explain why; reference design/SG section numbers where a rule comes from (e.g. `// design §7.4 F2`).

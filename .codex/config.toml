@@ -1,0 +1,13 @@
+# Project-scoped Codex config for Gloop Pop.
+# Format: https://developers.openai.com/codex/subagents (custom agents and [agents] settings)
+# Codex may ask you to trust this project before it loads project config.
+
+# Implementation runs on Luna 6. Sol 6.1 is available for review and architecture questions.
+model = "gpt-6-luna"           # Luna 6
+model_reasoning_effort = "high"
+
+[agents]
+default_subagent_model = "gpt-6-luna"
+default_subagent_reasoning_effort = "high"
+# Keep it small: parallel writers conflict on shared files like strings.ts.
+max_concurrent_threads_per_session = 3
