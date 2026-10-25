@@ -31,6 +31,7 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   ├─ gen-palette.mjs        # palette.json -> src/render/palette.ts
 │   ├─ raster.mjs             # tiny pure-JS rasteriser + PNG encoder (zlib) for icons/OG
 │   ├─ gen-icons.mjs          # writes public/*.png
+│   ├─ build-audio.mjs        # assets-src/audio -> hashed sprites and src/audio/manifest.ts (SG §13.11)
 │   ├─ check-size.mjs         # fails if dist JS gz > 150 KB
 │   ├─ check-no-hex.mjs       # fails if any hex colour literal outside palette.ts (src/**/*.ts, *.css, index.html)
 │   └─ sim.mjs → runs src/core/sim via vite-node or tsx-free approach (see §9.3)
@@ -98,6 +99,9 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   │   ├─ miniGloop.ts       # small gloop illustrations for DOM cards/badges
 │   │   └─ shareCard.ts       # SG §12
 │   ├─ audio/
+│   │   ├─ credits.ts          # source and licence metadata for the Credits screen (design §16.4)
+│   │   ├─ manifest.ts         # generated audio paths, sprite offsets, durations and source hashes (SG §13.9, §13.11)
+│   │   ├─ sprite.ts           # pure decoder-delay marker lookup (SG §13.11)
 │   │   ├─ engine.ts          # context unlock, buses, compressor, voice limiter
 │   │   ├─ synth.ts           # osc/noise/envelope helpers
 │   │   ├─ sfx.ts             # SG §13.2 recipes

@@ -1,6 +1,6 @@
 # Credits
 
-> **Draft (25 Oct 2026).** These assets ship with milestone M11 (Audio v2, `docs/milestones.md`). Until M11 is done, the game uses only synthesised sound. The "Changes" lines match `docs/art/style-guide.md` §13.11, which `tools/build-audio.mjs` implements. `src/audio/credits.ts` holds the same data for the in-game Credits screen, and a unit test keeps the two in sync.
+The "Changes" lines match `docs/art/style-guide.md` §13.11 and are implemented by `tools/build-audio.mjs`. `src/audio/credits.ts` holds the matching data for the in-game Credits screen.
 
 Every asset below is released under **CC0 1.0 Universal (Public Domain Dedication)**, https://creativecommons.org/publicdomain/zero/1.0/. CC0 needs no attribution. We credit the authors anyway. Each licence was checked on the asset's own page on 25 Oct 2026. Copies of the source files and their licence facts are in `assets-src/audio/`.
 
@@ -96,4 +96,6 @@ All processed audio is mono. It is resampled to 48 kHz for editing, then encoded
   - `Pizzicato jingles/jingles_PIZZI10.ogg` → `level`: the first 15 ms removed, pitch +496 cents.
 
 ## Code, art and synthesised sound
+Code, art and synth sounds: made for Gloop Pop.
+
 The game's code, graphics, and all synthesised sounds and music layers (the ladder instrument body, sweeps, pads and fallbacks) were made for Gloop Pop. Fonts: Baloo 2 and Nunito, via Fontsource (SIL Open Font License 1.1).
