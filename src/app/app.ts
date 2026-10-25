@@ -122,7 +122,7 @@ export function bootApp(): void {
   router.subscribe((screen) => renderScreen(screen)); renderScreen('play'); persist(true);
   const renderLoop = startRenderLoop((dtMs, elapsedMs) => {
     renderElapsed = elapsedMs;
-    uiRoot.style.setProperty('--toast-play-top', `${layout.board.y}px`); uiRoot.style.setProperty('--toast-play-left', `${layout.board.x + layout.board.width / 2}px`);
+    uiRoot.style.setProperty('--toast-play-top', `${layout.board.y + layout.board.height}px`); uiRoot.style.setProperty('--toast-play-left', `${layout.board.x + layout.board.width / 2}px`);
     if (!renderLoop.isHitStopped() && queuedActions.length) { const nextAction = queuedActions.shift(); if (nextAction) apply(nextAction); }
     if (!renderLoop.isHitStopped() && queuedRestart) { queuedRestart = false; restart(); }
     const reducedForFrame = shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion()); background.setReducedMotion(reducedForFrame);
