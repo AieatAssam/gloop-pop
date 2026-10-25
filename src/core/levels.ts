@@ -5,16 +5,36 @@ import type { Flavour } from './types';
 
 export type GoalKind = 'L' | 'S' | 'F' | 'B' | 'M' | 'C';
 export interface LevelGoal { kind: GoalKind; flavour?: Flavour; target: number }
-export interface LevelDef { n: number; s: number; goals: LevelGoal[]; moves: number; s2: number; s3: number; wins: number; board: string }
+export interface LevelDef { n: number; s: number; goals: LevelGoal[]; moves: number; s2: number; s3: number; wins: number; margin: number; board: string }
 export interface LevelParams { n: number; chapter: number; position: number; band: 'intro' | 'easy' | 'normal' | 'hard'; k: number; moves: number; stage: number; flavours: number; f2: number; startPieces: number; sugar: number; hardCubes: number; goals: LevelGoal[] }
+
+export interface TierBand { wins: readonly [number, number]; margin?: 'easy' | 'hard' }
+export const TIER_BANDS: Readonly<Record<LevelParams['band'], TierBand>> = {
+  intro: { wins: [12, 12] },
+  easy: { wins: [10, 12], margin: 'easy' },
+  normal: { wins: [7, 10] },
+  hard: { wins: [4, 7], margin: 'hard' },
+};
+
+export function inBand(band: LevelParams['band'], wins: number, margin: number, moves: number): boolean {
+  const target = TIER_BANDS[band];
+  if (wins < target.wins[0] || wins > target.wins[1]) return false;
+  if (target.margin === 'easy') return 5 * margin >= moves;
+  if (target.margin === 'hard') return 5 * margin <= moves;
+  return true;
+}
+
+export function harderThan(hard: Pick<LevelDef, 'wins' | 'margin' | 'moves'>, neighbour: Pick<LevelDef, 'wins' | 'margin' | 'moves'>): boolean {
+  return hard.wins <= neighbour.wins - 2 && hard.margin * neighbour.moves <= neighbour.margin * hard.moves;
+}
 
 const GOAL_ROTATION = [
   'L S L S L F S L F S F L S F L S F L S F',
   'C L S C C F C S L C S C F L F C S C L C',
-  'B L C B S M F B C M L B S C B F M C B C',
+  'B L C B S M M B C F L B S C B F M C B C',
   'C L B C F C M S C B C F M C S L C B M C',
   'C+L S C+F B C M C+S F C+B L S C+M B C+L C+F F C+S M C+B C+L',
-  'C+S B C+F M C+L F C+B S C+M C L C+F B C+S M C+L F C+B S C+M',
+  'C+S B C+F M C+L F C+B S C+M C L C+F B C+S S C+L F C+M M C+B',
 ].map((row) => row.split(' '));
 const MOVE_LIMITS = [[30, 26, 18], [28, 25, 14], [28, 24, 16], [27, 24, 16], [26, 23, 15], [26, 22, 14]];
 // spec-note: 2026-10-25 Chapter 2 hard levels use 1 start piece; 14 moves with 3 pieces left their mean win rate equal to normal.

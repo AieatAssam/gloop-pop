@@ -37,7 +37,7 @@ export const S = {
   flavourGoal: (t: number, flavour: string): string => `Clear or pop ${number(t)} ${flavour} cells`,
   bigPopGoal: (t: number): string => t === 1 ? 'Make a Big Pop (8+ cells)' : `Make ${number(t)} Big Pops (8+ cells)`,
   multiGoal: (t: number): string => t === 1 ? 'Clear 2+ lines in one move' : `Clear 2+ lines in one move ${number(t)} times`,
-  cubesGoal: (t: number): string => `Clear all ${number(t)} sugar cubes`,
+  cubesGoal: (t: number): string => t === 1 ? 'Clear 1 sugar cube' : `Clear ${number(t)} sugar cubes`,
   adventureTip: (n: number): string => ({ 6: 'New: flavour goals. Cells you clear or pop both count.', 21: 'New: sugar cubes. Clear a line through a cube to remove it.', 41: 'New: Big Pop goals. Pop a gloop of 8 or more cells.', 46: 'New: clear 2 or more lines with one piece.', 51: 'Grape joins in: 6 flavours from now on.', 61: 'New: hard cubes. They need 2 line clears.', 81: 'New: two goals. Finish both to win.', 91: 'Bubblegum joins in: 7 flavours from now on.' } as Record<number,string>)[n] ?? '',
   levelPlay: 'Play', backToMap: 'Back to map', levelText: (n: number): string => `Level ${number(n)}`,
   winStreakBonus: (k: number): string => `Win streak ${number(k)}: +${number(Math.min(2, k))} ${Math.min(2, k) === 1 ? 'move' : 'moves'}`,
@@ -70,7 +70,7 @@ export const S = {
     if (kind === 'M') return count === 1 ? '2+ line clear' : '2+ line clears';
     return count === 1 ? 'sugar cube' : 'sugar cubes';
   },
-  adventureGoalText: (kind: string, target: number, flavour?: string): string => kind === 'L' ? `Clear ${number(target)} lines` : kind === 'S' ? `Score ${number(target)} points` : kind === 'F' ? `Clear or pop ${number(target)} ${flavour ?? 'grape'} cells` : kind === 'B' ? target === 1 ? 'Make a Big Pop (8+ cells)' : `Make ${number(target)} Big Pops (8+ cells)` : kind === 'M' ? target === 1 ? 'Clear 2+ lines in one move' : `Clear 2+ lines in one move ${number(target)} times` : `Clear all ${number(target)} sugar cubes`,
+  adventureGoalText: (kind: string, target: number, flavour?: string): string => kind === 'L' ? `Clear ${number(target)} lines` : kind === 'S' ? `Score ${number(target)} points` : kind === 'F' ? `Clear or pop ${number(target)} ${flavour ?? 'grape'} cells` : kind === 'B' ? target === 1 ? 'Make a Big Pop (8+ cells)' : `Make ${number(target)} Big Pops (8+ cells)` : kind === 'M' ? target === 1 ? 'Clear 2+ lines in one move' : `Clear 2+ lines in one move ${number(target)} times` : target === 1 ? 'Clear 1 sugar cube' : `Clear ${number(target)} sugar cubes`,
   best: (n: string): string => `Best ${n}`,
   combo: (count: number, multiplier: string): string => `Combo ${number(count)} ×${multiplier}`,
   comboLost: 'Combo lost',

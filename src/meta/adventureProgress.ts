@@ -1,5 +1,7 @@
 import type { SaveV2 } from './saveSchema';
 import { grantXp } from './progression';
+import type { GameState } from '../core/types';
+import type { LevelDef } from '../core/levels';
 
 export interface LevelResult { level: number; won: boolean; stars: 0 | 1 | 2 | 3; score?: number }
 export interface AdventureReward { save: SaveV2; xp: number; coins: number; firstWin: boolean; newStars: number; chapterDone: boolean; chapterAllStars: boolean; levels: number[]; unlocked: string[] }
@@ -55,6 +57,19 @@ export function recordLevelResult(save: SaveV2, result: LevelResult): AdventureR
 
 export function assistAvailable(save: SaveV2, level: number): boolean {
   return (save.adventure.levels[String(level)]?.lossRun ?? 0) >= 3;
+}
+
+/** A paused run belongs to the current level table only when its identity and goals still match. */
+export function isStaleAttempt(state: GameState | null, def: LevelDef): boolean {
+  const adventure = state?.adventure;
+  if (!state || !adventure) return false;
+  const expectedSeed = `gloop-pop/adventure/v1/${def.n}/${def.s}`;
+  return state.seed !== expectedSeed || adventure.level !== def.n || adventure.moveLimit !== def.moves
+    || adventure.goals.length !== def.goals.length
+    || adventure.goals.some((goal, index) => {
+      const current = def.goals[index];
+      return !current || goal.kind !== current.kind || goal.flavour !== current.flavour || goal.target !== current.target;
+    });
 }
 
 export function unlockAdventure(save: SaveV2): SaveV2 {

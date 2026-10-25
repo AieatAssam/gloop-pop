@@ -71,7 +71,7 @@ import { addMissionProgress, claimMission, missionNearMiss, rerollMission, rollD
 import { MISSIONS } from '../core/missions';
 import { newAdventureGame } from '../core/adventure';
 import { levelParams } from '../core/levels';
-import { assistAvailable, recordLevelResult, unlockAdventure } from '../meta/adventureProgress';
+import { assistAvailable, isStaleAttempt, recordLevelResult, unlockAdventure } from '../meta/adventureProgress';
 import { armBoosters, returnUnused, type BoosterSelection } from '../meta/boosters';
 import { createBoosterBar } from '../ui/boosterBar';
 import { adventureResultLabel, recordPendingAdventureResult } from './adventureResult';
@@ -381,6 +381,11 @@ export async function bootApp(): Promise<void> {
     recordPendingAdventureResult(session.state, adventureRecorded, finishAdventure);
     const begin = (levels: NonNullable<typeof loadedAdventureLevels>): void => {
     const def = levels[level - 1]; if (!def) return;
+    if (isStaleAttempt(save.adventure.inProgress, def)) {
+      save = returnUnused(save, save.adventure.inProgress!);
+      save.adventure.inProgress = null;
+      saveNow(save);
+    }
     if (save.adventure.inProgress?.adventure && save.adventure.inProgress.adventure.level !== level) save = returnUnused(save, save.adventure.inProgress);
     const prior = save.adventure.levels[String(level)];
     const resumed = save.adventure.inProgress?.adventure?.level === level ? save.adventure.inProgress : null;
@@ -531,7 +536,7 @@ export async function bootApp(): Promise<void> {
   function renderScreen(screen: import('./router').ScreenId): void {
     homeHost.replaceChildren(); ui.hide();
     if (screen === 'home') { save = rollDay(save, dayKeyFromMs(Date.now())); saveNow(save); homeHost.append(createHomeScreen(save, { play: start, adventure: () => router.open('adventure'), dailyResult: () => router.open('dailyResult'), stats: () => router.open('stats'), collection: () => router.open('collection'), achievements: () => router.open('achievements'), settings: () => router.open('settings'), howToPlay: () => router.open('howToPlay'), credits: () => router.open('credits'), claimMission: (slot, anchor) => { const start = anchor.getBoundingClientRect(); const target = document.querySelector(".home-header .home-chip:last-child")?.getBoundingClientRect(); const oldCoins = save.profile.coins; const reduced = shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion()); const result = claimMission(save, slot); if (!result.coins) return; save = result.save; toast.show(S.missionRewardToast(result.coins - (result.setBonus ? 50 : 0), result.xp - (result.setBonus ? 50 : 0)), 'coin'); if (result.setBonus) toast.show(S.missionSetToast, 'gold'); for (const level of result.levels) toast.show(S.levelUp(level)); for (const achievement of result.unlocked) toast.show(S.achievementUnlock(S.achievementName(achievement.id), achievement.coins)); saveNow(save); renderScreen('home'); if (target && !reduced) animateMissionCoins(start, target); sfx.coinTick({ count: reduced ? 1 : 3 }); if (!reduced) animateCoinCount(oldCoins, save.profile.coins); }, changeMission: (slot) => { save = rerollMission(save, slot, dayKeyFromMs(Date.now())); saveNow(save); renderScreen('home'); }, debugXp: () => { const result = grantXp(save, 5000); save = result.save; saveNow(save); for (const level of result.levels) toast.show(S.levelUp(level)); for (const item of result.unlocked) toast.show(S.unlocked(item)); renderScreen('home'); } }, debug, activeChallenge ?? undefined)); }
-    else if (screen === 'adventure') { paused = false; void import('../ui/adventureBundle').then(({ createAdventureMap: createMap }) => { if (router.current !== 'adventure') return; homeHost.append(createMap(save, { back: () => router.back(), openLevel: (level) => void showAdventureCard(level, true) })); }); }
+    else if (screen === 'adventure') { paused = false; void import('../ui/adventureBundle').then(({ LEVELS, createAdventureMap: createMap }) => { if (router.current !== 'adventure') return; loadedAdventureLevels = LEVELS; const attempt = save.adventure.inProgress; if (attempt && attempt.adventure) { const def = LEVELS[attempt.adventure.level - 1]; if (def && isStaleAttempt(attempt, def)) { save = returnUnused(save, attempt); save.adventure.inProgress = null; saveNow(save); } } homeHost.append(createMap(save, { back: () => router.back(), openLevel: (level) => void showAdventureCard(level, true) })); }); }
     else if (screen === 'stats') { paused = false; homeHost.append(createStatsScreen(save, () => router.back())); }
     else if (screen === 'collection') { paused = false; homeHost.append(createCollectionScreen(save, () => router.back(), (next) => { save = next; syncCosmetics(); backgroundTheme = ''; saveNow(save); })); }
     else if (screen === 'achievements') { paused = false; homeHost.append(createAchievementsScreen(save, () => router.back())); }

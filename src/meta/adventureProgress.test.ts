@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSave } from './saveSchema';
-import { assistAvailable, recordLevelResult, unlockAdventure } from './adventureProgress';
+import { assistAvailable, isStaleAttempt, recordLevelResult, unlockAdventure } from './adventureProgress';
+import { returnUnused } from './boosters';
+import { newAdventureGame } from '../core/adventure';
+import { LEVELS } from '../core/levels.data';
 
 describe('Adventure progress', () => {
   it('pays first wins, new stars, replays and losses from the specified table', () => {
@@ -54,5 +57,33 @@ describe('Adventure progress', () => {
     expect([save.adventure.winStreak, save.adventure.bestWinStreak, assistAvailable(save, 4)]).toEqual([1, 3, false]);
     const replayWin = recordLevelResult(save, { level: 1, won: true, stars: 2 }).save;
     expect(replayWin.adventure.winStreak).toBe(1);
+  });
+
+  it('drops an M12 paused attempt without changing progress and returns armed boosters', () => {
+    let save = defaultSave();
+    save.adventure.levels['25'] = { stars: 3, wins: 1, losses: 0, lossRun: 0, bestScore: 900 };
+    save.adventure.levels['30'] = { stars: 1, wins: 1, losses: 0, lossRun: 0, bestScore: 500 };
+    save.adventure.frontier = 41;
+    save.adventure.winStreak = 4; save.adventure.bestWinStreak = 7;
+    save.adventure.chaptersDone = [1]; save.adventure.chaptersAllStars = [2];
+    save.adventure.boosters = { moves: 2, shuffle: 1, pop: 0 };
+    const current = LEVELS[39]!;
+    const oldDef = { ...current, s: 0, goals: [{ kind: 'C' as const, target: 1 }] };
+    const attempt = newAdventureGame(oldDef, { bonusMoves: 0, boosters: { shuffle: 1, pop: 1 }, freeShuffle: false }).state;
+    save.adventure.inProgress = attempt;
+
+    expect(isStaleAttempt(attempt, current)).toBe(true);
+    save = returnUnused(save, attempt);
+    save.adventure.inProgress = null;
+    expect([save.adventure.levels['25']?.stars, save.adventure.levels['25']?.wins, save.adventure.levels['30']?.stars, save.adventure.levels['30']?.wins, save.adventure.frontier, save.adventure.winStreak, save.adventure.bestWinStreak, save.adventure.chaptersDone, save.adventure.chaptersAllStars]).toEqual([3, 1, 1, 1, 41, 4, 7, [1], [2]]);
+    expect(save.adventure.boosters).toEqual({ moves: 2, shuffle: 2, pop: 1 });
+    expect([save.adventure.levels['40']?.losses ?? 0, save.stats.adventureLosses]).toEqual([0, 0]);
+    const laterWin = recordLevelResult(save, { level: 25, won: true, stars: 1 });
+    expect(laterWin.save.adventure.levels['25']?.stars).toBe(3);
+  });
+
+  it('keeps an attempt made from the current table', () => {
+    const attempt = newAdventureGame(LEVELS[0]!, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state;
+    expect(isStaleAttempt(attempt, LEVELS[0]!)).toBe(false);
   });
 });

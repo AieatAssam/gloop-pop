@@ -57,6 +57,11 @@ describe('player-facing strings', () => {
     expect(S.winNextStar(1, 2)).toBe('Win with 1 move left for 2 stars.');
     expect(S.nothingFit(1)).toBe('Nothing fit with 1 move left.'); expect(S.nothingFit(2)).toBe('Nothing fit with 2 moves left.');
     expect(S.winStreakBonus(1)).toBe('Win streak 1: +1 move');
+    expect(S.adventureGoalText('C', 3)).toBe('Clear 3 sugar cubes');
+    expect(S.adventureGoalText('C', 1)).toBe('Clear 1 sugar cube');
+    expect(S.cubesGoal(3)).toBe('Clear 3 sugar cubes');
+    expect(S.cubesGoal(1)).toBe('Clear 1 sugar cube');
+    expect(S.adventureGoalText('C', 3)).not.toContain('Clear all');
     expect(S.bonusStarsCaption(1)).toBe("Your 1 extra move doesn't count for stars.");
     expect(S.bonusStarsCaption(2)).toBe("Your 2 extra moves don't count for stars.");
   });

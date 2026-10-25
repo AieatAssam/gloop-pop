@@ -130,6 +130,36 @@ Expected table as `level:seedIndex:targets` (two-goal levels list C first, then 
 
 52 of 120 levels change seed or targets. All 44 C levels now read "Clear {t} sugar cubes" with a calibrated t (1 or more) instead of "Clear all 1 sugar cubes". Saved stars stay as they are (design §24.6, "Changing the table").
 
+## 2026-10-25 · M13 levels (M13.1 implementation)
+
+`timeout 900 npm run levels -- --write` run twice produced byte-identical `src/core/levels.data.ts` (SHA-256 `c484a93f97a5911f064de87b20612137dd9cd86a1a20daf4421884364f46ba4e`). `timeout 900 npm run levels -- --verify` passed in 15,609 ms. All 120 levels passed their bands and the neighbour rule (0 failures). The real table below matches the M13 forecast above exactly: 120 of 120 `level:seedIndex:targets` entries match, with no parameter changes.
+
+| Ch | Tier | W mean (min–max) | m mean (moves) |
+|---|---|---:|---:|
+| 1 | intro | 12.00 (12–12) | 4.00 |
+| 1 | easy | 10.67 (10–11) | 9.00 |
+| 1 | normal | 8.20 (7–10) | 3.40 |
+| 1 | hard | 4.75 (4–7) | 0.75 |
+| 2 | easy | 11.75 (11–12) | 10.25 |
+| 2 | normal | 8.08 (7–10) | 6.17 |
+| 2 | hard | 6.00 (5–7) | 1.00 |
+| 3 | easy | 11.25 (10–12) | 14.50 |
+| 3 | normal | 8.00 (7–10) | 9.50 |
+| 3 | hard | 5.00 (4–7) | 2.00 |
+| 4 | easy | 11.50 (10–12) | 18.25 |
+| 4 | normal | 8.00 (7–10) | 10.08 |
+| 4 | hard | 4.50 (4–5) | 2.00 |
+| 5 | easy | 10.75 (10–12) | 12.25 |
+| 5 | normal | 7.50 (7–8) | 8.42 |
+| 5 | hard | 5.00 (4–6) | 1.50 |
+| 6 | easy | 10.50 (10–11) | 8.75 |
+| 6 | normal | 8.08 (7–10) | 10.92 |
+| 6 | hard | 4.25 (4–5) | 1.25 |
+
+Actual `--verify` table (`level:seedIndex:targets`, C first on two-goal levels):
+
+1:16:3 2:0:700 3:8:3 4:0:2300 5:10:4 6:1:8 7:0:6500 8:2:5 9:0:9 10:1:3600 11:2:16 12:0:5 13:0:2700 14:0:20 15:0:4 16:0:2200 17:0:11 18:2:5 19:0:2100 20:14:25 21:0:1 22:0:5 23:0:2000 24:0:2 25:0:2 26:1:13 27:0:1 28:0:2100 29:0:5 30:0:1 31:1:2200 32:0:2 33:0:11 34:0:5 35:0:11 36:0:1 37:0:3700 38:0:1 39:0:5 40:16:2 41:2:5 42:0:5 43:0:4 44:2:4 45:0:2300 46:0:1 47:16:1 48:0:3 49:0:2 50:0:20 51:1:6 52:0:2 53:0:4300 54:0:2 55:1:3 56:0:12 57:26:1 58:0:2 59:0:4 60:1:5 61:0:1 62:3:5 63:0:2 64:0:1 65:10:17 66:3:1 67:3:1 68:0:3000 69:1:1 70:3:4 71:10:1 72:0:8 73:23:1 74:2:1 75:0:2500 76:0:4 77:0:1 78:0:4 79:9:1 80:3:1 81:9:1/5 82:0:2700 83:5:1/13 84:0:4 85:5:1 86:25:1 87:2:1/4000 88:2:8 89:2:1/4 90:1:4 91:1:2400 92:16:1/1 93:0:3 94:0:1/5 95:4:1/17 96:1:12 97:0:1/3200 98:12:1 99:0:2/2 100:0:1/4 101:30:1/2000 102:0:4 103:0:1/10 104:2:1 105:4:1/3 106:1:12 107:0:1/6 108:0:2000 109:61:1/1 110:5:1 111:0:5 112:2:1/20 113:0:1 114:5:1/2100 115:2:2500 116:9:1/3 117:0:9 118:12:1/1 119:51:1 120:9:1/5
+
 ## 2026-10-25 · M13 coin sink decision
 
 At about 885 coins a day (M12.7 above), the original 21-item shop (10,000 coins) is done in about 11.3 days; after that, coins only buy boosters, which a player needs rarely. Decision: add 3 Gold pop effects (1,500 + 2,000 + 2,500 = 6,000 coins) that recolour existing particles with existing palette roles (design §14.4, SG §9.3). The whole shop becomes 16,000 coins, about **18.1 days** at 885 coins a day. Rejected: a rotating "pick of the week" (a time limit is FOMO even if items return), coin-bought streak freezes (§11 keeps freezes earned, and a player who plays every day never uses one, so they would not sink coins), and a full cosmetic tier (new art for 21 items).

@@ -7,7 +7,7 @@ import { canPlaceAll } from './solver';
 
 function definition(goals: LevelDef['goals']): LevelDef {
   const params = levelParams(1);
-  return { n: 1, s: 0, goals, moves: params.moves, s2: 4, s3: 8, wins: 12, board: '0'.repeat(64) };
+  return { n: 1, s: 0, goals, moves: params.moves, s2: 4, s3: 8, wins: 12, margin: 8, board: '0'.repeat(64) };
 }
 
 function stateWithRowGoal(target = 1): GameState {

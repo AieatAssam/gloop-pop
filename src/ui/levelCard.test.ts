@@ -12,6 +12,7 @@ describe('Adventure level start card', () => {
       expect(text).toContain(S.adventureGoalText(goal.kind, goal.target, goal.flavour ? S.flavourName(goal.flavour).toLowerCase() : undefined));
     }
     expect(S.adventureGoalText('B', 1)).toBe('Make a Big Pop (8+ cells)'); expect(S.adventureGoalText('M', 1)).toBe('Clear 2+ lines in one move');
+    expect(S.adventureGoalText('C', 3)).toBe('Clear 3 sugar cubes'); expect(S.adventureGoalText('C', 1)).toBe('Clear 1 sugar cube');
     expect(createLevelCard(LEVELS[20]!, { play: vi.fn(), back: vi.fn() }).textContent).toContain('New: sugar cubes. Clear a line through a cube to remove it.');
     expect(createLevelCard(LEVELS[4]!, { play: vi.fn(), back: vi.fn() }).textContent).toContain('Hard level');
     expect(createLevelCard(LEVELS[45]!, { play: vi.fn(), back: vi.fn() }).textContent).toContain('New: clear 2 or more lines with one piece.');
