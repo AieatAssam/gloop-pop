@@ -163,3 +163,94 @@ Actual `--verify` table (`level:seedIndex:targets`, C first on two-goal levels):
 ## 2026-10-25 · M13 coin sink decision
 
 At about 885 coins a day (M12.7 above), the original 21-item shop (10,000 coins) is done in about 11.3 days; after that, coins only buy boosters, which a player needs rarely. Decision: add 3 Gold pop effects (1,500 + 2,000 + 2,500 = 6,000 coins) that recolour existing particles with existing palette roles (design §14.4, SG §9.3). The whole shop becomes 16,000 coins, about **18.1 days** at 885 coins a day. Rejected: a rotating "pick of the week" (a time limit is FOMO even if items return), coin-bought streak freezes (§11 keeps freezes earned, and a player who plays every day never uses one, so they would not sink coins), and a full cosmetic tier (new art for 21 items).
+
+## 2026-10-25 · M14 cube levels: measurement and forecast (director prototype)
+
+**Before (the committed M13 table).** 44 levels have a C goal. Their targets: **34 are "Clear 1 sugar cube"**, 8 are 2, one is 4 (Level 43) and one is 5 (Level 60). Chapters 4–6: 29 of 30 C targets are 1. Mean C target per chapter: Ch 2 1.44, Ch 3 3.00, Ch 4 1.00, Ch 5 1.09, Ch 6 1.00.
+
+Why (measured on the raw 12 bot runs of every stored seed, C target = cube count): the frozen bot is one-ply greedy. It only removes a cube when a line through that cube happens to be one piece from full, and the cubes are scattered one per line, so one clear removes about one cube. Hard cubes are worse: the bot's C weight counts removed cubes, so the first hit (crack) is worth nothing to it. With 3 cubes of which 2 hard (Ch 4 normal), the 7th-best run removed 0–1 cubes on every stored seed. Ch 6 two-goal levels had 1 cube on the board, so no target above 1 was possible.
+
+**What was tried (all under /tmp, frozen bot, real reducer):**
+- More cubes alone, scattered (Ch 2–3 up to 8–10, Ch 4–6 up to 9): 18 of 44 C levels could reach the floor below.
+- Cube lanes (cubes grouped on a few rows/columns): 3 per lane was best. 2 per lane: 29/44; 4 per lane: same as 3; all on one line: all-or-nothing (a single clear wins).
+- Lanes + more moves on C levels + 1 hard cube per level: 40/44 on 16 seeds. The failures were the three C+M two-goal levels (92, 109, 118) and Level 112. On all 64 seeds Level 112 passes on 17 seeds and Level 92 on 2, but Levels 109 and 118 pass on none (0–3 seeds even with 5–8 cubes). A 2+ line clear plus 4 cubes is too rare for the bot, so C+M was removed from the rotation (92 → C+F, 109 → C+S, 118 → C+F).
+- With the full generator (neighbour rule), Level 40 then failed: Level 39 (W 9, m 2 of 25) forces m ≤ 1 on an 18-move Level 40. Ch 2 hard C levels use 16 moves instead.
+
+**Decision (design §24.5, §24.6 M14):** cube lanes (3 cubes per lane), new cube counts with at most 1 hard cube per level, a C move table, a C target floor (3 in Ch 2–3, 4 in Ch 4–6), and no C+M levels. Bands, the neighbour rule, the frozen bot, seeds strings and every non-C parameter are unchanged.
+
+**After (prototype, all 120 levels):** 0 band failures, 0 neighbour failures, 0 C targets below the floor. Generation 15.0 s. Two runs gave identical tables. C targets: 3 ×4, 4 ×19, 5 ×16, 6 ×3, 7 ×1, 8 ×1; mean per chapter Ch 2 4.00 (3–5), Ch 3 5.60 (3–8), Ch 4 4.50 (4–5), Ch 5 4.45 (4–6), Ch 6 4.73 (4–6). Mean W over C levels 7.41.
+
+| Ch | Tier | W mean (min–max) | m mean | Share mean | Moves mean |
+|---|---|---:|---:|---:|---:|
+| 1 | intro | 12.00 (12–12) | 4.00 | 0.20 | 20.0 |
+| 1 | easy | 10.67 (10–11) | 9.00 | 0.30 | 30.0 |
+| 1 | normal | 8.20 (7–10) | 3.40 | 0.13 | 26.0 |
+| 1 | hard | 4.75 (4–7) | 0.75 | 0.04 | 18.0 |
+| 2 | easy | 11.50 (11–12) | 14.25 | 0.48 | 29.0 |
+| 2 | normal | 8.25 (7–10) | 5.75 | 0.21 | 26.0 |
+| 2 | hard | 4.75 (4–6) | 0.50 | 0.03 | 15.5 |
+| 3 | easy | 11.25 (10–12) | 14.50 | 0.52 | 28.0 |
+| 3 | normal | 7.75 (7–9) | 9.75 | 0.39 | 25.0 |
+| 3 | hard | 4.50 (4–5) | 1.25 | 0.07 | 16.5 |
+| 4 | easy | 10.75 (10–12) | 12.25 | 0.40 | 30.0 |
+| 4 | normal | 8.33 (7–10) | 10.42 | 0.41 | 25.3 |
+| 4 | hard | 5.50 (4–7) | 0.75 | 0.05 | 16.5 |
+| 5 | easy | 10.75 (10–12) | 11.25 | 0.43 | 27.0 |
+| 5 | normal | 7.42 (7–8) | 6.33 | 0.26 | 25.3 |
+| 5 | hard | 4.75 (4–6) | 1.50 | 0.09 | 17.3 |
+| 6 | easy | 10.50 (10–11) | 8.75 | 0.32 | 28.0 |
+| 6 | normal | 7.58 (7–10) | 8.75 | 0.38 | 24.0 |
+| 6 | hard | 4.25 (4–5) | 2.00 | 0.12 | 17.0 |
+
+Every C level after M14 (cubes = sugar + hard on the start board; targets C first):
+
+| Level | Goals | Cubes | Moves | Targets | W | m |
+|---:|---|---|---:|---|---:|---:|
+| 21 | C | 5 + 0 | 30 | 3 | 11 | 16 |
+| 24 | C | 7 + 0 | 28 | 3 | 8 | 15 |
+| 25 | C | 8 + 0 | 16 | 5 | 4 | 0 |
+| 27 | C | 7 + 0 | 28 | 4 | 9 | 15 |
+| 30 | C | 8 + 0 | 16 | 5 | 5 | 1 |
+| 32 | C | 7 + 0 | 28 | 4 | 10 | 6 |
+| 36 | C | 5 + 0 | 30 | 3 | 12 | 29 |
+| 38 | C | 7 + 0 | 28 | 5 | 7 | 6 |
+| 40 | C | 8 + 0 | 16 | 4 | 4 | 0 |
+| 43 | C | 8 + 0 | 27 | 3 | 8 | 14 |
+| 49 | C | 8 + 0 | 27 | 7 | 7 | 8 |
+| 54 | C | 8 + 0 | 27 | 4 | 8 | 13 |
+| 58 | C | 8 + 0 | 27 | 6 | 8 | 5 |
+| 60 | C | 10 + 0 | 18 | 8 | 5 | 2 |
+| 61 | C | 6 + 1 | 31 | 4 | 11 | 13 |
+| 64 | C | 7 + 1 | 28 | 4 | 10 | 9 |
+| 66 | C | 6 + 1 | 31 | 5 | 10 | 18 |
+| 69 | C | 7 + 1 | 28 | 4 | 8 | 9 |
+| 71 | C | 6 + 1 | 31 | 4 | 10 | 10 |
+| 74 | C | 7 + 1 | 28 | 5 | 8 | 11 |
+| 77 | C | 7 + 1 | 28 | 5 | 8 | 11 |
+| 80 | C | 8 + 1 | 18 | 5 | 4 | 1 |
+| 81 | C+L | 6 + 1 | 30 | 4 / 6 | 10 | 6 |
+| 83 | C+F | 6 + 1 | 27 | 4 / 13 | 7 | 1 |
+| 85 | C | 9 + 1 | 18 | 6 | 6 | 3 |
+| 87 | C+S | 6 + 1 | 27 | 5 / 3500 | 7 | 3 |
+| 89 | C+B | 6 + 1 | 27 | 4 / 4 | 7 | 8 |
+| 92 | C+F | 6 + 1 | 27 | 4 / 20 | 8 | 4 |
+| 94 | C+L | 6 + 1 | 27 | 4 / 7 | 8 | 2 |
+| 95 | C+F | 6 + 1 | 18 | 5 / 20 | 4 | 1 |
+| 97 | C+S | 6 + 1 | 27 | 4 / 3700 | 7 | 8 |
+| 99 | C+B | 6 + 1 | 27 | 5 / 3 | 8 | 5 |
+| 100 | C+L | 6 + 1 | 18 | 4 / 6 | 4 | 1 |
+| 101 | C+S | 7 + 0 | 30 | 5 / 4200 | 10 | 6 |
+| 103 | C+F | 7 + 0 | 26 | 5 / 14 | 7 | 1 |
+| 105 | C+L | 7 + 0 | 18 | 4 / 5 | 4 | 2 |
+| 107 | C+B | 7 + 0 | 26 | 4 / 2 | 7 | 16 |
+| 109 | C+S | 7 + 0 | 26 | 5 / 2500 | 7 | 4 |
+| 110 | C | 9 + 1 | 18 | 4 | 5 | 2 |
+| 112 | C+F | 7 + 0 | 26 | 5 / 19 | 7 | 4 |
+| 114 | C+S | 7 + 0 | 26 | 5 / 2900 | 7 | 4 |
+| 116 | C+L | 7 + 0 | 30 | 6 / 5 | 10 | 10 |
+| 118 | C+F | 7 + 0 | 26 | 5 / 17 | 7 | 3 |
+| 120 | C+B | 7 + 0 | 18 | 4 / 2 | 4 | 2 |
+
+**M14 forecast** (`level:seedIndex:targets`, C first on two-goal levels). If design §24.6 (M14) is implemented exactly, `npm run levels -- --write` must produce these 120 values; a difference means the code and the spec disagree, and the spec wins. 48 entries differ from the M13 table: the 44 C levels' targets or seeds, and Levels 50, 65, 70 and 115, whose seeds move because the neighbour rule now compares them with changed C neighbours.
+
+1:16:3 2:0:700 3:8:3 4:0:2300 5:10:4 6:1:8 7:0:6500 8:2:5 9:0:9 10:1:3600 11:2:16 12:0:5 13:0:2700 14:0:20 15:0:4 16:0:2200 17:0:11 18:2:5 19:0:2100 20:14:25 21:1:3 22:0:5 23:0:2000 24:0:3 25:6:5 26:1:13 27:0:4 28:0:2100 29:0:5 30:1:5 31:1:2200 32:1:4 33:0:11 34:0:5 35:0:11 36:4:3 37:0:3700 38:0:5 39:0:5 40:0:4 41:2:5 42:0:5 43:0:3 44:2:4 45:0:2300 46:0:1 47:16:1 48:0:3 49:1:7 50:1:20 51:1:6 52:0:2 53:0:4300 54:0:4 55:1:3 56:0:12 57:26:1 58:0:6 59:0:4 60:3:8 61:5:4 62:3:5 63:0:2 64:0:4 65:3:20 66:7:5 67:3:1 68:0:3000 69:0:4 70:1:4 71:11:4 72:0:8 73:23:1 74:3:5 75:0:2500 76:0:4 77:0:5 78:0:4 79:9:1 80:0:5 81:1:4/6 82:0:2700 83:2:4/13 84:0:4 85:1:6 86:25:1 87:1:5/3500 88:2:8 89:7:4/4 90:1:4 91:1:2400 92:5:4/20 93:0:3 94:6:4/7 95:5:5/20 96:1:12 97:5:4/3700 98:12:1 99:5:5/3 100:2:4/6 101:2:5/4200 102:0:4 103:0:5/14 104:2:1 105:0:4/5 106:1:12 107:0:4/2 108:0:2000 109:0:5/2500 110:21:4 111:0:5 112:16:5/19 113:0:1 114:5:5/2900 115:0:3000 116:0:6/5 117:0:9 118:2:5/17 119:51:1 120:3:4/2

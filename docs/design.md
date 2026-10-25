@@ -654,9 +654,9 @@ HUD and play:
 Pause: title "Paused"; buttons "Resume", "Restart", "Home", "Settings"; Daily: "Give up" instead of "Restart"; Zen: "End run" instead of "Restart".
 Restart confirm (Classic with score > 0): "Start over? This run will end." buttons "Start over", "Cancel".
 Home:
-- Title logo "Gloop Pop"; level chip "Lv 7"; coins chip "1,240"
+- Title logo "Gloop Pop"; level chip "Lv 7"; coins chip: a coin icon and "1,240" (aria-label "1,240 coins"; M14: a bare number did not say what it counts). The same coins chip is used on the Adventure map header.
 - Big button "Play" (resumes or starts Classic)
-- Mode cards: "Classic", "Endless. How long can you last?"; "Daily #12", "Same board for everyone today." / done: "Done · 8,450 · Next in 05:12:33"; "Zen", "No game over. Relax and pop." / locked "Reach Level 3"; "Expert", "Bigger pieces, all 7 flavours, no rescue." / locked "Reach Level 8"
+- Mode cards: "Classic", "Endless. How long can you last?"; "Daily #12", "Same board for everyone today." / done: "Done · 8,450 · Next in 05:12:33"; "Zen", "No game over. Relax and pop." / locked "Reach Level 3"; "Expert", "Bigger pieces, all 7 flavours, no rescue." / locked "Reach Level 8"; "Adventure", "Levels with goals. Win up to 3 stars." / locked "Reach Level 2" (M14: the locked Adventure card showed its description and a lock, but not how to open it)
 - Weekly card: "This week: Clear 150 lines", "87 / 150", "Resets in 3 days", reward line "Reward: 200 coins, 150 XP, 1 freeze"
 - Game-over XP bar labels: "Level 7" at the left end and "8" at the right end.
 - Streak: "🔥 5-day streak", freezes "❄️ 1 freeze" ; no streak: "Play today's daily to start a streak."
@@ -684,7 +684,7 @@ Pass 3 (§24). Every string below goes in `src/ui/strings.ts` word for word. `{n
 - **Home:** mode card "Adventure", "Levels with goals. Win up to 3 stars."; status "Next: Level {n} · ★ {s} / 360"; all won "All 120 levels won · ★ {s} / 360"; locked "Reach Level 2" (existing pattern).
 - **Missions card:** title "Daily missions"; reward "{c} coins · {x} XP"; progress "{p} / {t}"; buttons "Claim" and, once claimed, "Done"; change button aria "Change this mission"; caption "1 free change per day" / "Free change used. Next one tomorrow."; set line "Finish all 3: +50 coins, +50 XP"; set done "All 3 done. New missions tomorrow."; mission texts exactly as the §24.3 table.
 - **Toasts:** "Mission done: {text}", "Mission reward: +{c} coins, +{x} XP", "All 3 missions done! +50 coins, +50 XP", "Adventure gift: 1 of each booster", "Chapter {c} done! +200 coins, +100 XP", "All stars in Chapter {c}! +300 coins", "Bought: {booster}". The unlock uses the existing "Unlocked: {item}" with {item} = "Adventure".
-- **Adventure map:** title "Adventure"; stars chip "★ {s}"; chapter headings "Chapter 1 · First goals", "Chapter 2 · Sugar cubes", "Chapter 3 · Big Pops", "Chapter 4 · Hard cubes", "Chapter 5 · Two goals", "Chapter 6 · Everything"; chapter stars "{s} / 60 ★"; chapter reward lines "All 20 levels: 200 coins, 100 XP" and "All 60 stars: 300 coins" (with ✓ when paid); node label "Hard"; under a paused level "Continue"; footer button "Play level {n}"; when every level is won the footer shows the text "You won every level. Replay any level to get more stars."; node aria "Level {n}, {s} stars" / "Level {n}, hard, {s} stars" / "Level {n}, locked" / "Level {n}, next".
+- **Adventure map:** title "Adventure"; stars chip "★ {s}"; chapter headings "Chapter 1 · First goals", "Chapter 2 · Sugar cubes", "Chapter 3 · Big Pops", "Chapter 4 · Hard cubes", "Chapter 5 · Two goals", "Chapter 6 · Everything"; chapter stars "{s} / 60 ★"; chapter reward lines "All 20 levels: 200 coins, 100 XP" and "All 60 stars: 300 coins" (with ✓ when paid); node label "Hard"; under a paused level "Continue"; footer button "Play level {n}", or "Continue level {n}" when that level has a paused attempt (M14: the node said "Continue" while the button said "Play"); when every level is won the footer shows the text "You won every level. Replay any level to get more stars."; node aria "Level {n}, {s} stars" / "Level {n}, hard, {s} stars" / "Level {n}, locked" / "Level {n}, next".
 - **Level start card:** title "Level {n}"; chip "Hard level"; caption "Chapter {c}"; label "Moves"; star line "2 stars: win with {s2} moves left · 3 stars: win with {s3} moves left"; goal texts per §24.5 ("Clear {t} lines", "Score {t} points", "Clear or pop {t} {flavour} cells", "Make {t} Big Pops (8+ cells)" / "Make a Big Pop (8+ cells)", "Clear 2+ lines in one move {t} times" / "Clear 2+ lines in one move", "Clear {t} sugar cubes" / "Clear 1 sugar cube"); tips on the first level of each new thing: L6 "New: flavour goals. Cells you clear or pop both count.", L21 "New: sugar cubes. Clear a line through a cube to remove it.", L41 "New: Big Pop goals. Pop a gloop of 8 or more cells.", L46 "New: clear 2 or more lines with one piece.", L51 "Grape joins in: 6 flavours from now on.", L61 "New: hard cubes. They need 2 line clears.", L81 "New: two goals. Finish both to win.", L91 "Bubblegum joins in: 7 flavours from now on."; streak "Win streak 1: +1 move" / "Win streak {k}: +{m} moves" / "Win streak {k}: +2 moves and a free Shuffle"; streak caption (shown until the first streak bonus is used) "Win new levels in a row for a bonus. A loss resets it."; assist toggle "Extra help: +5 moves" and caption "Extra moves don't count for stars."; booster names "+3 Moves", "Shuffle", "Pop"; booster descriptions "Start with 3 more moves.", "Get 3 new pieces once.", "Pop your biggest gloop once."; count "×{n}"; buy "{p} coins"; short "Need {d} more coins"; cap "Max 5"; free "Free from win streak"; captions "You can win every level without boosters." and "Shuffle and Pop come back if you don't use them."; buttons "Play", "Back to map".
 - **Adventure play:** top bar pill "Level {n}"; HUD label "moves left"; goal chip "{p} / {t}" with aria "{goal text}: {p} of {t}"; booster aria "Use Shuffle" / "Use Pop", used "Used"; pause "Give up" (existing) with confirm "Give up this level? It counts as a loss." buttons "Give up", "Cancel".
 - **Level win panel:** title "Level {n} complete"; streak "Win streak {k}"; buttons "Next level", "Replay", "Map".
@@ -815,6 +815,8 @@ No ads, IAP, energy, loot boxes, accounts, backend, leaderboards, push notificat
 Pass 3 (§24.1 cut list) adds: no chests, spin wheels or random rewards; no lives, energy or waits between Adventure attempts; no star gates; no boosters or extra moves offered at a loss; no paid anything (boosters cost earned coins only and are never needed); no mission streak and no expiring rewards; no "x% of players" numbers; no levels that were not validated by the bot.
 
 ---
+
+**iPhone haptics (M14 decision: not added).** Safari on iOS has no `navigator.vibrate`, so every haptic in SG §9.13.k is silent on iPhones. The only route people use is Safari 17.4+'s `<input type="checkbox" switch>`: iOS 18 plays a system tick when a *native switch is toggled*, and small libraries hide such a switch and call `.click()` on its label to get a tick. We don't use it, because: (1) it is a side effect of a form control, not a haptics API, and Apple can change it in any release (no spec, no feature test, no way to know if it fired); (2) it only fires inside a user gesture, so it can't follow our timing rule (a haptic on the impact frame, 60–450 ms after release, SG §9.13.k), only at pointerdown/up; (3) it needs a hidden focusable form control in the DOM on every tap, which screen readers can find and announce; (4) it gives one fixed tick, not our patterns. iPhone players get the snap tick sound instead (SG §13.4). On devices without `navigator.vibrate`, Settings hides the "Vibration" row so it never offers a switch that does nothing (M14.4). Revisit if WebKit ships the Vibration API or a real haptics API.
 
 ## 23. Research v2 additions (R23–R30)
 
@@ -1066,11 +1068,13 @@ Most a player can earn per day: 210 coins and 170 XP (about 4 Classic runs' wort
 | F | Clear or pop {t} {flavour} cells | mini gloop of the flavour | cells of the goal flavour removed by clears or pops | 30 per cell | down to a multiple of 5 if ≥ 20, else whole, min 8 |
 | B | Make {t} Big Pops (8+ cells) | big-gloop icon | popped gloops with size ≥ 8 | 300 per Big Pop | whole, min 1 |
 | M | Clear 2+ lines in one move {t} times | double-line icon | moves with n ≥ 2 | 300 per such move | whole, min 1 |
-| C | Clear {t} sugar cubes ("Clear 1 sugar cube" when t = 1) | cube icon | cubes fully removed (a hard cube counts when its second hit removes it) | 250 per cube hit | whole, min 1, at most the number of cubes on the start board; calibrated like the others (§24.6) |
+| C | Clear {t} sugar cubes ("Clear 1 sugar cube" when t = 1) | cube icon | cubes fully removed (a hard cube counts when its second hit removes it) | 250 per cube hit | whole; min = the chapter's C floor (3 in Chapters 2–3, 4 in Chapters 4–6; M14), at most the number of cubes on the start board; calibrated like the others (§24.6) |
 
 Singular forms: "Make a Big Pop (8+ cells)", "Clear 2+ lines in one move" and "Clear 1 sugar cube" when t = 1.
 
 **Spec-note — M13 (pass-3 polish):** C used to be "Clear all {t} sugar cubes" with t fixed to the cube count. The shipped generator never applied that: every C goal in the M12 table has t = 1, so those levels were won by removing one cube (the main reason Chapter 2's hard levels were barely harder than normal). With t = all cubes, the frozen bot clears every cube in 0 of 12 runs on every one of the 64 seeds of Levels 25, 40 and 60 (6–8 cubes), so "all" can't be validated. C is now a calibrated count goal like L or F. The other cubes stay on the board as blockers. The cube counts in §24.6 are unchanged.
+
+**Spec-note — M14 (refine):** after M13, 34 of the 44 C levels said "Clear 1 sugar cube" (29 of 30 in Chapters 4–6), because the frozen bot could not clear more cubes inside the bands: it removes a cube only when a line through it happens to be nearly full, cubes were scattered one per line, and a hard cube's first hit is worth nothing to it. M14 changes the boards, not the bot: cubes sit in **lanes** (3 per row or column, §24.6 step 1), boards have more cubes and at most 1 hard cube, C levels get a few more moves (§24.6 "Move limits"), and every C target has a floor of **3 in Chapters 2–3 and 4 in Chapters 4–6**. Two-goal levels never pair C with M (a 2+ line clear plus 4 cubes passed on 0 of 64 seeds for Levels 109 and 118). Measurements: `docs/balance-log.md`, "M14 cube levels". The singular "Clear 1 sugar cube" string stays for safety but no level uses it.
 
 **Sugar cubes** (blockers; they fit the engine cheaply because a cube is just a non-flavour cell value):
 - Cell value **8 = sugar cube**, **9 = hard cube**. `Cell = 0 | Flavour | 8 | 9`. Only Adventure boards ever contain them. Pieces never do.
@@ -1128,6 +1132,18 @@ The lower ends of the wins bands are the old minimum wins K (intro 12, easy 10, 
 | 5 | 26 | 23 | 15 |
 | 6 | 26 | 22 | 14 |
 
+**Move limits on C levels (M14).** A level with a C goal (alone or as C+X) uses this table instead. Hard C levels stay inside 14–18. Levels without a C goal are unchanged.
+
+| Chapter | easy | normal | hard |
+|---|---|---|---|
+| 2 | 30 | 28 | 16 |
+| 3 | 30 | 27 | 18 |
+| 4 | 31 | 28 | 18 |
+| 5 | 30 | 27 | 18 |
+| 6 | 30 | 26 | 18 |
+
+Why: lanes and the cube floor need time for the bot to fill 2 lanes; the extra moves raise the C target the calibration finds, and the bands still decide W and m. Chapter 2 hard is 16, not 18: with 18 moves, Level 40 can't keep its margin share under Level 39's (neighbour rule) on any of 64 seeds.
+
 **Spec-note — 2026-10-25:** Chapter 2 hard levels use 14 moves and 1 start piece instead of 17 moves and 3 pieces. With 14 moves and 3 pieces, these levels averaged 9.00 wins, equal to Chapter 2 normal; the updated parameters give a hard-band mean of 8.50 wins against 9.00 normal. (M13: those numbers were measured while every C target was 1, see §24.5. The parameters stay; the tier bands and the neighbour rule now decide each level.)
 
 **Chapters and the complexity staircase** (RT17: one new thing at a time, first in an easy level, with a one-line tip on the start card):
@@ -1151,10 +1167,12 @@ Intro levels use S1 weights and F2 p = 1.
 | 2 | C | L | S | C | C | F | C | S | L | C | S | C | F | L | F | C | S | C | L | C |
 | 3 | B | L | C | B | S | M | M | B | C | F | L | B | S | C | B | F | M | C | B | C |
 | 4 | C | L | B | C | F | C | M | S | C | B | C | F | M | C | S | L | C | B | M | C |
-| 5 | C+L | S | C+F | B | C | M | C+S | F | C+B | L | S | C+M | B | C+L | C+F | F | C+S | M | C+B | C+L |
-| 6 | C+S | B | C+F | M | C+L | F | C+B | S | C+M | C | L | C+F | B | C+S | S | C+L | F | C+M | M | C+B |
+| 5 | C+L | S | C+F | B | C | M | C+S | F | C+B | L | S | C+F | B | C+L | C+F | F | C+S | M | C+B | C+L |
+| 6 | C+S | B | C+F | M | C+L | F | C+B | S | C+S | C | L | C+F | B | C+S | S | C+L | F | C+F | M | C+B |
 
 **Spec-note — M13:** no hard level uses an M goal. A 2+ line clear either happens early or not at all, so M hard levels can't meet the hard margin band (on every Level 50 seed that won 4–7 times, the median winner still had 4–14 of 16 moves left; the hard band allows at most 3). Swaps, which keep the staircase (first M is still Level 46): Chapter 3 p7 ↔ p10 (Level 47 is M, Level 50 is F), Chapter 6 p15 ↔ p19 (Level 115 is S, Level 119 is M) and p18 ↔ p20 (Level 118 is C+M, Level 120 is C+B).
+
+**Spec-note — M14:** no level pairs C with M. Level 92 (Chapter 5 p12) is C+F, Level 109 (Chapter 6 p9) is C+S and Level 118 (Chapter 6 p18) is C+F. M still appears alone (Levels 46, 47, 57, 67, 73, 79, 86, 98, 104, 119). The "C+X" note above means "clear {t} cubes and goal X".
 
 **Start board pieces** (dropped like the Daily start board, §7.5: pieces from {I2h, I2v, I3h, I3v, L3a–d, O2} in the level's flavours, rejecting positions that make a full line; intro levels: 0):
 
@@ -1173,16 +1191,24 @@ Intro levels use S1 weights and F2 p = 1.
 
 | Chapter | easy | normal | hard |
 |---|---|---|---|
-| 2 | 3, 0 | 5, 0 | 6, 0 |
-| 3 | 4, 0 | 6, 0 | 8, 0 |
-| 4 | 2, 1 | 3, 2 | 4, 3 |
-| 5 | 3, 1 | 4, 2 | 4, 4 |
-| 6 | 1, 0 | 4, 3 | 5, 4 |
+| 2 | 5, 0 | 7, 0 | 8, 0 |
+| 3 | 6, 0 | 8, 0 | 10, 0 |
+| 4 | 7, 1 | 8, 1 | 9, 1 |
+| 5 | 7, 1 | 9, 1 | 10, 1 |
+| 6 | 7, 0 | 9, 1 | 10, 1 |
 
-**Spec-note — 2026-10-25:** Chapter 6's easy cube column, used by every two-goal level, is one sugar cube and no hard cubes instead of three cubes (two hard). With the old count, Level 109's best seed cleared every cube in at most 1 of 12 runs across 64 seeds; the updated count validates Level 109 at 7 of 12 wins while keeping the second goal active.
+(M14 values. "7, 1" = 7 cubes in total, of which 1 is hard. The M13 table was 3/5/6, 4/6/8, 2+1/3+2/4+3, 3+1/4+2/4+4, 1+0/4+3/5+4.)
+
+**Spec-note — 2026-10-25 (superseded by M14, kept for history):** Chapter 6's easy cube column, used by every two-goal level, is one sugar cube and no hard cubes instead of three cubes (two hard). With the old count, Level 109's best seed cleared every cube in at most 1 of 12 runs across 64 seeds; the updated count validates Level 109 at 7 of 12 wins while keeping the second goal active.
 
 **Seeds and streams.** For level n and candidate seed index s (0, 1, 2, …): `seed = "gloop-pop/adventure/v1/" + n + "/" + s`. Sub-streams use `cyrb128(seed + "/board" | "/trays" | "/goal")` with 12 warm-up draws (like §10.2). Building a level:
-1. Board stream: drop the start pieces (rejecting full lines; at most 20,000 tries, else reject this seed). Then place hard cubes, then sugar cubes, each on a uniformly picked empty cell (`nextInt` over the list of empty cells in index order), rejecting a cell that would complete a row or column.
+1. Board stream: drop the start pieces (rejecting full lines; at most 20,000 tries, else reject this seed). Then place the cubes in **lanes** (M14; replaces the M12 rule "each on a uniformly picked empty cell"):
+   - Let N = sugar + hard cubes. If N = 0, stop. `laneCount = ceil(N / 3)`, `perLane = ceil(N / laneCount)`.
+   - Lines are numbered 0–7 = rows top to bottom, 8–15 = columns left to right. The **eligible** lines are those with at least `perLane + 2` empty cells after the start pieces, in number order. If there are fewer eligible lines than `laneCount`, reject this seed.
+   - Pick the lanes: `laneCount` times, remove `eligible[nextInt(eligible.length)]` from the list and append it to `lanes`.
+   - The cube values in order: all hard cubes (9) first, then the sugar cubes (8). Cube i goes to `lanes[i mod laneCount]`.
+   - For each cube: list that lane's cells that are empty now (row: left to right; column: top to bottom). Repeatedly remove `cells[nextInt(cells.length)]`, put the cube there, and keep it if no row or column is full; otherwise empty the cell and try the next pick. If the list runs out, reject this seed.
+   - Lanes may cross; a crossing cell belongs to whichever lane fills it first. Why lanes: one line clear through a lane removes up to 3 cubes, and a player can see which rows and columns matter.
 2. Goal stream: the F goal's flavour = `1 + nextInt(flavourCount)`.
 3. Tray stream: the attempt's `rng` for `dealTray`.
 
@@ -1191,14 +1217,14 @@ Intro levels use S1 weights and F2 p = 1.
 **Calibration and validation** (per level, in `src/core/levelGen.ts`, pure). M13 replaces the M12 "K-th highest" rule, which let ties and rounding push wins far above K (Level 5 'Hard' won 11 of 12):
 1. **Build** the level for seed index s (the board, cubes and goal flavour exactly as above; the seed strings stay `…/v1/…`).
 2. **Record** 12 bot runs (k = 0…11) on the real Adventure reducer with every count goal's target set to "never met" and C's target set to the cube count, up to the move limit (no bonus moves, no boosters). Record every goal's progress **after every move** (`trace[k][j]` = progress after move j + 1) and stop at the limit, when stuck, or when every goal is met (only possible on C-only levels).
-3. **Candidates.** For a count goal X (L, S, F, B, M or C): take each run's final progress, round it down per §24.5, apply the intro caps (level 1 L ≤ 4, level 2 S ≤ 1,500, level 3 L ≤ 6), drop values below the §24.5 minimum (C: 1), remove duplicates, and sort **descending**. On a two-goal level (C + X), C's candidates come from all 12 runs; for each C candidate c, X's candidates come only from the runs whose final C progress is ≥ c.
+3. **Candidates.** For a count goal X (L, S, F, B, M or C): take each run's final progress, round it down per §24.5, apply the intro caps (level 1 L ≤ 4, level 2 S ≤ 1,500, level 3 L ≤ 6), drop values below the §24.5 minimum (C: the chapter's floor, 3 in Chapters 2–3 and 4 in Chapters 4–6), remove duplicates, and sort **descending**. On a two-goal level (C + X), C's candidates come from all 12 runs; for each C candidate c, X's candidates come only from the runs whose final C progress is ≥ c.
 4. **Evaluate** a target vector T from the traces, with no replay: a run wins at the first move j where every goal's progress ≥ its target, with `movesLeft = limit − (j + 1)`. This gives W, m, `s3 = min(max movesLeft over winning runs, floor(0.4 × limit))` and `s2 = max(1, floor(s3 / 2))`. Because the bot never looks at targets, this equals a real play-through (step 7 checks it).
 5. **Pick the targets** for this seed: single-goal levels try X's candidates in descending order; two-goal levels try C's candidates in descending order and, inside each, X's candidates in descending order. The first T whose W and m are inside the level's tier band (table above) and whose s3 ≥ 2 is the seed's result. If no T passes, the seed fails.
 6. **Accept the seed** when step 5 passed and the neighbour rule holds against the level already accepted before it: if n is hard, check n against n − 1; if n − 1 is hard, check n − 1 against n. Seeds are tried in order s = 0, 1, …, 63, levels are generated in order 1…120, and an accepted level is never revisited (no backtracking), so the table is deterministic. Step 5 depends only on (n, s), so `calibrate(n, s)` stays context-free and the test can rebuild any level alone.
-7. **Store** `{ n, s, goals: [{kind, flavour?, target}], moves, s2, s3, wins, margin, board }` (board as a 64-character string of digits 0–9; `margin` = m). Then re-run the 12 bots on the real reducer *with* the targets and check that wins, margin and every star result agree with step 4.
+7. **Store** `{ n, s, goals: [{kind, flavour?, target}], moves, s2, s3, wins, margin, board }` (board as a 64-character string of digits 0–9; `margin` = m). *(M14: the committed file stores only `s`, the targets, `s2`, `s3`, `wins` and `margin` per level in a compact string; `moves`, goal kinds, the F flavour and the board are rebuilt from `levelParams(n)` and `buildLevel(n, s)` when a level is first used. The runtime `LevelDef` shape is unchanged. See architecture §"Level table encoding".)* Then re-run the 12 bots on the real reducer *with* the targets and check that wins, margin and every star result agree with step 4.
 8. If 64 seeds fail, the tool stops with "Level {n}: no seed passed in 64 tries" and does not write the table. The fix is a parameter change in `src/core/levels.ts` (tables above, then this section), never a hand edit of `levels.data.ts`.
 
-**Re-validation in tests** (`levels.test.ts`, part of `npm run check`): for all 120 levels, (a) rebuilding from `s` gives exactly the stored board and goal flavour; (b) `calibrate(n, s)` gives exactly the stored targets, `wins`, `margin`, `s2` and `s3`, and the replay of step 7 agrees; (c) **the band table test:** every level's stored W and m are inside its tier band, and every hard level passes the neighbour rule against both neighbours (written as a pure check over `LEVELS`, so a failure names the level, its tier and the broken number); (d) every C target is between 1 and the start board's cube count; (e) no hard level has an M goal; (f) the staircase holds: the first level using each new thing is the one in the chapter table, and it is easy-band; (g) per chapter, mean W of hard < normal < easy (kept as a summary check). Budget: the recording runs are the same 12 bot runs per level as before, plus 12 replay runs, so the test stays near today's time. The test's timeout is 90 s, and the agent reports the measured time. If it ever passes 30 s, check this section before cutting runs.
+**Re-validation in tests** (`levels.test.ts`, part of `npm run check`): for all 120 levels, (a) rebuilding from `s` gives exactly the stored goal flavour, and the SHA-256 of the 120 rebuilt boards (64-digit strings joined with "\n") equals the value pinned in the test (M14: boards are no longer stored in the table, see architecture; the pinned hash catches any change to `buildLevel`); (b) `calibrate(n, s)` gives exactly the stored targets, `wins`, `margin`, `s2` and `s3`, and the replay of step 7 agrees; (c) **the band table test:** every level's stored W and m are inside its tier band, and every hard level passes the neighbour rule against both neighbours (written as a pure check over `LEVELS`, so a failure names the level, its tier and the broken number); (d) every C target is between the chapter's C floor (3 in Chapters 2–3, 4 in Chapters 4–6) and the start board's cube count; no level has both C and M; (e) no hard level has an M goal; (f) the staircase holds: the first level using each new thing is the one in the chapter table, and it is easy-band; (g) per chapter, mean W of hard < normal < easy (kept as a summary check). Budget: the recording runs are the same 12 bot runs per level as before, plus 12 replay runs, so the test stays near today's time. The test's timeout is 90 s, and the agent reports the measured time. If it ever passes 30 s, check this section before cutting runs.
 
 **Hard levels stay short and fair:** a hard level wins 4–7 of 12 bot runs, its typical winner has at most 20% of the moves left, it has 14–18 moves, it is harder than both neighbours by the neighbour rule, and it is followed by an easy level. "Crazy hard levels never pay off" (RT16).
 
