@@ -70,6 +70,7 @@ import { nextTarget } from '../core/goals';
 import { addMissionProgress, claimMission, missionNearMiss, rerollMission, rollDay } from '../meta/missions';
 import { MISSIONS } from '../core/missions';
 import { newAdventureGame } from '../core/adventure';
+import { recordLevelResult, unlockAdventure } from '../meta/adventureProgress';
 
 export async function bootApp(): Promise<void> {
   const canvas = document.querySelector<HTMLCanvasElement>('#game'); const uiRoot = document.querySelector<HTMLElement>('#ui');
@@ -90,19 +91,43 @@ export async function bootApp(): Promise<void> {
   const syncCosmetics = (): void => setEquippedCosmetics({ theme: save.equipped.theme as keyof typeof PALETTE.theme, skin: skinMap[save.equipped.skin] ?? 'plain', popEffect: save.equipped.pop as PopEffectId });
   syncCosmetics();
   setMasterMuted(save.settings.muted); setSfxEnabled(save.settings.sfx); setMusicEnabled(save.settings.music); setEffectsVolume(save.settings.sfxVolume); setMusicVolume(save.settings.musicVolume);
-  const requestedLevel = Number(query.get('level'));
-  const levelTable = debug && Number.isInteger(requestedLevel) && requestedLevel >= 1 && requestedLevel <= 120 ? (await import('../core/levels.data')).LEVELS : undefined;
+  const adventureDemo = query.get('demo') ?? '';
+  const defaultDemoLevel = adventureDemo === 'adventure-win' ? 1 : adventureDemo === 'adventure-lose' || adventureDemo === 'adventure-play' ? 87 : Number.NaN;
+  const requestedLevel = Number(query.get('level') ?? defaultDemoLevel);
+  const levelScene = ['level-card', 'adventure-play', 'adventure-win', 'adventure-lose'].includes(adventureDemo);
+  const levelTable = debug && (levelScene || Number.isInteger(requestedLevel) && requestedLevel >= 1 && requestedLevel <= 120) ? (await import('../core/levels.data')).LEVELS : undefined;
+  let loadedAdventureLevels = levelTable;
   const debugLevelDef = levelTable?.[requestedLevel - 1];
-  const debugLevelState = debugLevelDef ? newAdventureGame(debugLevelDef, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state : null;
-  const beginTutorial = !debugLevelState && !savedRun && !save.tutorialDone;
+  const adventurePlayDemo = adventureDemo === 'adventure-play' || adventureDemo === 'adventure-win' || adventureDemo === 'adventure-lose';
+  const debugLevelState = debugLevelDef && (adventurePlayDemo || (!levelScene && query.has('level'))) ? newAdventureGame(debugLevelDef, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state : null;
+  if (debug && ['adventure-map', 'adventure-map-end'].includes(adventureDemo)) {
+    save.owned.modes = Array.from(new Set<ModeId>([...save.owned.modes, 'adventure']));
+    save.adventure.frontier = adventureDemo === 'adventure-map-end' ? 121 : 23;
+    save.adventure.levels = {};
+    for (let level = 1; level <= (adventureDemo === 'adventure-map-end' ? 120 : 22); level += 1) save.adventure.levels[String(level)] = { stars: (((level - 1) % 3) + 1) as 1 | 2 | 3, wins: 1, losses: 0, lossRun: 0, bestScore: 0 };
+    if (adventureDemo === 'adventure-map') { save.adventure.inProgress = newAdventureGame(levelTable?.[22] ?? (await import('../core/levels.data')).LEVELS[22]!, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state; save.adventure.chaptersDone = [1]; }
+    if (adventureDemo === 'adventure-map-end') { save.adventure.levels = Object.fromEntries(Array.from({ length: 120 }, (_, index) => [String(index + 1), { stars: 3 as const, wins: 1, losses: 0, lossRun: 0, bestScore: 0 }])); save.adventure.chaptersDone = [1, 2, 3, 4, 5, 6]; save.adventure.chaptersAllStars = [1, 2, 3, 4, 5, 6]; }
+  }
+  const beginTutorial = !debug && !debugLevelState && !savedRun && !save.tutorialDone;
   let session = createSession({ state: debugLevelState ?? savedRun ?? (beginTutorial ? tutorialGame(1) : null), best: bestFor(save, debugLevelState?.mode ?? savedRun?.mode ?? 'classic'), mode: 'classic', goals: save.tutorialDone });
+  if (debug && session.state.adventure && adventureDemo === 'adventure-play') session.state.adventure.movesLeft = 3;
+  if (debug && session.state.adventure && adventureDemo === 'adventure-win') {
+    const stars = Number(query.get('stars') ?? 3); const value = Math.max(1, Math.min(3, stars)) as 1 | 2 | 3;
+    session.state.adventure.goals.forEach((goal) => { goal.progress = goal.target; }); session.state.adventure.movesLeft = 6; session.state.adventure.result = { won: true, reason: 'goals', movesLeft: 6, stars: value }; session.state.status = 'over';
+  }
+  if (debug && session.state.adventure && adventureDemo === 'adventure-lose') {
+    const reason = query.get('reason') === 'stuck' ? 'stuck' : 'moves'; session.state.adventure.goals = [{ kind: 'F', flavour: 6, target: 30, progress: 26 }];
+    session.state.adventure.movesLeft = reason === 'moves' ? 0 : 3; session.state.adventure.result = { won: false, reason, movesLeft: session.state.adventure.movesLeft, stars: 0 }; session.state.status = 'over';
+  }
   canvas.setAttribute('aria-label', `${S.logo}. ${S.howToControls}`);
   updateCanvasAria();
   let runBest = session.best; let runStartedAt = performance.now(); let pauseStartedAt = 0; let runReward = { xp: 0, coins: 0, progress: 0, progressMax: xpToNext(save.profile.level), currentLevel: save.profile.level, level: undefined as number | undefined };
-  const router = createRouter('play'); const surface = createCanvasSurface(canvas); const background = createBackground(save.equipped.theme as keyof typeof PALETTE.theme); const view = createBoardView(); const director = createDirector();
+  const initialScreen = debug && ['adventure-map', 'adventure-map-end', 'level-card'].includes(adventureDemo) ? (adventureDemo === 'level-card' ? 'adventure' : 'adventure') : 'play';
+  const router = createRouter(initialScreen); const surface = createCanvasSurface(canvas); const background = createBackground(save.equipped.theme as keyof typeof PALETTE.theme); const view = createBoardView(); const director = createDirector();
   setColourBlindPatterns(save.settings.cbPatterns);
   let backgroundTheme = save.equipped.theme; const ui = createGameUi(uiRoot); const toast = createToasts(uiRoot); const homeHost = document.createElement('div'); uiRoot.append(homeHost);
-  let paused = false; let shownScore = 0; let shownStatus = ''; let runRecorded = false; let countedDailyThisRun = false; let comboLostAt = -1; let layout: Layout = computeLayout(window.innerWidth, window.innerHeight, {}, Boolean(session.state.goals)); let renderElapsed = 0; let gameOverAt = -1; let saveTimer = 0; let runEvents: GameEvent[] = []; let closeCall = false;
+  let paused = false; let shownScore = 0; let shownStatus = ''; let runRecorded = false; let adventureRecorded = false; let adventureReward = { xp: 0, coins: 0 }; let adventureChapterRewards = { chapterDone: false, chapterAllStars: false, chapter: 1 }; let countedDailyThisRun = false; let comboLostAt = -1; let layout: Layout = computeLayout(window.innerWidth, window.innerHeight, {}, Boolean(session.state.goals || session.state.adventure)); let renderElapsed = 0; let gameOverAt = -1; let saveTimer = 0; let runEvents: GameEvent[] = []; let closeCall = false;
+  let lastAdventureMoves = session.state.adventure?.movesLeft ?? -1; let adventureMovesChangedAt = -1;
   let tutorialActive = !debugLevelState && (beginTutorial || savedRun?.mode === 'tutorial' || (!save.tutorialDone && save.ui.seenTips.includes('tutorialStep4Pending'))); let tutorialStep = tutorialActive ? (session.state.mode === 'tutorial' ? Math.min(3, session.state.traysDealt) : 4) : 0; let tutorialTouched = false; let tutorialBubbleText = ''; let tutorialBubbleUntil = -1; let tutorialTipForGameOver = false;
   let candyFlameUntil = -1; let candyFlameFlavour = 1; let discoveryCoins = 0;
   let scoreAnimFrom = 0; let scoreAnimStart = 0; let scoreAnimDuration = 600; let scoreAnimPoints = 0;
@@ -162,7 +187,7 @@ export async function bootApp(): Promise<void> {
   const resize = (): void => {
     surface.resize(window.innerWidth, window.innerHeight);
     const rootStyle = getComputedStyle(document.documentElement); const safeTop = Number.parseFloat(rootStyle.getPropertyValue('--safe-area-top')) || 0; const safeBottom = Number.parseFloat(rootStyle.getPropertyValue('--safe-area-bottom')) || 0;
-    layout = computeLayout(surface.width, surface.height, { top: safeTop, bottom: safeBottom }, Boolean(session.state.goals)); background.resize(surface.width, surface.height, layout);
+    layout = computeLayout(surface.width, surface.height, { top: safeTop, bottom: safeBottom }, Boolean(session.state.goals || session.state.adventure)); background.resize(surface.width, surface.height, layout);
     topBar.element.style.left = `${layout.column.x}px`; topBar.element.style.width = `${layout.column.width}px`; topBar.element.style.top = `${layout.topBar.y}px`; topBar.element.style.height = `${layout.topBar.height}px`;
   };
   resize(); window.addEventListener('resize', resize, { passive: true });
@@ -171,9 +196,23 @@ export async function bootApp(): Promise<void> {
   canvas.addEventListener('pointerup', (event) => { if (router.current !== 'play' || paused || session.state.status !== 'playing') return; pointer.pointerUp(event.offsetX, event.offsetY, event.pointerType); if (pointer.returning) sfx.returnToTray(); });
   canvas.addEventListener('pointercancel', () => pointer.cancel());
   document.addEventListener('visibilitychange', () => { if (document.hidden && router.current === 'play' && !paused && session.state.status === 'playing') showPause(); });
-  window.addEventListener('keydown', (event) => { lastAudioInputAt = performance.now(); enableAudio(); if (['1', '2', '3'].includes(event.key)) { sfx.pickUp(); vibrate('pick', save.settings.haptics); } if (event.key.toLowerCase() === 'm') { save.settings.muted = !save.settings.muted; setMasterMuted(save.settings.muted); topBar.muteButton.setAttribute('aria-label', save.settings.muted ? S.unmute : S.mute); persist(true); } if (session.state.status === 'over' && router.current === 'play' && [' ', 'Enter', 'r', 'R'].includes(event.key)) { event.preventDefault(); restart(); } });
+  window.addEventListener('keydown', (event) => {
+    lastAudioInputAt = performance.now(); enableAudio();
+    if (['1', '2', '3'].includes(event.key)) { sfx.pickUp(); vibrate('pick', save.settings.haptics); }
+    if (event.key.toLowerCase() === 'm') { save.settings.muted = !save.settings.muted; setMasterMuted(save.settings.muted); topBar.muteButton.setAttribute('aria-label', save.settings.muted ? S.unmute : S.mute); persist(true); }
+    if (session.state.status === 'over' && router.current === 'play' && [' ', 'Enter', 'r', 'R'].includes(event.key)) {
+      const focusedButton = event.target instanceof Element && Boolean(event.target.closest('.adventure-result-panel button'));
+      if (session.state.adventure && [' ', 'Enter'].includes(event.key) && focusedButton) return;
+      event.preventDefault();
+      if (session.state.adventure) {
+        const level = session.state.adventure.level;
+        if (event.key === 'r' || event.key === 'R' || !session.state.adventure.result?.won) void toAdventure(level);
+        else if (level < 120) void showAdventureCard(level + 1, false); else router.open('adventure');
+      } else restart();
+    }
+  });
   onSaveVisibility(() => { window.clearTimeout(saveTimer); persist(true); });
-  router.subscribe((screen) => { if (screen !== 'play') toast.clear(); renderScreen(screen); }); renderScreen('play'); persist(true);
+  router.subscribe((screen) => { if (screen !== 'play') toast.clear(); renderScreen(screen); }); renderScreen(initialScreen); if (debug && adventureDemo === 'level-card') void showAdventureCard(requestedLevel, true); if (debug && adventurePlayDemo) { gameOverAt = session.state.status === 'over' ? renderElapsed : -1; shownStatus = ''; } persist(true);
   let currentFrame: Readonly<Frame> = { realDt: 0, worldDt: 0, boardDt: 0, realNow: 0, worldNow: 0, boardNow: 0 };
   const renderLoop = startRenderLoop((frame) => {
     currentFrame = frame;
@@ -186,7 +225,7 @@ export async function bootApp(): Promise<void> {
     if (demoThemes) background.setTheme(THEME_KEYS[Math.floor(frame.worldNow / 2400) % THEME_KEYS.length]!, frame.worldNow);
     else if (backgroundTheme !== save.equipped.theme) { backgroundTheme = save.equipped.theme; background.setTheme(backgroundTheme as keyof typeof PALETTE.theme, frame.worldNow); }
     const ctx = surface.context; ctx.setTransform(surface.dpr, 0, 0, surface.dpr, 0, 0); ctx.save(); background.draw(ctx, frame.worldNow, layout, session.state.stage); ctx.restore(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-    const today = dayKeyFromMs(Date.now()); const pill = save.daily.records[today] ? S.dailyPillDone : save.streak.current >= 2 && new Date().getUTCHours() >= 18 ? S.dailyKeepStreak(dayNumber(today), save.streak.current) : S.daily(dayNumber(today)); if (topBar.dailyPill.textContent !== pill) topBar.dailyPill.textContent = pill;
+    const today = dayKeyFromMs(Date.now()); const pill = session.state.adventure ? S.levelText(session.state.adventure.level) : save.daily.records[today] ? S.dailyPillDone : save.streak.current >= 2 && new Date().getUTCHours() >= 18 ? S.dailyKeepStreak(dayNumber(today), save.streak.current) : S.daily(dayNumber(today)); if (topBar.dailyPill.textContent !== pill) topBar.dailyPill.textContent = pill; (topBar.dailyPill as HTMLButtonElement).disabled = Boolean(session.state.adventure);
     // Design §23.9: the Daily is offered after the tutorial and the first Classic run, never before.
     const isPlay = router.current === 'play';
     if (musicGameRef !== session.state) { musicGameRef = session.state; fittingPieces = session.state.tray.filter((piece) => piece !== null && fitsAnywhere(session.state.board, piece.defId)).length; }
@@ -199,7 +238,8 @@ export async function bootApp(): Promise<void> {
       const shake = director.shakeOffset(); const shakeScale = 1; const boardCentreX = layout.board.x + layout.board.width / 2; const boardCentreY = layout.board.y + layout.board.height / 2; ctx.save(); ctx.translate(shake.x * shakeScale, shake.y * shakeScale); ctx.translate(boardCentreX, boardCentreY); ctx.rotate(director.cameraRoll() * Math.PI / 180); ctx.translate(-boardCentreX, -boardCentreY);
       view.draw(ctx, layout, session.state, frame.worldNow, paused ? undefined : pointer.drag ?? keyboard.drag(), demoBoard ? 'board' : demoFaces ? 'faces' : '', gameOverAt, frame.boardNow, frame.realNow, pointer.returning, reduced, renderLoop.hitStopScale, frame.boardDt); const effectStart = performance.now(); director.draw(ctx, layout, frame.boardNow, frame.worldNow, frame.worldDt, reduced, frame.realNow, renderLoop.hitStopScale); effectFrameMs = performance.now() - effectStart; ctx.restore();
       if (paused) { ctx.fillStyle = PALETTE.ui.scrim; ctx.fillRect(0, 0, layout.width, layout.height); }
-      shownScore = drawHud(ctx, layout, session.state, session.best, frame.realNow, shownScore, comboLostAt, activeChallenge?.score, candyFlameUntil, candyFlameFlavour, reduced, scoreAnimFrom, scoreAnimStart, scoreAnimDuration, newBestAt, flameBreakAt, comboPulseAt, scoreSparkleAt, scoreAnimPoints);
+      if (session.state.adventure && session.state.adventure.movesLeft !== lastAdventureMoves) { lastAdventureMoves = session.state.adventure.movesLeft; adventureMovesChangedAt = frame.realNow; }
+      shownScore = drawHud(ctx, layout, session.state, session.best, frame.realNow, shownScore, comboLostAt, activeChallenge?.score, candyFlameUntil, candyFlameFlavour, reduced, scoreAnimFrom, scoreAnimStart, scoreAnimDuration, newBestAt, flameBreakAt, comboPulseAt, scoreSparkleAt, scoreAnimPoints, adventureMovesChangedAt);
       if (goalCrossingAt < 0 && goalCrossingTarget >= 0 && shownScore >= goalCrossingTarget) { goalCrossingAt = frame.realNow; goalCrossingWorldAt = frame.worldNow; if (!goalCrossingCuePlayed) { sfx.coinTick({ count: 1, gainDb: -6 }); vibrate('goal', save.settings.haptics); goalCrossingCuePlayed = true; } }
       const holdGoalFeedback = debug && (query.get('hold') === '1' || query.get('hold') !== '0' && ['target-hit', 'mini-done'].includes(query.get('demo') ?? ''));
       drawGoalStrip(ctx, layout, session.state, shownScore, frame.realNow, { target: goalCrossingTarget, coins: goalCrossingCoins, at: goalCrossingAt, worldAt: goalCrossingWorldAt, hold: holdGoalFeedback }, miniDoneAt, miniDoneWorldAt, frame.worldNow, reduced);
@@ -211,14 +251,14 @@ export async function bootApp(): Promise<void> {
     }, (elapsed) => { surface.reportFrame(elapsed); if (autoplay && router.current === 'play' && !paused && session.state.status === 'rescueOffer') { if (rescueOfferAt < 0) rescueOfferAt = renderElapsed; if (renderElapsed - rescueOfferAt >= 600) { rescueOfferAt = -1; apply({ type: 'useRescue' }); } } else if (session.state.status !== 'rescueOffer') rescueOfferAt = -1; if (autoplay && router.current === 'play' && !paused && session.state.status === 'playing' && renderElapsed >= autoplayAt) { autoplayAt = renderElapsed + autoplayInterval; enableAudio(); const move = demoMega && session.state.moves === 0 ? { slot: 0 as const, row: 3, col: 3 } : chooseBotMove(session.state, botRng); if (move) apply({ type: 'place', slot: move.slot, row: move.row, col: move.col }); } });
 
   function apply(action: Action): void {
-    const hadGoalStrip = Boolean(session.state.goals);
+    const hadGoalStrip = Boolean(session.state.goals || session.state.adventure);
     if (action.type === 'place' && !shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion())) renderLoop.requestSlowMo(renderLoop.timeScale, 0, 0, 60);
     const filledBeforeResolve = action.type === 'place' ? session.state.board.filter((cell) => cell > 0).length + (PIECES[session.state.tray[action.slot]?.defId ?? -1]?.cells.length ?? 0) : 0;
     const scoreBefore = session.state.score; const pendingScoreFrom = shownScore; const events = action.type === 'place' ? dispatchImmediately(() => renderLoop.endNow(), () => session.dispatch(action)) : session.dispatch(action); const scoreDelta = session.state.score - scoreBefore; if (events.some((event) => event.type === 'cleared' || event.type === 'popped' || event.type === 'allClear' || event.type === 'gameOver')) live.textContent = `${S.score} ${new Intl.NumberFormat('en-US').format(session.state.score)}${session.state.status === 'over' ? ` · ${S.noRoom}` : ''}`; if (action.type === 'place' && tutorialActive && events.some((event) => event.type === 'placed')) advanceTutorial(); if (action.type === 'place' && filledBeforeResolve >= 52 && events.some((event) => event.type === 'cleared')) closeCall = true; runEvents.push(...events);
     updateCanvasAria(); const missionProgress = addMissionProgress(save, session.state, events); save = missionProgress.save; for (const mission of missionProgress.done) toast.show(S.missionDoneToast(S.missionText(mission.id)), 'gold');
     const crossings = events.filter((event) => event.type === 'targetReached'); if (crossings.length) { const last = crossings[crossings.length - 1]!; if (last.type === 'targetReached') { goalCrossingTarget = last.target; goalCrossingCoins = crossings.length * 5; goalCrossingAt = -1; goalCrossingWorldAt = -1; goalCrossingCuePlayed = false; } }
     if (events.some((event) => event.type === 'miniDone')) { miniDoneAt = renderElapsed; miniDoneWorldAt = currentFrame.worldNow; sfx.chime({ gainDb: -14 }); vibrate('goal', save.settings.haptics); }
-    if (hadGoalStrip !== Boolean(session.state.goals)) resize();
+    if (hadGoalStrip !== Boolean(session.state.goals || session.state.adventure)) resize();
     // spec-note: Keep the pill short; the full mini-goal text appears as a toast on the run's first move.
     if (action.type === 'place' && session.state.moves === 1 && session.state.goals) toast.show(S.miniToast(S.miniText(session.state.goals.mini.id, session.state.goals.mini.flavour)));
     const reduced = shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion());
@@ -241,7 +281,7 @@ export async function bootApp(): Promise<void> {
     checkLiveAchievements();
     for (const event of events) { if (event.type === 'comboLost' && event.combo >= 2) { comboLostAt = renderElapsed; flameBreakAt = renderElapsed; audioComboLostAt = performance.now() / 1000; } if (event.type === 'comboUp') comboPulseAt = renderElapsed; }
     paused = false; setAudioPaused(false); ui.hide(); persist(false);
-    if (session.state.status === 'over') { if (gameOverAt < 0) gameOverAt = renderElapsed; finishRun(); }
+    if (session.state.status === 'over') { if (gameOverAt < 0) gameOverAt = renderElapsed; if (!session.state.adventure) finishRun(); }
   }
   function skipTutorial(): void { if (!tutorialActive) return; tutorialActive = false; tutorialBubble.element.remove(); save.tutorialDone = true; save.ui.seenTips = save.ui.seenTips.filter((tip) => tip !== 'tutorialStep4Pending'); save.inProgress = null; start('classic'); persist(true); }
   function updateTutorial(elapsed: number): void {
@@ -269,12 +309,49 @@ export async function bootApp(): Promise<void> {
     else if (pauseStartedAt > 0) { runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; }
     paused = false; setAudioPaused(false); if (audioStarted) startMusic(); ui.hide(); router.open('play'); persist(false);
   }
+  async function showAdventureCard(level: number, fromMap: boolean): Promise<void> {
+    // spec-note: The start card stays above the map route; Next level uses the same card above the finished board.
+    const [module, { createLevelCard }] = await Promise.all([loadedAdventureLevels ? Promise.resolve({ LEVELS: loadedAdventureLevels }) : import('../core/levels.data'), import('../ui/levelCard')]); loadedAdventureLevels = module.LEVELS; const def = loadedAdventureLevels[level - 1]; if (!def) return;
+    const card = createLevelCard(def, { play: () => void toAdventure(level), back: () => { homeHost.querySelector('.adventure-modal-shade')?.remove(); if (!fromMap) router.open('adventure'); } });
+    homeHost.querySelector('.adventure-modal-shade')?.remove(); if (fromMap) homeHost.append(card); else homeHost.replaceChildren(card);
+  }
+  function toAdventure(level: number): void {
+    const begin = (levels: NonNullable<typeof loadedAdventureLevels>): void => {
+    const def = levels[level - 1]; if (!def) return;
+    const prior = save.adventure.levels[String(level)];
+    const resumed = save.adventure.inProgress?.adventure?.level === level ? save.adventure.inProgress : null;
+    const built = resumed ? null : newAdventureGame(def, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false });
+    session = createSession({ state: resumed ?? built!.state, best: 0, mode: 'adventure', goals: false });
+    save.adventure.inProgress = session.state; save.inProgress = null; adventureRecorded = false; adventureReward = { xp: 0, coins: 0 };
+    runBest = 0; runStartedAt = performance.now(); runEvents = built ? [...built.events] : []; gameOverAt = -1; shownStatus = ''; shownScore = 0; paused = false; lastAdventureMoves = session.state.adventure?.movesLeft ?? -1; adventureMovesChangedAt = -1; updateCanvasAria(); resize();
+    if (prior) save.adventure.levels[String(level)] = prior;
+    homeHost.replaceChildren(); router.open('play'); ui.hide(); persist(true);
+    };
+    if (loadedAdventureLevels) begin(loadedAdventureLevels);
+    else void import('../core/levels.data').then(({ LEVELS }) => { loadedAdventureLevels = LEVELS; begin(LEVELS); });
+  }
+  function finishAdventure(): void {
+    if (adventureRecorded || !session.state.adventure?.result) return;
+    adventureRecorded = true;
+    const outcome = session.state.adventure.result;
+    const result = recordLevelResult(save, { level: session.state.adventure.level, won: outcome.won, stars: outcome.stars });
+    save = result.save; adventureReward = { xp: result.xp, coins: result.coins }; adventureChapterRewards = { chapterDone: result.chapterDone, chapterAllStars: result.chapterAllStars, chapter: Math.ceil(session.state.adventure.level / 20) }; save.adventure.inProgress = null;
+    if (result.chapterDone) toast.show(S.chapterDoneToast(adventureChapterRewards.chapter), 'coin');
+    if (result.chapterAllStars) toast.show(S.chapterAllStarsToast(adventureChapterRewards.chapter), 'gold');
+    save.stats.timePlayedMs += Math.max(0, Math.floor(performance.now() - runStartedAt));
+    if (outcome.won && outcome.stars === 3) sfx.levelBest();
+    for (const level of result.levels) toast.show(S.levelUp(level));
+    for (const item of result.unlocked) { toast.show(S.unlocked(item)); if (item === 'Adventure') toast.show(S.adventureGift); }
+    if (result.firstWin && save.profile.level >= 2) { const before = save.owned.modes.includes('adventure'); save = unlockAdventure(save); if (!before) { toast.show(S.unlocked(S.adventure)); toast.show(S.adventureGift); } }
+    saveNow(save);
+  }
   function restart(): void { renderLoop.resetEffects(); director.reset(); if (challengeBeaten) { activeChallenge = null; challengeBeaten = false; } runBest = bestFor(save, session.state.mode); session = createSession({ best: runBest, mode: session.state.mode, goals: save.tutorialDone }); updateCanvasAria(); resize(); runStartedAt = performance.now(); runEvents = []; closeCall = false; pauseStartedAt = 0; shownScore = 0; scoreAnimFrom = 0; scoreAnimStart = renderElapsed; scoreAnimDuration = 600; newBestAt = -1; flameBreakAt = -1; comboPulseAt = -1; scoreSparkleAt = -1; shownStatus = ''; runRecorded = false; comboLostAt = -1; gameOverAt = -1; newBestShown = false; discoveryCoins = 0; paused = false; ui.hide(); pointer.cancel(); persist(false); }
   function showPause(): void {
     if (router.current !== 'play' || session.state.status !== 'playing') return;
-    paused = true; setAudioPaused(true); if (pauseStartedAt === 0) pauseStartedAt = performance.now(); persist(true); const mode = session.state.mode; const label = mode === 'daily' ? S.giveUp : mode === 'zen' ? S.endRun : S.restart;
+    paused = true; setAudioPaused(true); if (pauseStartedAt === 0) pauseStartedAt = performance.now(); persist(true); const mode = session.state.mode; const label = mode === 'daily' || mode === 'adventure' ? S.giveUp : mode === 'zen' ? S.endRun : S.restart;
     ui.showPause(() => { if (pauseStartedAt > 0) runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; paused = false; setAudioPaused(false); ui.hide(); }, () => {
       if (mode === 'daily') ui.showDailyGiveUpConfirm(() => { if (pauseStartedAt > 0) runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; apply({ type: 'endRun' }); }, () => showPause());
+      else if (mode === 'adventure') ui.showAdventureGiveUpConfirm(() => { if (pauseStartedAt > 0) runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; apply({ type: 'endRun' }); }, () => showPause());
       else if (mode === 'zen') { if (pauseStartedAt > 0) runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; apply({ type: 'endRun' }); }
       else if (session.state.score > 0) ui.showRestartConfirm(() => restart(), () => showPause()); else restart();
     }, () => { paused = true; if (pauseStartedAt === 0) pauseStartedAt = performance.now(); ui.hide(); router.open('home'); persist(true); }, label);
@@ -312,13 +389,30 @@ export async function bootApp(): Promise<void> {
     runReward.coins += discoveryCoins;
     saveNow(save);
     if (lastLevel) { toast.show(S.levelUp(lastLevel)); sfx.levelUp(); }
-    for (const item of reward.unlocked) toast.show(S.unlocked(item));
+      for (const item of reward.unlocked) { toast.show(S.unlocked(item)); if (item === 'Adventure') toast.show(S.adventureGift); }
     for (const achievement of achievementResult.unlocked) { toast.show(S.achievementUnlock(S.achievementName(achievement.id), achievement.coins)); sfx.achievement(); }
     if (runReward.coins > 0) sfx.coinTick({ count: Math.min(12, runReward.coins) });
   }
   function updateOverlay(): void {
-    const status = session.state.status; if (status === 'over' && gameOverAt >= 0 && renderElapsed - gameOverAt < 450) return; if (status === shownStatus) return; shownStatus = status;
+    const status = session.state.status; const endDelay = session.state.adventure?.result?.won ? 600 : 450; if (status === 'over' && gameOverAt >= 0 && renderElapsed - gameOverAt < endDelay) return; if (status === shownStatus) return; shownStatus = status;
     if (status === 'over') {
+      if (session.state.adventure?.result) {
+        finishAdventure(); paused = false; ui.hide();
+        const nearLines = nearMissMessages(session.state, 0, session.state.stats.biggestPop, session.state.linesCleared).map((item) => {
+          if (item.kind === 'stuck') return S.nothingFit(item.amount);
+          if (item.kind === 'adventureNeed') { const flavour = item.unit && /^\d+$/.test(item.unit) ? S.flavourName(Number(item.unit)).toLowerCase() : undefined; const kind = item.unit && flavour ? 'F' : item.unit ?? 'L'; return S.adventureNeed(item.amount, S.adventureUnit(kind, item.amount, flavour)); }
+          return '';
+        }).filter(Boolean);
+        const wrap = document.createElement('div'); wrap.className = 'adventure-modal-shade adventure-result-shade';
+        void import('../ui/levelResultPanel').then(({ createLevelResultPanel }) => {
+        if (session.state.status !== 'over' || !session.state.adventure?.result) return;
+        wrap.append(createLevelResultPanel(session.state, adventureReward, {
+          next: () => { const nextLevel = session.state.adventure?.level ?? 120; if (nextLevel < 120) void showAdventureCard(nextLevel + 1, false); else router.open('adventure'); },
+          replay: () => { homeHost.replaceChildren(); void toAdventure(session.state.adventure?.level ?? 1); },
+          map: () => { homeHost.replaceChildren(); router.open('adventure'); },
+        }, nearLines)); homeHost.append(wrap);
+        }); return;
+      }
       finishRun();
       // spec-note: A counted Daily goes straight to the existing full result screen, whose Practice, Share, and Home actions satisfy the Daily game-over actions in design §13.3.
       if (countedDailyThisRun) { router.open('dailyResult'); return; }
@@ -340,12 +434,14 @@ export async function bootApp(): Promise<void> {
   }
   function persist(immediate: boolean): void {
     if (router.current === 'play' && session.state.status !== 'over') {
-      if (session.state.mode === 'daily') save.dailyInProgress = session.state; else save.inProgress = session.state;
+      if (session.state.mode === 'daily') save.dailyInProgress = session.state; else if (session.state.adventure) save.adventure.inProgress = session.state; else save.inProgress = session.state;
     }
     const writeLater = (): void => saveNow(save);
     window.clearTimeout(saveTimer); if (immediate) writeLater(); else saveTimer = window.setTimeout(writeLater, 300);
   }
   function updateCanvasAria(): void {
+    const adventure = session.state.adventure;
+    if (adventure) { const goals = adventure.goals.map((goal) => S.goalAria(S.adventureGoalText(goal.kind, goal.target, goal.flavour ? S.flavourName(goal.flavour).toLowerCase() : undefined), goal.progress, goal.target)).join('. '); gameCanvas.setAttribute('aria-label', `${S.logo}. ${S.levelText(adventure.level)}. ${new Intl.NumberFormat('en-US').format(adventure.movesLeft)} ${S.movesLeft}. ${goals}`); return; }
     const goals = session.state.goals;
     if (!goals) { gameCanvas.setAttribute('aria-label', `${S.logo}. ${S.howToControls}`); return; }
     const target = nextTarget(session.state.score, goals.floor);
@@ -356,9 +452,10 @@ export async function bootApp(): Promise<void> {
     if (reduced) return;
     renderLoop.requestSlowMo(0.35, 40, 300, 200);
   }
-  function renderScreen(screen: 'home' | 'stats' | 'play' | 'collection' | 'achievements' | 'dailyResult' | 'settings' | 'howToPlay' | 'credits'): void {
+  function renderScreen(screen: import('./router').ScreenId): void {
     homeHost.replaceChildren(); ui.hide();
-    if (screen === 'home') { save = rollDay(save, dayKeyFromMs(Date.now())); saveNow(save); homeHost.append(createHomeScreen(save, { play: start, dailyResult: () => router.open('dailyResult'), stats: () => router.open('stats'), collection: () => router.open('collection'), achievements: () => router.open('achievements'), settings: () => router.open('settings'), howToPlay: () => router.open('howToPlay'), credits: () => router.open('credits'), claimMission: (slot, anchor) => { const start = anchor.getBoundingClientRect(); const target = document.querySelector(".home-header .home-chip:last-child")?.getBoundingClientRect(); const oldCoins = save.profile.coins; const reduced = shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion()); const result = claimMission(save, slot); if (!result.coins) return; save = result.save; toast.show(S.missionRewardToast(result.coins - (result.setBonus ? 50 : 0), result.xp - (result.setBonus ? 50 : 0)), 'coin'); if (result.setBonus) toast.show(S.missionSetToast, 'gold'); for (const level of result.levels) toast.show(S.levelUp(level)); for (const achievement of result.unlocked) toast.show(S.achievementUnlock(S.achievementName(achievement.id), achievement.coins)); saveNow(save); renderScreen('home'); if (target && !reduced) animateMissionCoins(start, target); sfx.coinTick({ count: reduced ? 1 : 3 }); if (!reduced) animateCoinCount(oldCoins, save.profile.coins); }, changeMission: (slot) => { save = rerollMission(save, slot, dayKeyFromMs(Date.now())); saveNow(save); renderScreen('home'); }, debugXp: () => { const result = grantXp(save, 5000); save = result.save; saveNow(save); for (const level of result.levels) toast.show(S.levelUp(level)); for (const item of result.unlocked) toast.show(S.unlocked(item)); renderScreen('home'); } }, debug, activeChallenge ?? undefined)); }
+    if (screen === 'home') { save = rollDay(save, dayKeyFromMs(Date.now())); saveNow(save); homeHost.append(createHomeScreen(save, { play: start, adventure: () => router.open('adventure'), dailyResult: () => router.open('dailyResult'), stats: () => router.open('stats'), collection: () => router.open('collection'), achievements: () => router.open('achievements'), settings: () => router.open('settings'), howToPlay: () => router.open('howToPlay'), credits: () => router.open('credits'), claimMission: (slot, anchor) => { const start = anchor.getBoundingClientRect(); const target = document.querySelector(".home-header .home-chip:last-child")?.getBoundingClientRect(); const oldCoins = save.profile.coins; const reduced = shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion()); const result = claimMission(save, slot); if (!result.coins) return; save = result.save; toast.show(S.missionRewardToast(result.coins - (result.setBonus ? 50 : 0), result.xp - (result.setBonus ? 50 : 0)), 'coin'); if (result.setBonus) toast.show(S.missionSetToast, 'gold'); for (const level of result.levels) toast.show(S.levelUp(level)); for (const achievement of result.unlocked) toast.show(S.achievementUnlock(S.achievementName(achievement.id), achievement.coins)); saveNow(save); renderScreen('home'); if (target && !reduced) animateMissionCoins(start, target); sfx.coinTick({ count: reduced ? 1 : 3 }); if (!reduced) animateCoinCount(oldCoins, save.profile.coins); }, changeMission: (slot) => { save = rerollMission(save, slot, dayKeyFromMs(Date.now())); saveNow(save); renderScreen('home'); }, debugXp: () => { const result = grantXp(save, 5000); save = result.save; saveNow(save); for (const level of result.levels) toast.show(S.levelUp(level)); for (const item of result.unlocked) toast.show(S.unlocked(item)); renderScreen('home'); } }, debug, activeChallenge ?? undefined)); }
+    else if (screen === 'adventure') { paused = false; void import('../ui/screens/adventureMap').then(({ createAdventureMap: createMap }) => { if (router.current !== 'adventure') return; homeHost.append(createMap(save, { back: () => router.back(), openLevel: (level) => void showAdventureCard(level, true) })); }); }
     else if (screen === 'stats') { paused = false; homeHost.append(createStatsScreen(save, () => router.back())); }
     else if (screen === 'collection') { paused = false; homeHost.append(createCollectionScreen(save, () => router.back(), (next) => { save = next; syncCosmetics(); backgroundTheme = ''; saveNow(save); })); }
     else if (screen === 'achievements') { paused = false; homeHost.append(createAchievementsScreen(save, () => router.back())); }

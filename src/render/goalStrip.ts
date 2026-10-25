@@ -1,4 +1,4 @@
-// SG §20.7–20.9: two candy pills hold target and mini progress above the board.
+// SG §20.4 and §20.7–20.9: Adventure goal chips and Classic target and mini progress.
 import type { GameState } from '../core/types';
 import type { Layout, Rect } from './layout';
 import { PALETTE } from './palette';
@@ -7,6 +7,7 @@ import { easeOutBack } from './easing';
 
 const textSprites = new Map<string, HTMLCanvasElement>();
 export function drawGoalStrip(ctx: CanvasRenderingContext2D, layout: Layout, state: GameState, shownScore: number, elapsed: number, crossing?: { target: number; coins: number; at: number; worldAt: number; hold: boolean }, miniDoneAt = -1, miniDoneWorldAt = -1, worldNow = elapsed, reducedMotion = false): void {
+  if (state.adventure) { drawAdventureGoals(ctx, layout, state, elapsed); return; }
   if (!state.goals) return;
   const desktop = !layout.portrait; const gap = 8;
   const pillHeight = desktop ? 32 : 28;
@@ -23,6 +24,31 @@ export function drawGoalStrip(ctx: CanvasRenderingContext2D, layout: Layout, sta
   const mini = state.goals.mini; const label = mini.done ? S.miniDone(mini.id, mini.flavour) : S.miniShort(mini.id, mini.progress, mini.flavour);
   const miniRewardShowing = mini.done && miniDoneAt >= 0 && elapsed - miniDoneAt < 1200;
   pill(ctx, { x: desktop ? left : left + width + gap, y: desktop ? top + pillHeight + 10 : top, width, height: pillHeight }, miniRewardShowing ? S.miniDoneReward : label, mini.done ? 1 : mini.progress / mini.target, mini.done ? PALETTE.ui.success : PALETTE.ui.gold, true, miniDoneAt < 0 ? -1 : elapsed - miniDoneAt, miniDoneWorldAt < 0 ? -1 : worldNow - miniDoneWorldAt, reducedMotion);
+}
+
+function drawAdventureGoals(ctx: CanvasRenderingContext2D, layout: Layout, state: GameState, elapsed: number): void {
+  const goals = state.adventure?.goals; if (!goals?.length) return;
+  const gap = 8; const height = 28; const width = Math.min((layout.width - 40 - gap * (goals.length - 1)) / goals.length, 240); const total = width * goals.length + gap * (goals.length - 1); const left = (layout.width - total) / 2; const y = layout.goalStrip.y + 2;
+  goals.forEach((goal, index) => {
+    const x = left + index * (width + gap); const ratio = Math.min(1, goal.progress / Math.max(1, goal.target));
+    ctx.save(); ctx.fillStyle = PALETTE.ui.panelSolid; ctx.beginPath(); ctx.roundRect(x, y, width, height, 14); ctx.fill(); ctx.globalAlpha = 0.4; ctx.fillStyle = ratio >= 1 ? PALETTE.ui.success : PALETTE.ui.gold; ctx.beginPath(); ctx.roundRect(x, y, width * ratio, height, 14); ctx.fill(); ctx.globalAlpha = 1;
+    drawAdventureGoalIcon(ctx, x + 15, y + height / 2, goal.kind, goal.flavour ?? 1);
+    ctx.font = '800 14px Nunito,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = PALETTE.ui.textPrimary; ctx.fillText(goal.progress >= goal.target ? '✓' : S.goalProgress(goal.progress, goal.target), x + width / 2 + 8, y + height / 2); ctx.restore();
+  });
+  void elapsed;
+}
+
+function drawAdventureGoalIcon(ctx: CanvasRenderingContext2D, x: number, y: number, kind: string, flavour: number): void {
+  ctx.save(); ctx.translate(x, y); ctx.lineWidth = 2; ctx.lineCap = 'round';
+  if (kind === 'F') { const keys = ['cherry','orange','lemon','apple','blueberry','grape','bubblegum'] as const; ctx.fillStyle = PALETTE.flavour[keys[Math.max(0, Math.min(6, flavour - 1))] ?? 'cherry'].base; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = PALETTE.light.specular; ctx.beginPath(); ctx.ellipse(-2, -3, 2.5, 1.3, -0.4, 0, Math.PI * 2); ctx.fill(); }
+  else { ctx.strokeStyle = kind === 'S' ? PALETTE.ui.gold : PALETTE.ui.textPrimary; ctx.fillStyle = PALETTE.ui.gold; ctx.beginPath();
+    if (kind === 'L') { ctx.moveTo(-6, -3); ctx.lineTo(6, -3); ctx.moveTo(-6, 3); ctx.lineTo(6, 3); ctx.stroke(); }
+    else if (kind === 'S') { for (let i = 0; i < 10; i += 1) { const angle = -Math.PI / 2 + i * Math.PI / 5; const radius = i % 2 ? 3 : 7; const px = Math.cos(angle) * radius; const py = Math.sin(angle) * radius; if (!i) ctx.moveTo(px, py); else ctx.lineTo(px, py); } ctx.closePath(); ctx.fill(); }
+    else if (kind === 'B') { ctx.arc(-3, -2, 3, 0, Math.PI * 2); ctx.arc(3, -2, 3, 0, Math.PI * 2); ctx.arc(0, 3, 3, 0, Math.PI * 2); ctx.fill(); }
+    else if (kind === 'M') { ctx.moveTo(-6, -4); ctx.lineTo(6, 4); ctx.moveTo(6, -4); ctx.lineTo(-6, 4); ctx.stroke(); }
+    else { ctx.roundRect(-5, -5, 10, 10, 2); ctx.stroke(); }
+  }
+  ctx.restore();
 }
 function pill(ctx: CanvasRenderingContext2D, rect: Rect, text: string, ratio: number, accent: string, mini: boolean, pulseAge: number, fxAge: number, reducedMotion: boolean): void {
   ctx.save();

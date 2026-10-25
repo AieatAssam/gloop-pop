@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { makeBoard } from './board';
 import { nearMissFacts, nearMissMessages } from './nearMiss';
 import { newGame } from './game';
+import { newAdventureGame } from './adventure';
+import { LEVELS } from './levels.data';
 
 describe('near miss facts', () => {
   it('finds one-cell-short pieces and lines from a real board', () => {
@@ -26,5 +28,14 @@ describe('near miss facts', () => {
     const state = newGame('classic', 'mission-near').state; state.board = [...makeBoard()]; state.tray = [null, null, null];
     const result = nearMissMessages(state, 0, 0, 0, { mission: { remaining: 2, target: 15, text: 'Clear 15 lines' } });
     expect(result.map((item) => item.kind)).toEqual(['mission','fallback']); expect(result[0]?.amount).toBe(2);
+  });
+  it('reports Adventure goal units in singular and plural and only reports empty space on stuck losses', () => {
+    const state = newAdventureGame(LEVELS[0]!, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state;
+    state.adventure!.goals = [{ kind: 'F', flavour: 6, target: 4, progress: 3 }]; state.adventure!.result = { won: false, reason: 'moves', movesLeft: 0, stars: 0 };
+    expect(nearMissMessages(state, 0, 0, 0).map((item) => [item.kind, item.amount, item.unit])).toEqual([['adventureNeed', 1, '6']]);
+    state.adventure!.goals[0]!.progress = 2;
+    expect(nearMissMessages(state, 0, 0, 0)[0]).toMatchObject({ kind: 'adventureNeed', amount: 2, unit: '6' });
+    state.adventure!.result = { won: false, reason: 'stuck', movesLeft: 3, stars: 0 };
+    expect(nearMissMessages(state, 0, 0, 0).map((item) => item.kind)).toEqual(['stuck', 'adventureNeed']);
   });
 });

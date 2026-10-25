@@ -1,4 +1,4 @@
-// SG §11.4–11.6 and §15: score, combo pips and rescue charge.
+// SG §11.4–11.6, §15 and §20.4: score, combo pips, rescue charge and Adventure moves.
 import type { GameState } from '../core/types';
 import type { Layout } from './layout';
 import { PALETTE } from './palette';
@@ -8,7 +8,14 @@ import { scoreAt, scorePunchScale } from './fx/scorePunch';
 const numberFormat = new Intl.NumberFormat('en-US');
 const flameSprites = new Map<number, HTMLCanvasElement>();
 
-export function drawHud(ctx: CanvasRenderingContext2D, layout: Layout, state: GameState, best: number, elapsed: number, scoreShown: number, comboLostAt = -1, challengeScore?: number, candyFlameUntil = -1, flameFlavour = 1, reducedMotion = false, scoreFrom = scoreShown, scoreStartedAt = elapsed, scoreDuration = 600, newBestAt = -1, flameBreakAt = -1, comboPulseAt = -1, scoreSparkleAt = -1, scorePoints = state.score - scoreFrom): number {
+export function drawHud(ctx: CanvasRenderingContext2D, layout: Layout, state: GameState, best: number, elapsed: number, scoreShown: number, comboLostAt = -1, challengeScore?: number, candyFlameUntil = -1, flameFlavour = 1, reducedMotion = false, scoreFrom = scoreShown, scoreStartedAt = elapsed, scoreDuration = 600, newBestAt = -1, flameBreakAt = -1, comboPulseAt = -1, scoreSparkleAt = -1, scorePoints = state.score - scoreFrom, adventureMovesChangedAt = -1): number {
+  if (state.adventure) {
+    const moves = state.adventure.movesLeft; const text = numberFormat.format(moves); const x = layout.portrait ? layout.width / 2 : layout.score.x; const y = layout.portrait ? layout.score.y + layout.score.height * 0.59 : layout.score.y + 116; const age = elapsed - adventureMovesChangedAt;
+    const squash = reducedMotion || age < 0 || age >= 120 ? 1 : age < 60 ? 1 - 0.08 * age / 60 : 0.92 + 0.08 * (age - 60) / 60;
+    const dangerPulse = !reducedMotion && moves <= 3 && age >= 0 && age < 200 ? 1 + 0.08 * Math.sin(Math.PI * age / 200) : squash;
+    ctx.save(); ctx.textAlign = layout.portrait ? 'center' : 'left'; ctx.font = layout.portrait ? '800 52px "Baloo 2",sans-serif' : '800 54px "Baloo 2",sans-serif'; ctx.fillStyle = moves <= 3 ? PALETTE.ui.danger : PALETTE.ui.textPrimary; ctx.translate(x, y); ctx.scale(dangerPulse, dangerPulse); ctx.fillText(text, 0, 0); ctx.restore();
+    ctx.save(); ctx.textAlign = layout.portrait ? 'center' : 'left'; ctx.font = '700 15px Nunito,sans-serif'; ctx.fillStyle = PALETTE.ui.textSecondary; ctx.fillText(S.movesLeft, x, y + 28); ctx.restore(); return state.score;
+  }
   const duration = reducedMotion ? 150 : Math.min(600, Math.max(150, scoreDuration)); const age = elapsed - scoreStartedAt; const progress = Math.min(1, Math.max(0, age / duration));
   const score = scoreAt(scoreFrom, state.score, age, duration, reducedMotion);
   const tickAge = elapsed % 40; const tickPulse = !reducedMotion && progress < 1 ? 0.03 * Math.exp(-12 * Math.max(0, tickAge) / 1000) * Math.cos(2 * Math.PI * 12 * Math.max(0, tickAge) / 1000) : 0;

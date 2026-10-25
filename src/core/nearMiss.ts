@@ -8,7 +8,7 @@ export interface NearMissFacts {
   pieceOneCellShort: { slot: number; shape: ShapeKey; row: number; col: number } | null;
   lineOneFromFull: { kind: 'row' | 'column'; index: number } | null;
 }
-export type NearMissMessage = { kind: 'newBest' | 'bestShort' | 'targetShort' | 'piece' | 'line' | 'xp' | 'weekly' | 'achievement' | 'mission' | 'fallback'; amount: number; target?: number; shape?: ShapeKey; lineKind?: 'row' | 'column'; index?: number; level?: number; name?: string; unit?: string };
+export type NearMissMessage = { kind: 'newBest' | 'bestShort' | 'targetShort' | 'piece' | 'line' | 'xp' | 'weekly' | 'achievement' | 'mission' | 'fallback' | 'adventureNeed' | 'stuck'; amount: number; target?: number; shape?: ShapeKey; lineKind?: 'row' | 'column'; index?: number; level?: number; name?: string; unit?: string };
 export interface NearMissExtras { xpRemaining?: number; level?: number; levelCost?: number; weeklyRemaining?: number; weeklyTarget?: number; achievement?: { remaining: number; target: number; name: string; unit: string }; mission?: { remaining: number; target: number; text: string } }
 const shapeByFamily: Record<string, ShapeKey> = {
   Dot: 'dot', I2: 'bar2', I3: 'bar3', I4: 'bar4', I5: 'bar5', O2: 'squareSmall', O3: 'squareBig',
@@ -39,6 +39,13 @@ export function nearMissFacts(state: GameState): NearMissFacts {
 }
 
 export function nearMissMessages(state: GameState, oldBest: number, fallbackBiggestPop: number, linesCleared: number, extras: NearMissExtras = {}): NearMissMessage[] {
+  if (state.adventure?.result && !state.adventure.result.won) {
+    const result: NearMissMessage[] = [];
+    if (state.adventure.result.reason === 'stuck') result.push({ kind: 'stuck', amount: state.adventure.movesLeft });
+    const goal = state.adventure.goals.find((item) => item.progress < item.target);
+    if (goal) result.push({ kind: 'adventureNeed', amount: goal.target - goal.progress, unit: goal.kind === 'F' ? `${goal.flavour ?? 6}` : goal.kind });
+    return result;
+  }
   const facts = nearMissFacts(state); const result: NearMissMessage[] = [];
   if (oldBest > 0 && state.score > oldBest) result.push({ kind: 'newBest', amount: state.score - oldBest });
   else if (oldBest > 0 && oldBest - state.score <= oldBest * 0.15) result.push({ kind: 'bestShort', amount: oldBest - state.score });

@@ -4,7 +4,7 @@ import type { RunSummary } from '../meta/runSummary';
 import { drawGloop } from '../render/gloopRenderer';
 import { largestSquare } from '../core/gloops';
 
-export interface GameUi { root: HTMLElement; showPause(onResume: () => void, onRestart: () => void, onHome: () => void, restartLabel: string): void; showRestartConfirm(onStart: () => void, onCancel: () => void): void; showDailyGiveUpConfirm(onConfirm: () => void, onCancel: () => void): void; showGameOver(onRestart: () => void, onHome: () => void, score: number, best: number | null, fallback: string, rewards: { xp: number; coins: number; progress: number; progressMax: number; currentLevel: number; level?: number }, summary?: RunSummary, onChallenge?: () => void, onImage?: () => void, noteOverride?: string, title?: string, onDailyShare?: () => void, goalRewards?: { targetsHit: number; miniDone: boolean; missionsReady?: number }): void; showRescue(onUse: () => void, onDecline: () => void): void; hide(): void }
+export interface GameUi { root: HTMLElement; showPause(onResume: () => void, onRestart: () => void, onHome: () => void, restartLabel: string): void; showRestartConfirm(onStart: () => void, onCancel: () => void): void; showDailyGiveUpConfirm(onConfirm: () => void, onCancel: () => void): void; showAdventureGiveUpConfirm(onConfirm: () => void, onCancel: () => void): void; showGameOver(onRestart: () => void, onHome: () => void, score: number, best: number | null, fallback: string, rewards: { xp: number; coins: number; progress: number; progressMax: number; currentLevel: number; level?: number }, summary?: RunSummary, onChallenge?: () => void, onImage?: () => void, noteOverride?: string, title?: string, onDailyShare?: () => void, goalRewards?: { targetsHit: number; miniDone: boolean; missionsReady?: number }): void; showRescue(onUse: () => void, onDecline: () => void): void; hide(): void }
 export function createGameUi(root: HTMLElement): GameUi {
   const overlay = document.createElement('div'); overlay.className = 'gloop-overlay'; root.append(overlay);
   return {
@@ -12,6 +12,7 @@ export function createGameUi(root: HTMLElement): GameUi {
     showPause(onResume, onRestart, onHome, restartLabel) { renderPanel(overlay, S.pause, [[S.resume, 'button button--primary', onResume], [restartLabel, 'button button--secondary', onRestart], [S.home, 'button button--secondary', onHome]]); },
     showRestartConfirm(onStart, onCancel) { renderPanel(overlay, S.restartConfirm, [[S.startOver, 'button button--primary', onStart], [S.cancel, 'button button--secondary', onCancel]]); },
     showDailyGiveUpConfirm(onConfirm, onCancel) { renderPanel(overlay, S.dailyGiveUpConfirm, [[S.giveUp, 'button button--primary', onConfirm], [S.cancel, 'button button--secondary', onCancel]]); },
+    showAdventureGiveUpConfirm(onConfirm, onCancel) { renderPanel(overlay, S.adventureGiveUpConfirm, [[S.giveUp, 'button button--primary', onConfirm], [S.cancel, 'button button--secondary', onCancel]]); },
     showGameOver(onRestart, onHome, score, best, fallback, rewards, summary, onChallenge, onImage, noteOverride, title, onDailyShare, goalRewards) {
       const rewardText = S.rewardRow(rewards.xp, rewards.coins);
       const daily = title?.startsWith('Daily #') === true || title === S.allTraysPlaced;

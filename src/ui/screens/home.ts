@@ -10,7 +10,7 @@ import { WEEKLY_POOL, weekIndexFromMs } from '../../core/weekly';
 import { syncWeek, WEEKLY_TARGETS } from '../../meta/weeklyGoal';
 import { createMissionsCard } from '../missionsCard';
 
-export interface HomeActions { play(mode: ModeId): void; dailyResult?(): void; stats(): void; collection(): void; achievements(): void; settings(): void; howToPlay(): void; credits(): void; debugXp(): void; claimMission?(slot: number, anchor: HTMLElement): void; changeMission?(slot: number): void }
+export interface HomeActions { play(mode: ModeId): void; adventure?(): void; dailyResult?(): void; stats(): void; collection(): void; achievements(): void; settings(): void; howToPlay(): void; credits(): void; debugXp(): void; claimMission?(slot: number, anchor: HTMLElement): void; changeMission?(slot: number): void }
 export function createHomeScreen(save: SaveV2, actions: HomeActions, debug = false, challenge?: { score: number; flavour: Flavour }): HTMLElement {
   const root = document.createElement('main'); root.className = 'screen-wrap'; const panel = document.createElement('section'); panel.className = 'panel home-panel';
   const header = document.createElement('header'); header.className = 'home-header'; const logo = createLogo(); header.append(logo, chip(S.level(save.profile.level)), chip(S.coins(save.profile.coins))); panel.append(header);
@@ -18,6 +18,10 @@ export function createHomeScreen(save: SaveV2, actions: HomeActions, debug = fal
   panel.append(button(S.play, 'button button--primary home-play', () => actions.play('classic')));
   const grid = document.createElement('div'); grid.className = 'mode-grid';
   grid.append(modeCard(S.classic, S.classicDescription, 1, false, () => actions.play('classic')));
+  const adventureOpen = save.owned.modes.includes('adventure');
+  const totalAdventureStars = Object.values(save.adventure.levels).reduce((sum, level) => sum + level.stars, 0);
+  const adventureStatus = adventureOpen ? save.adventure.frontier > 120 ? S.adventureAllWonStatus(totalAdventureStars) : S.adventureStatus(save.adventure.frontier, totalAdventureStars) : S.reachLevel(2);
+  grid.append(modeCard(S.adventure, adventureOpen ? adventureStatus : S.adventureDescription, 3, !adventureOpen, () => actions.adventure?.()));
   const dayKey = dayKeyFromMs(Date.now()); const dailyFlavour = flavourForDay(dayKey);
   const dailyRecord = save.daily.records[dayKey];
   const dailyStatus = dailyRecord ? S.dailyDone(dayNumber(dayKey), new Intl.NumberFormat('en-US').format(dailyRecord.score), countdown(Date.now())) : S.dailyDescription;

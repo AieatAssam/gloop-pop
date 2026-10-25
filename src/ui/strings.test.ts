@@ -21,8 +21,8 @@ describe('player-facing strings', () => {
     expect(S.weeklyResetHours(1)).toBe('Resets in 1 hour');
     expect(S.daily(1200)).toBe('Daily #1,200');
   });
-  it('matches the nine How to Play rules, controls, and scoring line from design §16.5', () => {
-    expect([S.howToRule1, S.howToRule2, S.howToRule3, S.howToRule4, S.howToRule5, S.howToRule6, S.howToRule7, S.howToRule8, S.howToRule9]).toEqual([
+  it('matches the eleven How to Play rules, controls, and scoring line from design §16.5', () => {
+    expect([S.howToRule1, S.howToRule2, S.howToRule3, S.howToRule4, S.howToRule5, S.howToRule6, S.howToRule7, S.howToRule8, S.howToRule9, S.howToRule10, S.howToRule11]).toEqual([
       "Drag pieces onto the board. Pieces can't be rotated.",
       'Fill a whole row or column to clear it. Clearing several at once scores much more.',
       'Same colours join into one gloop. Clear a line through any part of a gloop and the whole gloop pops for bonus points. Gloops of 8+ cells give a Big Pop bonus.',
@@ -32,6 +32,8 @@ describe('player-facing strings', () => {
       'Daily challenge: the same board and pieces for everyone, every day. Your first try counts. Share your result with friends.',
       'Targets: in Classic and Expert, reach the next target score for +5 coins. Each run also has one mini goal.',
       'Daily missions: three small goals a day. They count in every mode. Rewards wait until you claim them.',
+      'Adventure: levels with a goal and a move limit. Win to open the next level. More moves left means more stars.',
+      'Sugar cubes: clear a line through a cube to remove it. Hard cubes need 2 clears. Cubes never join gloops.',
     ]);
     expect(S.howToControls).toBe('Drag with the mouse, or press 1, 2, 3 to pick a piece, arrow keys to move it, Space to place. Esc pauses. M mutes.');
     expect(S.howToScoring).toBe('Each cell placed: 1 · 1 line: 100 · 2 lines: 300 · 3 lines: 600 · 4 lines: 1,000 · Each popped cell: 20 · Big Pop: +200 · Huge Pop: +600 · Mega Pop: +1,500 · Empty board: +2,000 · Combo multiplies everything except placing.');

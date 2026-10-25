@@ -6,7 +6,7 @@ describe('progression', () => {
   it('uses the specified level curve and cap total', () => { expect([xpToNext(1), xpToNext(2), xpToNext(10), xpToNext(49)]).toEqual([60, 100, 420, 1980]); expect(totalXpForLevel(50)).toBe(49_980); });
   it('applies mode multipliers before flooring and awards level coins/unlocks', () => {
     const save = defaultSave(); const result = rewardsForRun(save, { mode: 'expert', score: 4_000, lines: 0, pops: 0, biggestPop: 0, bestCombo: 0, pieces: 0, allClears: 0 });
-    expect(result.xp).toBe(90); expect(result.coins).toBe(37); expect(result.save.profile.level).toBe(2); expect(result.save.profile.coins).toBe(87); expect(result.unlocked).toContain('Hearts');
+    expect(result.xp).toBe(90); expect(result.coins).toBe(37); expect(result.save.profile.level).toBe(2); expect(result.save.profile.coins).toBe(87); expect(result.unlocked).toContain('Hearts'); expect(result.unlocked).toContain('Adventure'); expect(result.save.adventure.boosters).toEqual({ moves: 1, shuffle: 1, pop: 1 });
   });
   it.each([{ mode: 'classic' as const, xp: 20, coins: 5 }, { mode: 'expert' as const, xp: 30, coins: 7 }, { mode: 'zen' as const, xp: 10, coins: 2 }])('uses the $mode reward multiplier', ({ mode, xp, coins }) => {
     const result = rewardsForRun(defaultSave(), { mode, score: 0, lines: 0, pops: 0, biggestPop: 0, bestCombo: 0, pieces: 0, allClears: 0 }); expect([result.xp, result.coins]).toEqual([xp, coins]);

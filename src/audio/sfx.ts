@@ -85,6 +85,7 @@ export const sfx = {
     if (!swell || !pop || !chime) fallbackSfx.rescue();
   },
   newBest(): void { if (!playSegment('best', { group: 'stinger', priority: 'stinger', gain: 10 ** (-6 / 20) })) fallbackSfx.newBest(); },
+  levelBest(): void { if (!playSegment('best', { group: 'stinger', priority: 'stinger', gain: 10 ** (-10 / 20) })) fallbackSfx.newBest(); },
   megaStinger(params: { combo: number }): void {
     const start = Math.min(Math.max(Math.floor(params.combo) - 1, 0), 5); const at = scheduleAt();
     for (let i = 0; i < 6; i += 1) playCandyBar(Math.min(10, start + i), at + i * 0.045, 1, -10, -14, 'stinger');

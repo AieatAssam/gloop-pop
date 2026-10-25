@@ -31,6 +31,7 @@ export function grantXp(save: SaveV2, xp: number): RewardResult {
     if (level === 30) { next.owned.pops.push('fireworks'); unlocked.push('Fireworks'); }
     if (level === 50) { next.owned.themes.push('dawn'); unlocked.push('Golden Dawn'); }
     if (level === 2) { next.owned.pops.push('hearts'); unlocked.push('Hearts'); }
+    if (level === 2 && !next.owned.modes.includes('adventure')) { next.owned.modes.push('adventure'); next.adventure.boosters.moves = Math.min(5, next.adventure.boosters.moves + 1); next.adventure.boosters.shuffle = Math.min(5, next.adventure.boosters.shuffle + 1); next.adventure.boosters.pop = Math.min(5, next.adventure.boosters.pop + 1); unlocked.push('Adventure'); }
   }
   return { save: next, xp: Math.max(0, Math.floor(xp)), coins: 0, levels, unlocked };
 }
