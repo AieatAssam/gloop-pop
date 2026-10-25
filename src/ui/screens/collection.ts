@@ -21,10 +21,10 @@ export function createCollectionScreen(save: SaveV1, onBack: () => void, onSave:
   for (const item of CATALOGUE.filter((entry)=>entry.kind===kind)) {
    const card=document.createElement('article'); card.className='collection-card'; const preview=previewCanvas(item.kind,item.id); const copy=document.createElement('div'); copy.className='collection-copy'; const name=document.createElement('strong'); name.textContent=S.catalogueName(item.id); copy.append(name);
    const owned=isOwned(save,item); const equipped=save.equipped[kind==='theme'?'theme':kind==='skin'?'skin':'pop']===item.id; const locked=requirement(item,save); const lockText=locked?.kind==='level'?S.reachLevel(locked.level):locked?.kind==='achievement'?S.achievementRequirement(S.achievementName(locked.achievement)):null;
-   const actionLabel=equipped?S.inUse:owned?S.use:lockText??(save.profile.coins<item.price?S.needCoins(item.price-save.profile.coins):S.itemPrice(item.price));
+   const freeClaim = item.price === 0 && (item.level !== undefined || item.achievement !== undefined);
+   const actionLabel=equipped?S.inUse:owned?S.use:lockText??(freeClaim?S.claim:save.profile.coins<item.price?S.needCoins(item.price-save.profile.coins):S.itemPrice(item.price));
    const action=button(actionLabel,'button button--secondary collection-action',()=>{
     if (owned) { save=equipItem(save,item.kind,item.id); onSave(save); syncCosmetics(save); render(); return; }
-    // spec-note: A newly met level or achievement unlock is claimed with its zero-coin item button; §14.4 defines no separate claim action.
     if (locked || save.profile.coins<item.price) return;
     const result=buyItem(save,item.kind,item.id); if(result.ok){save=result.save; onSave(save); syncCosmetics(save); render();}
    }); action.disabled=equipped||locked!==null||(!owned&&save.profile.coins<item.price); card.append(preview,copy,action); grid.append(card);

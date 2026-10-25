@@ -4,15 +4,17 @@ import type { Layout } from './layout';
 import { PALETTE } from './palette';
 import { S } from '../ui/strings';
 
-export function drawHud(ctx: CanvasRenderingContext2D, layout: Layout, state: GameState, best: number, elapsed: number, scoreShown: number, comboLostAt = -1): number {
+export function drawHud(ctx: CanvasRenderingContext2D, layout: Layout, state: GameState, best: number, elapsed: number, scoreShown: number, comboLostAt = -1, challengeScore?: number): number {
   const score = scoreShown + (state.score - scoreShown) * 0.16;
   ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = PALETTE.ui.textPrimary;
   if (layout.portrait) {
     ctx.font = '700 42px "Baloo 2", sans-serif'; ctx.fillText(new Intl.NumberFormat('en-US').format(Math.round(score)), layout.width / 2, layout.score.y + layout.score.height * 0.55);
+    if (state.mode === 'daily') { ctx.font = '800 13px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.textSecondary; ctx.fillText(S.dailyTray(Math.min(30, state.traysDealt)), layout.width / 2, layout.score.y + layout.score.height * 0.98); if (state.daily) { ctx.font = '800 11px Nunito, sans-serif'; ctx.fillText(S.fodDouble(S.flavourName(state.daily.flavourOfDay)), layout.width / 2, layout.score.y + layout.score.height + 10); } }
     if (state.mode !== 'zen') { const isNewBest = best > 0 && state.score > best; ctx.font = '700 15px Nunito, sans-serif'; ctx.fillStyle = isNewBest ? PALETTE.ui.gold : PALETTE.ui.textSecondary; ctx.fillText(isNewBest ? S.newBest : S.best(new Intl.NumberFormat('en-US').format(best)), layout.width / 2, layout.score.y + layout.score.height * 0.82); }
   } else {
     ctx.textAlign = 'left'; ctx.font = '700 18px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.textSecondary; ctx.fillText(S.score, layout.score.x, layout.score.y + 60);
     ctx.font = '800 54px "Baloo 2", sans-serif'; ctx.fillStyle = PALETTE.ui.textPrimary; ctx.fillText(new Intl.NumberFormat('en-US').format(Math.round(score)), layout.score.x, layout.score.y + 116);
+    if (state.mode === 'daily') { ctx.font = '700 14px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.textSecondary; ctx.fillText(S.dailyTray(Math.min(30, state.traysDealt)), layout.score.x, layout.score.y + 138); if (state.daily) { ctx.font = '700 12px Nunito, sans-serif'; ctx.fillText(S.fodDouble(S.flavourName(state.daily.flavourOfDay)), layout.score.x, layout.score.y + 158); } }
     if (state.mode !== 'zen') { const isNewBest = best > 0 && state.score > best; ctx.font = '700 18px Nunito, sans-serif'; ctx.fillStyle = isNewBest ? PALETTE.ui.gold : PALETTE.ui.textSecondary; ctx.fillText(isNewBest ? S.newBest : S.best(new Intl.NumberFormat('en-US').format(best)), layout.score.x, layout.score.y + 148); }
   }
   const comboY = layout.portrait ? layout.combo.y + 19 : layout.combo.y + 34; ctx.textAlign = 'left'; ctx.font = '800 16px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.textPrimary;
@@ -25,8 +27,15 @@ export function drawHud(ctx: CanvasRenderingContext2D, layout: Layout, state: Ga
     for (let i = 0; i < 3; i += 1) { ctx.globalAlpha = meterAlpha * (i === 2 && state.fuse === 1 ? 0.65 + 0.35 * Math.sin(elapsed / 400 * Math.PI * 2) : 1); ctx.fillStyle = i < state.fuse ? PALETTE.fx.comboTier1 : PALETTE.ui.track; ctx.beginPath(); ctx.arc(baseX + 6 + i * 16, pipY, 5, 0, Math.PI * 2); ctx.fill(); }
   }
   ctx.globalAlpha = 1;
+  if ((state.mode === 'classic' || state.mode === 'expert') && (best > 0 || challengeScore !== undefined)) drawChaseBar(ctx, layout, state.score, best, challengeScore, elapsed);
   if (state.mode === 'classic') drawRescue(ctx, layout, state);
   ctx.restore(); return score;
+}
+
+function drawChaseBar(ctx: CanvasRenderingContext2D, layout: Layout, score: number, best: number, challengeScore: number | undefined, elapsed: number): void {
+  const chasingFriend = challengeScore !== undefined && score <= challengeScore; const target = chasingFriend ? challengeScore : best; if (target <= 0) return;
+  const ratio = Math.min(1, score / target); const x = layout.portrait ? layout.board.x : layout.score.x; const width = layout.portrait ? layout.board.width : 240; const y = layout.portrait ? layout.score.y + layout.score.height + 24 : layout.score.y + 178; const height = 6;
+  ctx.save(); ctx.globalAlpha = .6; ctx.fillStyle = PALETTE.ui.panelSolid; ctx.beginPath(); ctx.roundRect(x, y, width, height, 3); ctx.fill(); ctx.globalAlpha = .85; ctx.fillStyle = PALETTE.ui.gold; ctx.beginPath(); ctx.roundRect(x, y, width * ratio, height * (ratio >= .8 ? 1 + .5 * Math.max(0, Math.sin(elapsed / 450 * Math.PI * 2)) : 1), 3); ctx.fill(); ctx.globalAlpha = 1; ctx.textAlign = 'left'; ctx.font = '700 12px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.gold; ctx.fillText(chasingFriend ? S.toBeatFriend(target - score) : S.toBeatBest(target - score), x, y + 18); ctx.restore();
 }
 
 function drawRescue(ctx: CanvasRenderingContext2D, layout: Layout, state: GameState): void {

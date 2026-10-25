@@ -14,10 +14,11 @@ export interface SaveV1 {
   equipped: { theme: string; skin: string; pop: string };
   best: { classic: number; expert: number };
   stats: LifetimeStats; recentClassic: number[]; achievements: Record<string, number>;
-  daily: { records: Record<string, { score: number; finished: boolean }>; finished: number; best: number };
+  daily: { records: Record<string, { score: number; finished: boolean; trays: number[]; bestCombo: number; lines: number; biggestPop: number; allClears: number; freezeUsed: number }>; finished: number; best: number };
   streak: { current: number; best: number; lastDay: string | null; freezes: number; frozenDays: string[] };
   weekly: { weekIndex: number; progress: number; claimed: boolean; runsWithCombo6: number };
   inProgress: GameState | null; dailyInProgress: GameState | null;
+  firsts: Record<string, boolean>;
   ui: { runsFinished: number; seenTips: string[] };
 }
 
@@ -30,5 +31,5 @@ export function defaultSave(createdAt = 0): SaveV1 {
     stats: { runs: {}, bestClassic: 0, bestExpert: 0, linesCleared: 0, extraCellsPopped: 0, biggestPop: 0, bestCombo: 0, allClears: 0, piecesPlaced: 0, timePlayedMs: 0, dailiesFinished: 0, bestDaily: 0 },
     recentClassic: [], achievements: {}, daily: { records: {}, finished: 0, best: 0 },
     streak: { current: 0, best: 0, lastDay: null, freezes: 0, frozenDays: [] }, weekly: { weekIndex: 0, progress: 0, claimed: false, runsWithCombo6: 0 },
-    inProgress: null, dailyInProgress: null, ui: { runsFinished: 0, seenTips: [] } };
+    firsts: {}, inProgress: null, dailyInProgress: null, ui: { runsFinished: 0, seenTips: [] } };
 }

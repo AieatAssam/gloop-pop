@@ -32,14 +32,23 @@ export function sanitize(input: SaveV1): SaveV1 {
   if (source.stats) base.stats = { runs: cleanCountMap(source.stats.runs), bestClassic: integer(source.stats.bestClassic), bestExpert: integer(source.stats.bestExpert), linesCleared: integer(source.stats.linesCleared), extraCellsPopped: integer(source.stats.extraCellsPopped), biggestPop: integer(source.stats.biggestPop), bestCombo: integer(source.stats.bestCombo), allClears: integer(source.stats.allClears), piecesPlaced: integer(source.stats.piecesPlaced), timePlayedMs: integer(source.stats.timePlayedMs), dailiesFinished: integer(source.stats.dailiesFinished), bestDaily: integer(source.stats.bestDaily) };
   if (source.recentClassic) base.recentClassic = source.recentClassic.filter(Number.isFinite).map(integer).slice(-20);
   if (source.achievements) base.achievements = cleanCountMap(source.achievements);
-  if (source.daily) base.daily = { records: isRecord(source.daily.records) ? source.daily.records : {}, finished: integer(source.daily.finished), best: integer(source.daily.best) };
+  if (source.daily) base.daily = { records: isRecord(source.daily.records) ? cleanDailyRecords(source.daily.records) : {}, finished: integer(source.daily.finished), best: integer(source.daily.best) };
   if (source.streak) base.streak = { current: integer(source.streak.current), best: integer(source.streak.best), lastDay: typeof source.streak.lastDay === 'string' ? source.streak.lastDay : null, freezes: integer(source.streak.freezes), frozenDays: Array.isArray(source.streak.frozenDays) ? source.streak.frozenDays.filter((v): v is string => typeof v === 'string').slice(-60) : [] };
   if (source.weekly) base.weekly = { weekIndex: integer(source.weekly.weekIndex), progress: integer(source.weekly.progress), claimed: source.weekly.claimed === true, runsWithCombo6: integer(source.weekly.runsWithCombo6) };
+  if (source.firsts && isRecord(source.firsts)) base.firsts = Object.fromEntries(Object.entries(source.firsts).filter(([, v]) => v === true));
   base.inProgress = validGame(source.inProgress) ? source.inProgress : null;
   base.dailyInProgress = validGame(source.dailyInProgress) && source.dailyInProgress.mode === 'daily' ? source.dailyInProgress : null;
   if (source.ui) base.ui = { runsFinished: integer(source.ui.runsFinished), seenTips: Array.isArray(source.ui.seenTips) ? source.ui.seenTips.filter((v): v is string => typeof v === 'string') : [] };
   base.best.classic = Math.max(base.best.classic, base.stats.bestClassic); base.best.expert = Math.max(base.best.expert, base.stats.bestExpert);
   return base;
+}
+
+function cleanDailyRecords(records: Record<string, unknown>): SaveV1['daily']['records'] {
+  return Object.fromEntries(Object.entries(records).filter((entry): entry is [string, Record<string, unknown>] => isRecord(entry[1])).map(([key, value]) => [key, {
+    score: integer(value.score), finished: value.finished === true,
+    trays: Array.isArray(value.trays) ? value.trays.map((item) => integer(item)).slice(0, 30) : [],
+    bestCombo: integer(value.bestCombo), lines: integer(value.lines), biggestPop: integer(value.biggestPop), allClears: integer(value.allClears), freezeUsed: integer(value.freezeUsed),
+  }]));
 }
 
 function validGame(value: unknown): value is GameState {
