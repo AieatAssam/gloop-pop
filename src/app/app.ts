@@ -14,13 +14,16 @@ import { createSession } from './session';
 import { createGameUi } from '../ui/dom';
 import { createTopBar } from '../ui/topBar';
 import { S } from '../ui/strings';
+import { getEquippedTheme, setEquippedCosmetics, SKIN_IDS, getEquippedPopEffect, THEME_KEYS } from '../render/themes';
 
 export function bootApp(): void {
   const canvas = document.querySelector<HTMLCanvasElement>('#game'); const uiRoot = document.querySelector<HTMLElement>('#ui');
   if (!canvas || !uiRoot) throw new Error('Missing game surface.');
-  const surface = createCanvasSurface(canvas); const background = createBackground('midnight'); const view = createBoardView(); const director = createDirector(); const session = createSession();
+  const surface = createCanvasSurface(canvas); const background = createBackground(getEquippedTheme()); const view = createBoardView(); const director = createDirector(); const session = createSession();
   const ui = createGameUi(uiRoot); let paused = false; let shownScore = 0; let shownStatus = '';
-  let layout: Layout = computeLayout(window.innerWidth, window.innerHeight); let renderElapsed = 0; const query = new URLSearchParams(window.location.search); const demoBoard = query.get('demo') === 'board'; const demoFaces = query.get('demo') === 'faces'; const demoBg = query.get('demo') === 'bg'; const debug = query.get('debug') === '1';
+  let layout: Layout = computeLayout(window.innerWidth, window.innerHeight); let renderElapsed = 0; const query = new URLSearchParams(window.location.search); const demoBoard = query.get('demo') === 'board'; const demoFaces = query.get('demo') === 'faces'; const demoBg = query.get('demo') === 'bg'; const demoThemes = query.get('demo') === 'themes'; const debug = query.get('debug') === '1';
+  const requestedSkin = query.get('skin');
+  if (demoFaces && requestedSkin && SKIN_IDS.includes(requestedSkin as typeof SKIN_IDS[number])) setEquippedCosmetics({ theme: getEquippedTheme(), skin: requestedSkin as typeof SKIN_IDS[number], popEffect: getEquippedPopEffect() });
   const showPause = (): void => { paused = true; ui.showPause(() => { paused = false; ui.hide(); }, () => { if (session.state.score > 0) ui.showRestartConfirm(() => restart(), () => showPause()); else restart(); }); };
   const pause = (): void => { if (session.state.status !== 'playing') return; if (paused) { paused = false; ui.hide(); } else showPause(); };
   const topBar = createTopBar(() => { if (session.state.status === 'over') return; if (!paused) showPause(); }); uiRoot.append(topBar.element);
@@ -43,6 +46,7 @@ export function bootApp(): void {
   });
   startRenderLoop((dtMs, elapsedMs) => {
     renderElapsed = elapsedMs;
+    if (demoThemes) background.setTheme(THEME_KEYS[Math.floor(elapsedMs / 2400) % THEME_KEYS.length]!, elapsedMs);
     const ctx = surface.context; ctx.setTransform(surface.dpr, 0, 0, surface.dpr, 0, 0); background.draw(ctx, elapsedMs, layout, session.state.stage);
     if (!demoBg) {
       view.draw(ctx, layout, session.state, elapsedMs, paused ? undefined : pointer.drag ?? keyboard.drag(), demoBoard ? 'board' : demoFaces ? 'faces' : '');

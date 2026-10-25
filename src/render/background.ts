@@ -1,4 +1,4 @@
-// SG §7.1, §7.3, §14 (Midnight row): layered night sweet shop with cached static art.
+// SG §7.1, §7.3, §14: layered, palette-driven theme backgrounds.
 import { PALETTE, type ThemeKey, type ThemeColours } from './palette';
 import { withAlpha } from './colour';
 import { createCosmeticRng } from './cosmeticRng';
@@ -6,11 +6,12 @@ import { easeInOutSine } from './easing';
 import type { Layout } from './layout';
 
 interface Dot { x: number; y: number; radius: number; phase: number; period: number; twinkle: boolean }
-interface Jar { x: number; y: number; width: number; height: number; lid: number }
+interface Jar { x: number; y: number; width: number; height: number; lid: number; row: number }
 interface FloatLight { x: number; y: number; radius: number; speed: number; phase: number; colourIndex: number }
 interface Sprinkle { x: number; y: number; speed: number; phase: number; colour: string }
 
 export interface Background {
+  setTheme(theme: ThemeKey, elapsedMs: number): void;
   resize(width: number, height: number, layout: Layout): void;
   draw(context: CanvasRenderingContext2D, elapsedMs: number, layout: Layout, stage?: number): void;
 }
@@ -28,16 +29,20 @@ for (let row = 0; row < 2; row += 1) {
   const width = 1 / count;
   for (let i = 0; i < count; i += 1) {
     const jarWidth = 0.09 + random() * 0.07;
-    jars.push({ x: (i + 0.5 + (random() - 0.5) * 0.28) * width, y: row === 0 ? 0.3 : 0.48, width: jarWidth, height: 0.12 + random() * 0.1, lid: 0.018 + random() * 0.012 });
+    jars.push({ x: (i + 0.5 + (random() - 0.5) * 0.28) * width, y: row === 0 ? 0.3 : 0.48, width: jarWidth, height: 0.12 + random() * 0.1, lid: 0.018 + random() * 0.012, row });
   }
 }
 for (let i = 0; i < 18; i += 1) bokeh.push({ x: random(), y: 0.22 + random() * 0.78, radius: 18 + random() * 46, speed: 4 + random() * 6, phase: random() * Math.PI * 2, colourIndex: i % 3 });
 for (let i = 0; i < 8; i += 1) sprinkles.push({ x: i % 2 === 0 ? random() * 0.12 : 0.88 + random() * 0.12, y: 0.45 + random() * 0.52, speed: 3 + random() * 3, phase: random() * Math.PI * 2, colour: sprinkleColours[i % sprinkleColours.length]! });
 
 export function createBackground(themeId: ThemeKey = 'midnight'): Background {
-  const selected = PALETTE.theme[themeId];
+  let selectedId = themeId;
+  let selected = PALETTE.theme[selectedId];
+  let themeChangedAt = -1000;
   const cache = document.createElement('canvas');
+  const silhouetteCache = document.createElement('canvas');
   let cacheContext = cache.getContext('2d');
+  let previousSilhouette: HTMLCanvasElement | undefined;
   let cacheWidth = 0;
   let cacheHeight = 0;
   let cachedBoard: Layout['board'] | undefined;
@@ -47,6 +52,7 @@ export function createBackground(themeId: ThemeKey = 'midnight'): Background {
   let moonTarget = 0.26;
   let moonStarted = 0;
   const sprites = new Map<string, HTMLCanvasElement>();
+  let transitionCanvas: HTMLCanvasElement | undefined;
 
   const makeSprite = (colour: string, radius: number): HTMLCanvasElement => {
     const size = Math.ceil(radius * 2);
@@ -67,15 +73,37 @@ export function createBackground(themeId: ThemeKey = 'midnight'): Background {
   for (const colour of sprinkleColours) sprites.set(`sprinkle:${colour}`, makeSprinkleSprite(colour));
 
   return {
+    setTheme(theme, elapsedMs) {
+      if (theme === selectedId) return;
+      if (cacheWidth > 0 && cacheHeight > 0) {
+        transitionCanvas = document.createElement('canvas'); transitionCanvas.width = cacheWidth; transitionCanvas.height = cacheHeight;
+        const transitionContext = transitionCanvas.getContext('2d');
+        if (transitionContext) transitionContext.drawImage(cache, 0, 0);
+      }
+      if (silhouetteCache.width > 0 && silhouetteCache.height > 0) {
+        previousSilhouette = document.createElement('canvas'); previousSilhouette.width = silhouetteCache.width; previousSilhouette.height = silhouetteCache.height;
+        previousSilhouette.getContext('2d')?.drawImage(silhouetteCache, 0, 0);
+      }
+      selectedId = theme;
+      selected = PALETTE.theme[theme];
+      themeChangedAt = elapsedMs;
+      sprites.clear();
+      for (const colour of [selected.bokehA, selected.bokehB, selected.bokehC]) sprites.set(colour, makeSprite(colour, 64));
+      for (const colour of sprinkleColours) sprites.set(`sprinkle:${colour}`, makeSprinkleSprite(colour));
+      cacheWidth = 0;
+    },
     resize(width, height, layout) {
       cacheWidth = Math.max(1, Math.ceil(width));
       cacheHeight = Math.max(1, Math.ceil(height));
       cache.width = cacheWidth;
       cache.height = cacheHeight;
       cacheContext = cache.getContext('2d');
+      silhouetteCache.width = cacheWidth; silhouetteCache.height = cacheHeight;
       cachedBoard = { ...layout.board };
       if (!cacheContext) return;
       drawStatic(cacheContext, cacheWidth, cacheHeight, cachedBoard, selected, cachedStage);
+      const silhouetteContext = silhouetteCache.getContext('2d');
+      if (silhouetteContext) drawThemeSilhouette(silhouetteContext, cacheWidth, cacheHeight, selected, selectedId);
     },
     draw(context, elapsedMs, layout, stage = 1) {
       const nextStage = Math.max(1, Math.min(6, Math.floor(stage)));
@@ -91,16 +119,65 @@ export function createBackground(themeId: ThemeKey = 'midnight'): Background {
       } else if (!cacheContext || cacheWidth !== Math.ceil(layout.width) || cacheHeight !== Math.ceil(layout.height) || !sameRect(cachedBoard, layout.board)) {
         this.resize(layout.width, layout.height, layout);
       }
-      context.drawImage(cache, 0, 0, layout.width, layout.height);
-      drawStars(context, layout.width, layout.height, elapsedMs, selected);
+      const fade = Math.min(1, Math.max(0, (elapsedMs - themeChangedAt) / 400));
+      if (transitionCanvas && fade < 1) { context.save(); context.globalAlpha = 1 - fade; context.drawImage(transitionCanvas, 0, 0, layout.width, layout.height); context.restore(); }
+      if (cacheWidth > 0) { context.save(); context.globalAlpha = fade; context.drawImage(cache, 0, 0, layout.width, layout.height); context.restore(); }
+      context.save(); context.globalAlpha = fade; drawStars(context, layout.width, layout.height, elapsedMs, selected); context.restore();
       const progress = Math.min(1, Math.max(0, (elapsedMs - moonStarted) / 2400));
       const moonY = moonFrom + (moonTarget - moonFrom) * easeInOutSine(progress);
-      drawMoon(context, layout.width, layout.height, elapsedMs, nextStage, moonY, selected);
-      drawShelves(context, layout.width, layout.height, selected);
+      if (fade < 1 && previousSilhouette) { context.save(); context.globalAlpha = 1 - fade; context.drawImage(previousSilhouette, 0, 0, layout.width, layout.height); context.restore(); }
+      context.save(); context.globalAlpha = fade; context.drawImage(silhouetteCache, 0, 0, layout.width, layout.height);
+      drawMoon(context, layout.width, layout.height, elapsedMs, nextStage, moonY, selected, selectedId);
+      drawThemeAir(context, layout.width, layout.height, elapsedMs, selected, selectedId);
+      context.restore();
+      if (fade >= 1) { transitionCanvas = undefined; previousSilhouette = undefined; }
       drawBokeh(context, layout.width, layout.height, elapsedMs, sprites, selected);
       drawSprinkles(context, layout.width, layout.height, elapsedMs, sprites);
     },
   };
+}
+
+function drawThemeSilhouette(ctx: CanvasRenderingContext2D, width: number, height: number, colours: ThemeColours, theme: ThemeKey): void {
+  if (theme === 'midnight') { drawShelves(ctx, width, height, colours); return; }
+  ctx.save(); ctx.globalAlpha *= 0.58; ctx.fillStyle = colours.silhouette; ctx.strokeStyle = withAlpha(colours.silhouetteRim, 0.62); ctx.lineWidth = 2;
+  if (theme === 'sunset') {
+    ctx.fillRect(0, height * 0.37, width, height * 0.13);
+    for (let i = 0; i < 7; i += 1) { const x = width * i / 7; ctx.fillRect(x + width * 0.018, height * 0.22 + (i % 2) * height * 0.04, width * 0.11, height * 0.28); ctx.beginPath(); ctx.moveTo(x + width * 0.018, height * 0.29); ctx.lineTo(x + width * 0.073, height * 0.21 + (i % 2) * height * 0.04); ctx.lineTo(x + width * 0.128, height * 0.29); ctx.stroke(); }
+  } else if (theme === 'aquarium') {
+    for (let i = 0; i < 12; i += 1) { const x = width * i / 11; ctx.lineWidth = width * 0.013; ctx.beginPath(); ctx.moveTo(x, height * 0.59); ctx.bezierCurveTo(x - 12, height * 0.46, x + 15, height * 0.37, x, height * (0.28 + (i % 3) * 0.035)); ctx.stroke(); }
+    ctx.fillRect(0, height * 0.57, width, height * 0.06);
+  } else if (theme === 'observatory') {
+    ctx.beginPath(); ctx.arc(width * 0.5, height * 0.39, Math.min(width, height) * 0.17, Math.PI, 0); ctx.fill(); ctx.fillRect(width * 0.33, height * 0.39, width * 0.34, height * 0.08);
+    ctx.beginPath(); ctx.moveTo(0, height * 0.51); ctx.quadraticCurveTo(width * 0.25, height * 0.39, width * 0.5, height * 0.51); ctx.quadraticCurveTo(width * 0.8, height * 0.42, width, height * 0.51); ctx.lineTo(width, height * 0.55); ctx.lineTo(0, height * 0.55); ctx.fill();
+  } else if (theme === 'kitchen') {
+    ctx.fillRect(0, height * 0.36, width, height * 0.025);
+    for (let i = 0; i < 8; i += 1) { const x = width * (0.08 + i * 0.12); ctx.beginPath(); ctx.ellipse(x, height * 0.34, width * 0.035, height * 0.025, 0, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x - width * 0.03, height * 0.34); ctx.lineTo(x - width * 0.025, height * 0.29); ctx.lineTo(x + width * 0.025, height * 0.29); ctx.lineTo(x + width * 0.03, height * 0.34); ctx.stroke(); }
+  } else if (theme === 'snowglobe') {
+    for (let i = 0; i < 9; i += 1) { const x = width * i / 8; const base = height * (0.52 + (i % 2) * 0.04); ctx.beginPath(); ctx.moveTo(x - width * 0.055, base); ctx.lineTo(x, base - height * 0.22); ctx.lineTo(x + width * 0.055, base); ctx.fill(); }
+    ctx.fillRect(width * 0.47, height * 0.42, width * 0.08, height * 0.1);
+  } else {
+    ctx.beginPath(); ctx.moveTo(0, height * 0.52); ctx.quadraticCurveTo(width * 0.22, height * 0.36, width * 0.46, height * 0.51); ctx.quadraticCurveTo(width * 0.72, height * 0.35, width, height * 0.5); ctx.lineTo(width, height * 0.56); ctx.lineTo(0, height * 0.56); ctx.fill();
+    for (let i = 0; i < 16; i += 1) { const x = width * i / 16; ctx.strokeRect(x, height * 0.47, 2, height * 0.09); }
+  }
+  ctx.restore();
+}
+
+function drawThemeAir(ctx: CanvasRenderingContext2D, width: number, height: number, elapsed: number, colours: ThemeColours, theme: ThemeKey): void {
+  if (theme === 'midnight') return;
+  ctx.save(); ctx.fillStyle = colours.star; ctx.strokeStyle = colours.star;
+  if (theme === 'aquarium') {
+    for (let i = 0; i < 24; i += 1) { const x = ((i * 83 + 25) % width); const y = height - ((elapsed * 0.025 + i * 47) % height); ctx.globalAlpha = 0.26; ctx.beginPath(); ctx.arc(x, y, 2 + i % 3, 0, Math.PI * 2); ctx.stroke(); }
+  } else if (theme === 'snowglobe' || theme === 'kitchen') {
+    const count = theme === 'snowglobe' ? 60 : 34;
+    for (let i = 0; i < count; i += 1) { const x = (i * 97 + Math.sin(elapsed / 1300 + i) * 12) % width; const y = (i * 61 + elapsed * (theme === 'snowglobe' ? 0.018 : -0.006)) % height; ctx.globalAlpha = theme === 'snowglobe' ? 0.5 : 0.25; ctx.beginPath(); ctx.arc(x, y, theme === 'snowglobe' ? 1.5 + i % 2 : 2 + i % 3, 0, Math.PI * 2); ctx.fill(); }
+  } else if (theme === 'dawn') {
+    for (let i = 0; i < 3; i += 1) { const x = ((i * 0.36 + elapsed / 80000) % 1) * width; const y = height * (0.3 + i * 0.07); ctx.globalAlpha = 0.18; ctx.beginPath(); ctx.ellipse(x, y, width * 0.055, height * 0.014, 0, 0, Math.PI * 2); ctx.fill(); }
+  } else if (theme === 'observatory') {
+    const x = (elapsed / 9 % 1) * width; const y = height * (0.13 + (elapsed / 9000 % 1) * 0.2); ctx.globalAlpha = 0.75; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 32, y + 14); ctx.stroke();
+  } else {
+    for (let i = 0; i < 18; i += 1) { ctx.globalAlpha = 0.45; ctx.beginPath(); ctx.arc(stars[i]!.x * width, stars[i]!.y * height, stars[i]!.radius, 0, Math.PI * 2); ctx.fill(); }
+  }
+  ctx.restore();
 }
 
 function drawStatic(ctx: CanvasRenderingContext2D, width: number, height: number, board: Layout['board'], colours: ThemeColours, stage: number): void {
@@ -151,10 +228,26 @@ function drawStatic(ctx: CanvasRenderingContext2D, width: number, height: number
 
 function drawShelves(ctx: CanvasRenderingContext2D, width: number, height: number, colours: ThemeColours): void {
   const scale = Math.min(width, height);
-  for (const jar of jars) drawJar(ctx, jar.x * width, jar.y * height, jar.width * width, Math.min(jar.height * scale, height * 0.22), jar.lid * scale, colours, jar.y > 0.4 ? 0.85 : 1);
-  for (const y of [height * 0.30, height * 0.48]) {
-    ctx.fillStyle = colours.silhouette; ctx.fill(roundedRect(ctx, 0, y, width, Math.max(8, height * 0.018), height * 0.009));
-    ctx.strokeStyle = withAlpha(colours.silhouetteRim, 0.95); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, y + 1); ctx.lineTo(width, y + 1); ctx.stroke();
+  const desktop = width >= 900 && height / width < 1.25;
+  // spec-note: Desktop shelves move below the HUD and stay out of its left column; portrait keeps the approved shelf composition.
+  const rows = desktop ? [height * 0.57, height * 0.72] : [height * 0.30, height * 0.48];
+  for (let i = 0; i < jars.length; i += 1) {
+    const jar = jars[i]!; const row = jar.row;
+    if (desktop && jar.x < 0.28) continue;
+    const bottom = rows[row]!;
+    const jarHeight = Math.min(jar.height * scale, height * 0.11);
+    drawJar(ctx, jar.x * width, bottom, desktop ? jar.width * width * 0.72 : jar.width * width, jarHeight, Math.min(jar.lid * scale, jarHeight * 0.13), colours, desktop ? (row ? 0.38 : 0.32) : (row ? 0.85 : 1));
+  }
+  for (const y of rows) {
+    const start = desktop ? width * 0.27 : 0;
+    ctx.fillStyle = withAlpha(colours.silhouette, desktop ? 0.46 : 1); ctx.fill(roundedRect(ctx, start, y, width - start, Math.max(6, height * (desktop ? 0.009 : 0.018)), height * 0.009));
+    ctx.strokeStyle = withAlpha(colours.silhouetteRim, desktop ? 0.46 : 0.95); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(start, y + 1); ctx.lineTo(width, y + 1); ctx.stroke();
+  }
+  if (desktop) {
+    // Soft foreground haze preserves a quiet reading area behind the left score panel.
+    const haze = ctx.createLinearGradient(0, height * 0.2, width * 0.39, height * 0.56);
+    haze.addColorStop(0, withAlpha(colours.skyTop, 0.38)); haze.addColorStop(1, withAlpha(colours.skyTop, 0));
+    ctx.fillStyle = haze; ctx.fillRect(0, height * 0.18, width * 0.43, height * 0.42);
   }
 }
 
@@ -195,18 +288,30 @@ function drawStars(ctx: CanvasRenderingContext2D, width: number, height: number,
   ctx.globalAlpha = 1;
 }
 
-function drawMoon(ctx: CanvasRenderingContext2D, width: number, height: number, elapsed: number, stage: number, yFraction: number, colours: ThemeColours): void {
-  const x = width * 0.78;
+function drawMoon(ctx: CanvasRenderingContext2D, width: number, height: number, elapsed: number, stage: number, yFraction: number, colours: ThemeColours, theme: ThemeKey): void {
+  const x = theme === 'sunset' ? width * 0.5 : theme === 'kitchen' ? width * 0.5 : theme === 'dawn' ? width * 0.76 : width * 0.78;
   const radius = width < 600 ? width * 0.07 : 46;
-  const pulse = stage >= 6 ? 1 + 0.06 * Math.sin(elapsed / 6000 * Math.PI * 2) : 1;
-  const y = height * yFraction;
+  const pulse = theme === 'midnight' && stage >= 6 ? 1 + 0.06 * Math.sin(elapsed / 6000 * Math.PI * 2) : 1;
+  const y = theme === 'sunset' ? height * 0.42 : theme === 'kitchen' ? height * 0.16 : theme === 'dawn' ? height * 0.3 : height * yFraction;
+  if (theme === 'aquarium') {
+    const shaft = ctx.createLinearGradient(width * 0.48, 0, width * 0.58, height * 0.58); shaft.addColorStop(0, withAlpha(colours.moon, 0.18)); shaft.addColorStop(1, withAlpha(colours.moon, 0));
+    ctx.fillStyle = shaft; ctx.beginPath(); ctx.moveTo(width * 0.4, 0); ctx.lineTo(width * 0.58, 0); ctx.lineTo(width * 0.72, height * 0.58); ctx.lineTo(width * 0.28, height * 0.58); ctx.closePath(); ctx.fill();
+  }
+  if (theme === 'kitchen') { ctx.strokeStyle = withAlpha(colours.silhouetteRim, 0.72); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, y - radius); ctx.stroke(); }
+  if (theme === 'dawn') {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(elapsed / 1000 * Math.PI / 90); ctx.strokeStyle = withAlpha(colours.moon, 0.48); ctx.lineWidth = 3;
+    for (let i = 0; i < 12; i += 1) { const a = i * Math.PI / 6; ctx.beginPath(); ctx.moveTo(Math.cos(a) * radius * 1.25, Math.sin(a) * radius * 1.25); ctx.lineTo(Math.cos(a) * radius * 1.65, Math.sin(a) * radius * 1.65); ctx.stroke(); } ctx.restore();
+  }
+  if (theme !== 'sunset') {
   const halo = ctx.createRadialGradient(x, y, 0, x, y, radius * 3 * pulse);
-  halo.addColorStop(0, withAlpha(colours.moon, 0.25)); halo.addColorStop(1, withAlpha(colours.moon, 0));
+  halo.addColorStop(0, withAlpha(colours.moon, theme === 'kitchen' ? 0.32 : 0.25)); halo.addColorStop(1, withAlpha(colours.moon, 0));
   ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(x, y, radius * 3 * pulse, 0, Math.PI * 2); ctx.fill();
+  }
   const moon = ctx.createRadialGradient(x - radius * 0.32, y - radius * 0.36, radius * 0.04, x, y, radius * 1.08);
   moon.addColorStop(0, PALETTE.light.specular); moon.addColorStop(0.42, colours.moon); moon.addColorStop(1, withAlpha(colours.moon, 0.64));
   ctx.fillStyle = moon; ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill();
   ctx.save(); ctx.globalAlpha = 0.12; ctx.fillStyle = colours.skyBottom; ctx.beginPath(); ctx.arc(x + radius * 0.36, y + radius * 0.3, radius * 0.8, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  if (theme === 'observatory') { ctx.save(); ctx.translate(x, y); ctx.rotate(-0.28); ctx.strokeStyle = withAlpha(colours.moon, 0.86); ctx.lineWidth = Math.max(2, radius * 0.07); ctx.beginPath(); ctx.ellipse(0, 0, radius * 1.7, radius * 0.48, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
 }
 
 function drawBokeh(ctx: CanvasRenderingContext2D, width: number, height: number, elapsed: number, sprites: Map<string, HTMLCanvasElement>, colours: ThemeColours): void {
