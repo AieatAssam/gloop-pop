@@ -22,12 +22,12 @@ export function drawHud(ctx: CanvasRenderingContext2D, layout: Layout, state: Ga
   }
   if (scoreSparkleAt >= 0 && elapsed >= scoreSparkleAt && elapsed - scoreSparkleAt < 300) { const sparkleX = layout.portrait ? layout.width / 2 : layout.score.x; const sparkleY = layout.portrait ? layout.score.y + layout.score.height * 0.55 : layout.score.y + 116; const count = reducedMotion ? 2 : 6; ctx.save(); ctx.fillStyle = PALETTE.fx.sugar; ctx.globalAlpha = Math.max(0, 1 - (elapsed - scoreSparkleAt) / 300); for (let i = 0; i < count; i += 1) drawSparkle(ctx, sparkleX + Math.sin(i * 1.7 + elapsed / 70) * (16 + i * 4), sparkleY - 12 + Math.cos(i * 2.1 + elapsed / 80) * 10, 2.5); ctx.restore(); }
   const comboY = layout.portrait ? layout.combo.y + 19 : layout.combo.y + 34; ctx.textAlign = 'left'; ctx.font = '800 16px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.textPrimary;
-  const lostAge = elapsed - comboLostAt; const meterAlpha = state.combo > 0 || !layout.portrait ? 1 : comboLostAt >= 0 && lostAge < 200 ? Math.max(0, 1 - lostAge / 200) : 0;
+  const lostAge = elapsed - comboLostAt; const meterAlpha = 1;
   if (meterAlpha > 0) {
     ctx.globalAlpha = meterAlpha; const multiplier = state.combo >= 20 ? '10' : (1 + Math.max(0, state.combo - 1) * 0.5).toFixed(1);
     if (state.combo > 1) { const baseX = layout.portrait ? layout.board.x + 8 : layout.score.x; const age = elapsed - comboPulseAt; const scale = age >= 0 && age < 160 ? 1 + 0.25 * (1 - age / 160) : 1; ctx.save(); ctx.translate(baseX, comboY); ctx.scale(scale, scale); ctx.fillText(S.combo(state.combo, multiplier), 0, 0); ctx.restore(); }
-    else if (state.combo === 0 && comboLostAt >= 0 && lostAge < 200) { ctx.fillStyle = PALETTE.fx.comboLost; ctx.fillText(S.comboLost, layout.portrait ? layout.board.x + 8 : layout.score.x, comboY); }
-    else { ctx.fillStyle = PALETTE.ui.textPrimary; ctx.fillText(S.combo(0, '1.0'), layout.portrait ? layout.board.x + 8 : layout.score.x, comboY); }
+    else if (state.combo === 0 && comboLostAt >= 0 && lostAge < 200) { ctx.globalAlpha = Math.max(0, 1 - lostAge / 200); ctx.fillStyle = PALETTE.fx.comboLost; ctx.fillText(S.comboLost, layout.portrait ? layout.board.x + 8 : layout.score.x, comboY); ctx.globalAlpha = meterAlpha; }
+    else if (state.combo >= 2) { ctx.fillStyle = PALETTE.ui.textPrimary; ctx.fillText(S.combo(state.combo, multiplier), layout.portrait ? layout.board.x + 8 : layout.score.x, comboY); }
     const baseX = layout.portrait ? layout.board.x + 8 : layout.score.x; const pipY = comboY + 18;
     for (let i = 0; i < 3; i += 1) { ctx.globalAlpha = meterAlpha * (i === 2 && state.fuse === 1 ? 0.65 + 0.35 * Math.sin(elapsed / 400 * Math.PI * 2) : 1); ctx.fillStyle = i < state.fuse ? PALETTE.fx.comboTier1 : PALETTE.ui.track; ctx.beginPath(); ctx.arc(baseX + 6 + i * 16, pipY, 5, 0, Math.PI * 2); ctx.fill(); }
   }

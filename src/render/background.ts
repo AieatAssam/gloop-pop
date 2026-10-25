@@ -133,7 +133,7 @@ export function createBackground(themeId: ThemeKey = 'midnight'): Background {
       const moonY = moonFrom + (moonTarget - moonFrom) * easeInOutSine(progress);
       if (fade < 1 && previousSilhouette) { context.save(); context.globalAlpha = 1 - fade; context.drawImage(previousSilhouette, 0, 0, layout.width, layout.height); context.restore(); }
       context.save(); context.globalAlpha = fade; context.drawImage(silhouetteCache, 0, 0, layout.width, layout.height);
-      drawMoon(context, layout.width, layout.height, elapsedMs, nextStage, moonY, selected, selectedId, !reducedMotion && reactionKind === 'allClear' && reactionAge < 800 ? 2 : 1);
+      drawMoon(context, layout, elapsedMs, nextStage, moonY, selected, selectedId, !reducedMotion && reactionKind === 'allClear' && reactionAge < 800 ? 2 : 1);
       drawThemeAir(context, layout.width, layout.height, elapsedMs, selected, selectedId);
       context.restore();
       if (fade >= 1) { transitionCanvas = undefined; previousSilhouette = undefined; }
@@ -313,11 +313,14 @@ function drawStars(ctx: CanvasRenderingContext2D, width: number, height: number,
   ctx.globalAlpha = 1;
 }
 
-function drawMoon(ctx: CanvasRenderingContext2D, width: number, height: number, elapsed: number, stage: number, yFraction: number, colours: ThemeColours, theme: ThemeKey, haloScale = 1): void {
-  const x = theme === 'sunset' ? width * 0.5 : theme === 'kitchen' ? width * 0.5 : theme === 'dawn' ? width * 0.76 : width * 0.78;
+function drawMoon(ctx: CanvasRenderingContext2D, layout: Layout, elapsed: number, stage: number, yFraction: number, colours: ThemeColours, theme: ThemeKey, haloScale = 1): void {
+  const { width, height } = layout;
+  // spec-note: On portrait screens keep the moon in the far right sky lane and clamp its lower stages below the top-bar buttons.
+  const x = layout.portrait ? width * 0.86 : theme === 'sunset' ? width * 0.5 : theme === 'kitchen' ? width * 0.5 : theme === 'dawn' ? width * 0.76 : width * 0.78;
   const radius = width < 600 ? width * 0.07 : 46;
   const pulse = theme === 'midnight' && stage >= 6 ? 1 + 0.06 * Math.sin(elapsed / 6000 * Math.PI * 2) : 1;
-  const y = theme === 'sunset' ? height * 0.42 : theme === 'kitchen' ? height * 0.16 : theme === 'dawn' ? height * 0.3 : height * yFraction;
+  const stagePosition = theme === 'sunset' ? height * 0.42 : theme === 'kitchen' ? height * 0.16 : theme === 'dawn' ? height * 0.3 : height * yFraction;
+  const y = layout.portrait ? Math.max(layout.topBar.y + layout.topBar.height + radius, stagePosition) : stagePosition;
   if (theme === 'aquarium') {
     const shaft = ctx.createLinearGradient(width * 0.48, 0, width * 0.58, height * 0.58); shaft.addColorStop(0, withAlpha(colours.moon, 0.18)); shaft.addColorStop(1, withAlpha(colours.moon, 0));
     ctx.fillStyle = shaft; ctx.beginPath(); ctx.moveTo(width * 0.4, 0); ctx.lineTo(width * 0.58, 0); ctx.lineTo(width * 0.72, height * 0.58); ctx.lineTo(width * 0.28, height * 0.58); ctx.closePath(); ctx.fill();

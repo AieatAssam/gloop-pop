@@ -82,7 +82,7 @@ export function bootApp(): void {
   let comboPulseAt = -1; let scoreSparkleAt = -1;
   const queuedActions: Action[] = [];
   let lastSlowMoAt = -10000; let newBestShown = false;
-  const query = new URLSearchParams(window.location.search); const demoBoard = query.get('demo') === 'board'; const demoFaces = query.get('demo') === 'faces'; const demoBg = query.get('demo') === 'bg'; const demoThemes = query.get('demo') === 'themes'; const demoMega = query.get('demo') === 'mega'; const debug = query.get('debug') === '1'; const autoplay = debug && (query.get('autoplay') === '1' || demoMega); const autoplayInterval = query.get('speed') === 'fast' ? 150 : 450; let autoplayAt = 0; const botRng = seededRng('gloop-pop/debug-autoplay');
+  const query = new URLSearchParams(window.location.search); const demoBoard = query.get('demo') === 'board'; const demoFaces = query.get('demo') === 'faces'; const demoBg = query.get('demo') === 'bg'; const demoThemes = query.get('demo') === 'themes'; const demoMega = query.get('demo') === 'mega'; const debug = query.get('debug') === '1'; const autoplay = debug && (query.get('autoplay') === '1' || demoMega); const autoplayInterval = query.get('speed') === 'fast' ? 150 : 450; let autoplayAt = 0; let rescueOfferAt = -1; const botRng = seededRng('gloop-pop/debug-autoplay');
   if (debug && demoMega) {
     // spec-note: The QA scenario builds a 28-cell apple gloop around one two-cell gap; its line clear resolves as a Mega Pop at combo tier 4.
     const state = structuredClone(session.state); state.mode = 'classic'; state.board = new Array<number>(64).fill(0);
@@ -122,6 +122,7 @@ export function bootApp(): void {
   router.subscribe((screen) => renderScreen(screen)); renderScreen('play'); persist(true);
   const renderLoop = startRenderLoop((dtMs, elapsedMs) => {
     renderElapsed = elapsedMs;
+    uiRoot.style.setProperty('--toast-play-top', `${layout.board.y}px`); uiRoot.style.setProperty('--toast-play-left', `${layout.board.x + layout.board.width / 2}px`);
     if (!renderLoop.isHitStopped() && queuedActions.length) { const nextAction = queuedActions.shift(); if (nextAction) apply(nextAction); }
     if (!renderLoop.isHitStopped() && queuedRestart) { queuedRestart = false; restart(); }
     const reducedForFrame = shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion()); background.setReducedMotion(reducedForFrame);
@@ -143,7 +144,7 @@ export function bootApp(): void {
     }
     updateTutorial(elapsedMs);
     updateOverlay();
-    }, (elapsed) => { surface.reportFrame(elapsed); if (autoplay && router.current === 'play' && !paused && session.state.status === 'playing' && renderElapsed >= autoplayAt) { autoplayAt = renderElapsed + autoplayInterval; enableAudio(); const move = demoMega && session.state.moves === 0 ? { slot: 0 as const, row: 3, col: 3 } : chooseBotMove(session.state, botRng); if (move) apply({ type: 'place', slot: move.slot, row: move.row, col: move.col }); } });
+    }, (elapsed) => { surface.reportFrame(elapsed); if (autoplay && router.current === 'play' && !paused && session.state.status === 'rescueOffer') { if (rescueOfferAt < 0) rescueOfferAt = renderElapsed; if (renderElapsed - rescueOfferAt >= 600) { rescueOfferAt = -1; apply({ type: 'useRescue' }); } } else if (session.state.status !== 'rescueOffer') rescueOfferAt = -1; if (autoplay && router.current === 'play' && !paused && session.state.status === 'playing' && renderElapsed >= autoplayAt) { autoplayAt = renderElapsed + autoplayInterval; enableAudio(); const move = demoMega && session.state.moves === 0 ? { slot: 0 as const, row: 3, col: 3 } : chooseBotMove(session.state, botRng); if (move) apply({ type: 'place', slot: move.slot, row: move.row, col: move.col }); } });
 
   function apply(action: Action): void {
     if (renderLoop.isHitStopped()) { queuedActions.push(action); return; }
