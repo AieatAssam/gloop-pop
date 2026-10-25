@@ -536,7 +536,7 @@ Collection UI strings: price button "600 coins", unaffordable: "Need 220 more co
 
 ---
 
-## 15. Achievements (40)
+## 15. Achievements (41; #41 "Rivals" is defined in §23.5)
 
 Coins: E = 25, M = 50, H = 100. Conditions use run stats or lifetime totals as noted. "Any mode" includes Zen unless marked.
 
@@ -585,7 +585,7 @@ Coins: E = 25, M = 50, H = 100. Conditions use run stats or lifetime totals as n
 
 - Score achievements (18–24) do not count Zen.
 - Toast on unlock: "Achievement: Big Pop · +25 coins" (2.4 s, SG §11.8). Several unlocks queue, 0.6 s apart.
-- Achievements screen: grid of 40 badges, locked ones show the description and progress when counter-based ("23 / 50").
+- Achievements screen: grid of 41 badges, locked ones show the description and progress when counter-based ("23 / 50").
 
 ---
 
@@ -684,7 +684,7 @@ Load ──► Play (Classic; tutorial if first launch)
                                    (Daily: Share · Practice · Home)
 Home ──► Play · Mode cards (Classic, Daily, Zen, Expert) · Weekly card
      ├─► Collection (tabs Themes / Skins / Pop effects; each item: buy / use)  [◀ Back]
-     ├─► Achievements (grid of 40; tap badge for details)                   [◀ Back]
+     ├─► Achievements (grid of 41; tap badge for details)                   [◀ Back]
      ├─► Stats (numbers + last-20 bar chart)                                [◀ Back]
      ├─► Settings (toggles, Show tutorial again, Reset all progress)        [◀ Back]
      └─► How to play                                                        [◀ Back]
@@ -699,7 +699,7 @@ Daily card ──► Play (Daily) ──► Daily result: Share · Share image �
 ---
 
 ## 18. Stats screen
-Lifetime: Runs played (per mode), Best score (Classic, Expert), Average score (last 20 Classic), Lines cleared, Popped cells, Biggest pop, Best combo, All clears, Pieces placed, Time played (h m), Dailies finished, Best daily score, Current streak, Best streak, Achievements "17 / 40". Chart: last 20 Classic scores as bars (best bar highlighted), drawn on a small canvas.
+Lifetime: Runs played (per mode), Best score (Classic, Expert), Average score (last 20 Classic), Lines cleared, Popped cells, Biggest pop, Best combo, All clears, Pieces placed, Time played (h m), Dailies finished, Best daily score, Current streak, Best streak, Achievements "17 / 41". Chart: last 20 Classic scores as bars (best bar highlighted), drawn on a small canvas.
 
 ---
 
@@ -746,9 +746,9 @@ Lifetime: Runs played (per mode), Best score (Classic, Expert), Average score (l
 | R12 Thumbnail-readable | 7 saturated flavours on a calm dark board, each with a distinct topper shape and face; patterns for colour-blind mode; 64 px test | SG §5–6 |
 | R13 Characterful pieces | Faces with 10 expressions that react to drag, danger, clears and loss; face size grows with gloop | SG §6 |
 | R14 Juice everywhere | Squash and stretch, sweep, ripple, particles, shake tiers, combo pitch ladder, haptics | SG §9, §13 |
-| R15 Layered progression | Score, XP/levels, coins every run, 21 cosmetics, 2 unlockable modes, 40 achievements | §14, §15 |
+| R15 Layered progression | Score, XP/levels, coins every run, 21 cosmetics, 2 unlockable modes, 41 achievements | §14, §15 |
 | R16 Short sessions | Classic median 4–7 min verified by sim; Daily ≤ 90 placements; one-tap restart | §8 |
-| R17 Long tail | Endless score, level 50 + Stars, Expert mode, 40 achievements, Collector | §9.2, §14, §15 |
+| R17 Long tail | Endless score, level 50 + Stars, Expert mode, 41 achievements, Collector | §9.2, §14, §15 |
 | R18 Fair, player-favourable | Generator only helps (F1–F4); rescue earned by clearing 10 lines; no ads, IAP, energy or accounts | §3.7, §7.4 |
 | R19 No-install web | Static Vite build on GitHub Pages, service worker offline, OG image | architecture §10–11 |
 | R20 Return reasons | Daily, streak with freezes, rotating weekly goal | §10–12 |
