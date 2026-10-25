@@ -293,3 +293,115 @@ Rules for every task:
 - **Files:** fixes anywhere; `docs/qa-checklist.md` (new) ticked.
 - **Checklist must cover:** design §21 table row by row (R1–R22) with evidence; all strings match design §16.4–16.5 and §15 exactly; SG §18 never-do list; SG §19 thumbnail test; first-launch flow on a fresh profile; resume after reload in every mode; UTC midnight rollover with a fake clock; offline load; bundle size; no console errors.
 - **Done when:** checklist complete with notes; `npm run check` passes; any deviations are listed in the final message as proposals.
+
+---
+
+## M10 Tactile feel v2
+
+Spec: SG §9.13 (read §9.13.a first). Research: `research/game-feel.md`. Before-captures: `/workspace/night-game/shots/feel/before-*-sheet.png`. Do the chunks in order. Each chunk ships alone: `npm run check` passes and the game plays correctly after every chunk. After-captures (`?debug=1&demo=feel&slowmo=0.1`) are taken by the director, not by the coding agent.
+
+### M10.1 Clocks, board-only hitstop, input never waits
+- **Implements:** SG §9.13.a, §9.13.f.1 and §9.13.f.3 (hitstop formula and when it fires; keep today's cell visuals), §9.13.h hitstop column, §9.13.j restart rule, §9.13.n items 1–4.
+- **Files:**
+  - `src/render/loop.ts`: R/W/B clocks; one reused frame object.
+  - `src/render/fx/hitStop.ts`: controller, `hitStopMs()`, tests.
+  - `src/render/fx/slowMo.ts` (new): controller, tests.
+  - `src/app/app.ts`:
+    - delete `queuedActions` and `queuedRestart`
+    - `place` calls `endNow()` and the 60 ms slow-mo release
+    - `triggerSlowMo` and the streak `setTimeScale(0)` go through the controllers; no `setTimeout`
+    - pass `boardNow`/`worldNow`/`realNow` to director, boardView and hudView
+  - `src/render/director.ts`: cues on B; particles, texts and shake on W; `hitStop.schedule(F, T)` at F = release + 76 ms.
+  - `src/render/boardView.ts`: placement on B, tray and drag on R.
+  - `docs/architecture.md` §6: record the three clocks and the new files.
+- **Done when:**
+  - The tests in §9.13.n items 1–4 pass.
+  - `grep -n "queuedActions\|queuedRestart\|setTimeScale(0)" src` finds nothing.
+  - During a 4-line clear, particles from the previous move keep moving and the held piece follows the finger (code review: those systems read `realDt`/`worldDt`).
+  - Reduced motion gives T = 0.
+
+### M10.2 Springs, pickup, drag and snap preview
+- **Implements:** SG §9.13.b, §9.13.c, §9.13.d; the pick and snap rows of §9.13.k; the pickup, drag and ghost rows of §9.13.l; §9.13.n items 5–7.
+- **Files:**
+  - `src/render/fx/spring.ts` (new) and `spring.test.ts`.
+  - `src/render/heldPiece.ts` (new): P_d, tilt, stretch, shear, lift and shadow state; pure maths, no DOM, tested.
+  - `src/input/pointer.ts`: mutate one drag object; expose P_f and smoothed velocity; snap unchanged.
+  - `src/render/boardView.ts`: draw the held piece with the §9.13.c transform order; cached shadow sprites; ghost fade, scale and magnet tick.
+  - `src/platform/haptics.ts`: `pick`, `snap` and the snap rate rule.
+- **Done when:**
+  - Unit tests show the snap (row, col) is identical with and without lag, tilt and stretch for a set of finger positions.
+  - Spring S15 example test passes.
+  - sx·sy = 1 for the grab squash and the stretch; the shear determinant is 1.
+  - Tilt is clamped to ±5°.
+  - Reduced motion gives P_d = P_f.
+  - No allocation in `pointerMove` (code review).
+
+### M10.3 Placement, camera kick, trauma shake, lingering-cell fix
+- **Implements:** SG §9.13.e (all items), §9.13.g.3 (trauma) and §9.13.g.4 (kick); the place and stuck rows of §9.13.k (fired on L and t 0); the placement row of §9.13.l; §9.13.n items 8 and 12.
+- **Files:**
+  - `src/render/easing.ts`: add `easeInQuad` and its test.
+  - `src/render/fx/camera.ts` (new; replaces `fx/shake.ts` and its users): trauma, smoothed noise, roll, kick spring, clamp; tests.
+  - `src/render/director.ts`: travel, anticipation, smear, land frame callback.
+  - `src/render/boardView.ts`:
+    - placement layer: one squashed body (piece, or the merged gloop) drawn as per-column strips from a pooled offscreen canvas
+    - mask the placed cells during travel
+    - skip removed cells
+    - neighbour jiggle
+  - `src/app/app.ts`: apply the camera transform (offset plus roll about the board centre; desktop × 0.7).
+- **Done when:**
+  - The trauma tests pass: shake = τ², linear decay 1.6/s, the clamp, the x-only stuck event.
+  - The placement-layer test passes: its drawn cells ∩ removed cells = ∅.
+  - `before-line-sheet.png`'s lingering red block cannot happen: the layer's lifetime ≤ L + 324 ms and removed cells are skipped.
+  - `place` sound and haptic are fired from the land callback, not `apply()`.
+  - The merged-gloop squash draws no piece-over-gloop seam (code review: one body per squash).
+
+### M10.4 Line clear and gloop pop burst, labels decluttered, audio on impact
+- **Implements:** SG §9.13.f.2 and §9.13.f.4–8, §9.13.g.1, g.2 and g.5–7; the line, pop and All Clear rows of §9.13.k; the line, pop and label rows of §9.13.l; §9.13.n items 9 and 13.
+- **Files:**
+  - `src/render/director.ts`: swell, flash at F on R, cached sweep sprite, 28 ms per cell, squash then burst, wave step `min(38, 330/D)`, per-cell anticipation, `onImpact` callbacks, impact flash, Mega/All Clear slow-mo at the climax.
+  - `src/render/fx/particles.ts` and `src/render/fx/pool.ts`: a preallocated 420-object pool with swap-remove; directional emission (3 of 5 inherited, ±35°).
+  - `src/render/fx/texts.ts`: centre stack and top lane, fitting, clamping.
+  - `src/app/app.ts`:
+    - first-time moments go into the stack instead of `director.banner`
+    - lineClear, gloopPop and stinger sounds start from `onImpact`
+    - the score count-up start moves to the impact frame
+  - `src/audio/index.ts`: accept an impact-time trigger; ripple spacing follows the new wave step.
+- **Done when:**
+  - Wave tests pass (D = 27 → last burst ≤ 330 ms after the first; D = 3 → 38 ms).
+  - Label-stack tests pass: one stack; inside the clamp; no overlap with the top lane; a first-time moment gives one label.
+  - The particle pool test shows no new `Particle` objects after warm-up.
+  - A 28-cell Mega Pop finishes removing cells ≤ 450 ms after its first burst on B (test on the cue schedule).
+  - Hitstop now starts at the swell peak.
+
+### M10.5 Combo escalation, score punch, game-over settle
+- **Implements:** SG §9.13.h (whole table), §9.13.i, §9.13.j; the score row of §9.13.l; §9.13.n item 15.
+- **Files:**
+  - `src/render/director.ts`: tier multipliers for hitstop, trauma, kick, particles and sweep step; particle budget scaling.
+  - `src/render/hudView.ts`: tick rhythm, tick and punch springs, colour pulse.
+  - `src/app/app.ts`: game-over settle through the slow-mo controller, exempt from the 3 s rule.
+  - `src/platform/haptics.ts`: combo tick extras.
+- **Done when:**
+  - Tests pass for:
+    - `hitStopMs` with combo tiers (never under 50, never over 150)
+    - the trauma bonus per tier
+    - the score display: updates ≤ once per 40 ms, exact at D, punch size by points
+    - the settle: s reaches 1 at 450 ms
+  - The game-over panel still appears at 450 ms.
+  - Restart during the settle is the same frame (test: s = h = 1, τ = 0 after `restart()`).
+
+### M10.6 Haptics v2, reduced-motion audit, photosensitivity, performance
+- **Implements:** SG §9.13.k (whole table, rate limiter, priorities), §9.13.l (audit of every row), §9.13.m; §9.13.n items 10, 11 and 14.
+- **Files:**
+  - `src/platform/haptics.ts` (patterns, priority, 60 ms limiter; tests).
+  - `src/platform/motion.ts` (reduced-motion gates for every new effect; tests).
+  - `src/render/fx/flashLimiter.ts` (new, R clock; tests).
+  - `src/render/background.ts`: cap the sky flash at alpha 0.25.
+  - Any per-frame allocation found in director, boardView or hudView.
+  - `docs/architecture.md`: record the new files.
+- **Done when:**
+  - Haptic tests: every pulse ≤ 20 ms, every gap ≥ 50 ms, total ≤ 400 ms, the limiter and priority rules.
+  - The reduced-motion test zeroes hitstop, slow-mo, trauma, kick, tilt, stretch and shear, and gives particles ×0.3.
+  - Flash limiter tests: a 4th flash in 1 s is refused; no full-board overlay above alpha 0.25.
+  - The `?debug=1` overlay shows effect ms ≤ 4 at Mega Pop + combo 12 on desktop.
+  - A code-review list confirms no `new`, object literal or array literal, `splice`, `createLinearGradient`, `shadowBlur` or `filter` in the per-frame paths of `director.draw`, `boardView.draw`, `particles.update`, `camera.update`.
+  - The final message notes the iOS haptics gap (S19, S20).

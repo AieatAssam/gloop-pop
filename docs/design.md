@@ -757,7 +757,7 @@ Lifetime: Runs played (per mode), Best score (Classic, Expert), Average score (l
 | R23 PB chase bar | Gold progress bar under the score; pulses at 80%; label "{d} to beat your best" | §23.1 |
 | R24 First-time moments | One-time banners and coin bonuses for first Big/Huge/Mega Pop, All Clear, combo 5/10 | §23.2 |
 | R25 Signature score effect | Candy-flame score at combo 8+ or 2,000+ point moves | §23.3 |
-| R26 Hit-stop | 50–70 ms freeze on 3+ lines, Huge/Mega, All Clear | §23.4 |
+| R26 Hit-stop | 50–70 ms freeze on 3+ lines, Huge/Mega, All Clear (superseded by SG §9.13.f) | §23.4 |
 | R27 Beat my score | Classic/Expert "Challenge a friend" text and image with a ?beat= link; the friend's score becomes the chase bar | §23.5 |
 | R28 Streak celebration | Animated flame tick-up, gold milestone flames with confetti | §23.6 |
 | R29 Screenshot results | Biggest gloop drawn with its face, best combo, lines | §23.7 |
@@ -806,6 +806,7 @@ The first time a player ever makes each of these (lifetime, stored in `save.firs
 - This is the game's signature clip effect, so it must read at 64 px thumbnail size.
 
 ### 23.4 Hit-stop (R26, from Nijman's "sleep")
+(superseded by SG §9.13.a and §9.13.f: board-only freeze, scaled by cells removed, input never queued)
 - On resolving a placement that clears **3+ lines**, makes a **Huge or Mega Pop**, or an **All Clear**: freeze the simulation and all tweens for **50 ms** (3+ lines), **70 ms** (Huge, Mega, All Clear, first-time moments), then play the effects. Shake and flash begin on the first frame after the freeze. Slow-mo (SG §9.9) starts after the hit-stop.
 - Input during the freeze is queued, not dropped. Reduced motion: no hit-stop.
 - Implementation: one `fx.hitStop(ms)` in the FX timeline that sets the effective dt to 0 while it's active.

@@ -215,11 +215,11 @@ Board grid top-left = `(bx, by)`; cell (r, c) occupies `[bx + c·c, by + r·c]` 
 - Pieces that currently fit nowhere are drawn at alpha 0.45 with the worried face (honest warning before the player commits to anything else).
 
 ### 8.3 Drag
-- **Pick up:** on pointerdown inside a slot (the whole slot is the hit area), the piece scales from `ct` to `c` over 110 ms `easeOutBack` and moves to the pointer.
+- **Pick up:** on pointerdown inside a slot (the whole slot is the hit area), the piece scales from `ct` to `c` over 110 ms `easeOutBack` and moves to the pointer. (superseded by §9.13.b)
 - **Touch offset:** the piece is drawn with its bottom edge `1.1c` above the touch point and horizontally centred on it, so the finger never covers it. Mouse: the piece is centred on the cursor.
-- **Follow:** the piece follows the pointer with no lag (position set every pointermove), plus a tilt: rotation = clamp(velocityX × 0.0006, −6°, 6°), smoothed over 80 ms.
+- **Follow:** the piece follows the pointer with no lag (position set every pointermove), plus a tilt: rotation = clamp(velocityX × 0.0006, −6°, 6°), smoothed over 80 ms. (superseded by §9.13.c)
 - **Snap target:** compute the board cell under the piece's top-left cell centre; if the placement is valid there, that is the target. Otherwise check the 8 neighbour offsets and pick the valid one with the smallest distance in px, but only if it is within 0.6c. This forgiving snap matters for feel.
-- **Drop:** valid → piece animates to the target (§9.2). Invalid or released outside the board → returns to its slot along an arc over 180 ms `easeOutCubic`, scaling back to `ct`, with the "return" sound.
+- **Drop:** valid → piece animates to the target (§9.2). Invalid or released outside the board → returns to its slot along an arc over 180 ms `easeOutCubic`, scaling back to `ct`, with the "return" sound. (superseded in part by §9.13.b and §9.13.e)
 - **Keyboard (desktop):** keys 1/2/3 select a piece (it lifts above its slot); a ghost appears at the first valid position closest to the board centre; arrows move the ghost exactly one cell (clamped so the piece stays inside the board); at an invalid position the ghost is drawn as an outline only (`fx.ghostOutline` at alpha 0.5, no fill) and the held piece looks worried; Space/Enter places if valid, otherwise plays nothing and wiggles the ghost 4 px; Esc cancels.
 - **Click-click (desktop):** clicking a piece selects it (like keys); the ghost follows the mouse over the board; a click places.
 
@@ -249,6 +249,7 @@ While the target is invalid: no ghost for pointer drags (keyboard: outline-only 
 - Scripted/new cells (tutorial, daily start board): scale 0 → 1 over 250 ms `easeOutBack`, delay (r + c) × 15 ms.
 
 ### 9.2 Placement
+(superseded by §9.13.e where they conflict)
 1. **Snap:** 70 ms move from the drop point to the target, `easeOutQuad`.
 2. **Squash:** on landing, the placed piece's cells: scaleX 1.14, scaleY 0.84 (anchored at the bottom edge), then back to 1 with `easeOutElastic` over 280 ms.
 3. **Ripple into the gloop it joined:** cells of the merged gloop at BFS distance d from the placed cells do a smaller squash (scaleY 1 − 0.08 × 0.75^d), delay 22 ms × d, 240 ms elastic. Big jelly feels like jelly.
@@ -274,14 +275,15 @@ While the target is invalid: no ghost for pointer drags (keyboard: outline-only 
 
 ### 9.4 Clear sweep and pop ripple (the signature moment)
 Timeline from the frame of placement (t = 0), after the 70 ms snap:
-1. **t 0–80:** cells in cleared lines flash: additive white (`light.flash`) overlay alpha 0.85 → 0 over 160 ms. Their faces switch to **popping**.
+1. (superseded by §9.13.f) **t 0–80:** cells in cleared lines flash: additive white (`light.flash`) overlay alpha 0.85 → 0 over 160 ms. Their faces switch to **popping**.
 2. **Sweep:** for each cleared line, a light bar (`light.sweep`, width 0.5c, soft edges via gradient) travels along the line starting at the placed piece's nearest cell, outward in both directions, at 1600 px/s (≈ 36 cells/s on phone → a full row in ~220 ms).
-3. **Cell pop:** when the sweep reaches a cell: scale 1 → 1.22 over 60 ms `easeOutQuad`, then 1.22 → 0 over 120 ms `easeInBack`, then emit its particles (§9.3).
-4. **Gloop pop ripple:** extra popped cells (set P) pop in BFS order from the cleared cells through the gloop: delay = (time the sweep popped the nearest cleared cell of that gloop) + 38 ms × BFS distance. Same cell pop animation. Each popped cell triggers a pop sound with rising pitch (§13.2). For gloops with s ≥ 15, the face is the **last** cell to pop and grows to 1.3× while yelling (popping face) first.
-5. **Pop text:** at the centroid of all removed cells, when the last cell has popped (or at 260 ms, whichever is first): §9.7.
+3. (superseded by §9.13.f) **Cell pop:** when the sweep reaches a cell: scale 1 → 1.22 over 60 ms `easeOutQuad`, then 1.22 → 0 over 120 ms `easeInBack`, then emit its particles (§9.3).
+4. (superseded by §9.13.g) **Gloop pop ripple:** extra popped cells (set P) pop in BFS order from the cleared cells through the gloop: delay = (time the sweep popped the nearest cleared cell of that gloop) + 38 ms × BFS distance. Same cell pop animation. Each popped cell triggers a pop sound with rising pitch (§13.2). For gloops with s ≥ 15, the face is the **last** cell to pop and grows to 1.3× while yelling (popping face) first.
+5. (superseded by §9.13.g.7) **Pop text:** at the centroid of all removed cells, when the last cell has popped (or at 260 ms, whichever is first): §9.7.
 6. Gameplay is never blocked: the core state is already resolved at t = 0; the player can pick up the next piece during the animation. Cells being animated are drawn from the animation list, not the board layer.
 
 ### 9.5 Screen shake
+(superseded by §9.13.g.3 trauma shake and §9.13.e camera kick)
 Shake offsets the whole game canvas (not DOM UI). Offset = amplitude × (1 − t/d)² × direction, new random direction (cosmetic RNG) every 33 ms, interpolated.
 
 | Event | Amplitude (px, phone) | Duration |
@@ -311,7 +313,7 @@ Desktop amplitudes ×1.4. Reduced motion: no shake.
 - **Points pop:** "+1,364" at the clear centroid. Starts at scale 0, → 1.2 at 120 ms (`easeOutBack`), → 1.0 at 200 ms; rises 48 px over 750 ms `easeOutCubic`; fades out over the last 250 ms. Font Baloo 2 800, fill by tier (§9.6), 0.12em outline `fx.numberOutline` (stroke under fill), 3 px drop shadow `light.shadow`.
 - Size by points: < 500 → 28 px; < 2,000 → 36 px; < 10,000 → 48 px; ≥ 10,000 → 64 px. Desktop ×1.3.
 - **Event label** above the number, 0.7× its size, delay 60 ms: "Double!", "Triple!", "Quad!", "{n} lines!", "Pop!", "Big Pop!", "Huge Pop!", "Mega Pop!", "All clear!" (highest one only). Mega Pop and All Clear use 72 px with a flavour-coloured outline and stay 1200 ms.
-- **Score counter (HUD):** counts up to the new value over `min(600, 150 + points/10)` ms `easeOutCubic`; during counting the number scales 1.08 and returns. A sugar sparkle bursts from the score on each count end if points ≥ 1,000.
+- (superseded by §9.13.i) **Score counter (HUD):** counts up to the new value over `min(600, 150 + points/10)` ms `easeOutCubic`; during counting the number scales 1.08 and returns. A sugar sparkle bursts from the score on each count end if points ≥ 1,000.
 - **Combo label:** "Combo 4 ×2.5" pops (scale 1.25 → 1 over 160 ms) each time C rises.
 
 ### 9.8 Stuck / game-over choreography (R4, R5)
@@ -321,6 +323,7 @@ Desktop amplitudes ×1.4. Reduced motion: no shake.
 - Restart (button, Space, Enter, R, from t 0): same frame: new run state, tray deal animation, board clear wave (§9.1). Music filter reopens over 300 ms.
 
 ### 9.9 Slow-mo
+(superseded by §9.13.a slow-mo controller, §9.13.g.6 and §9.13.j)
 - Visual time scale 0.35 for 450 ms (real time), then back to 1.0 over 200 ms `easeInOutSine`.
 - Triggers: Mega Pop, All Clear, the first time the score passes the best score in a run (with a gold "New best!" banner: 40 px, slides in from the top of the board, stays 1400 ms).
 - Only animations slow down; input and core logic run normally. Audio is not slowed but gets a 300 ms low-pass dip to 1800 Hz (a "whoomp").
@@ -334,10 +337,387 @@ Desktop amplitudes ×1.4. Reduced motion: no shake.
 - Game over: the background desaturates 40% (overlay `ui.scrim` at alpha 0.35) over 400 ms.
 
 ### 9.11 Reduced motion
+(extended by §9.13.l)
 When reduced motion is on (setting "On", or "Match device" and `prefers-reduced-motion: reduce`): no shake, no slow-mo, no flashes (replace with a 200 ms opacity fade), particles ×0.3, no bokeh drift, no tilt on drag, ripples become simultaneous fades (150 ms), score counts up in 150 ms. Faces still blink and change expression.
 
 ### 9.12 Frame budget for effects
 All effect draws must fit in 4 ms per frame on a mid-range phone at the busiest moment (Mega Pop + combo 12). Use sprite caches for particles of each kind and colour (built lazily, max 64 sprites).
+
+## 9.13 Tactile feel v2 (supersedes conflicting lines in §8.3, §9.2, §9.4, §9.5, §9.9, §16 and design §23.4)
+
+Sources: `research/game-feel.md` tags S1–S23. Every number either cites a source or is marked *(tuning)*. Units: **c** = board cell size in CSS px (phone 44, desktop 68, §15). "ms" is real milliseconds unless a clock is named. Where this section and an older line disagree, this section wins. Where it says nothing, the older line still holds.
+
+**Shared math (used throughout)**
+- **New easing** (add to `easing.ts`; §9.0 curves stay): `easeInQuad(t) = t²`.
+- **Spring** (S15, implicit Euler; one helper `src/render/fx/spring.ts`, mutates a preallocated `{x, v}`). Given frequency f (Hz), damping ratio ζ, target x*, step dt (s): ω = 2πf; `a = 1 + 2·dt·ζ·ω`; `b = dt·ω²`; `d = 1 / (a + dt·b)`; `x' = (a·x + dt·v + dt·b·x*)·d`; `v' = (v + b·(x* − x))·d`. Below, "spring f/ζ" means this helper. To get ζ from "reduce oscillation to p in t seconds": ζ = ln(p) / (−ω·t) (S15).
+- **Volume rule** (S13): every squash or stretch writes `sy = 1 / sx`. Uniform swells (anticipation) are the only exception.
+- **Exponential smoothing** at any frame rate (S9): `x += (target − x)·(1 − e^(−dt/τ))`.
+
+### 9.13.a Clocks
+There are three clocks. `src/render/loop.ts` advances all three each frame and hands them to the draw callback in one reused frame object `{ realDt, worldDt, boardDt, realNow, worldNow, boardNow }`. Every timestamp stored by a system is in the clock that system runs on.
+
+| Clock | Rate | Runs |
+|---|---|---|
+| **R** real | raw frame dt, clamped to 50 ms (debug `slowmo` still multiplies it, for captures only) | input, pointer and keyboard, the held piece (pickup, drag springs, tilt), the ghost and previews, tray deal and return-to-tray, HUD (score count-up and punch, combo label, PB bar, candy flame), tutorial hand, DOM toasts and panels, the hitstop and slow-mo controllers, haptic scheduling, the flash limiter (§9.13.m), the freeze jitter |
+| **W** world | R × s, where s is the slow-mo scale, 0.35 ≤ s ≤ 1 | particles (already in flight and new), number pops and labels (§9.13.g stack), top-lane banners, vignette, background (bokeh, sky flashes, moon), camera trauma decay and noise, camera kick spring, idle life and expressions of board gloops, new-run wave, daily/tutorial entry wave, game-over tray shake and near-miss pulse |
+| **B** board-effects | W × h, where h is the hitstop scale, 0.0001 ≤ h ≤ 1 | director cues: placement travel, land squash and settle, neighbour jiggle, line-cell swell, flash start, sweep bars, cell squash and burst, gloop pop wave. `boardView`'s placement layer. |
+
+**Hitstop freezes only B.** Particles already emitted, the background, HUD, drag and tray, and input keep moving (S4: hitlag "only affects the object that deals the damage", particles uninterrupted).
+
+**Hitstop controller** (`src/render/fx/hitStop.ts`, R clock):
+- `schedule(boardTimeF, T)`: arm a freeze that starts when `boardNow` reaches F (the peak frame, §9.13.f).
+- On start: h snaps to the hold value **0.0001** within one frame (S7: snap in about 10 ms; never exact 0, S7). It holds for `round(0.6·T)` ms, then ramps h from 0.0001 to 1 over the remaining `T − round(0.6·T)` ms with `easeInOutSine` (fast-in, soft-out, S7). T is the total, ramp included.
+- `T ≤ 150` ms always (S5 top tier, S12). If a freeze is already running, a new one sets `end = max(end, now + T)` but never past `firstStart + 150`. Freezes never add up.
+- `endNow()`: h = 1 on this frame, with no ramp. Any freeze that is armed but not started is cancelled.
+- No `window.setTimeout` anywhere in the hitstop or slow-mo paths. Both controllers are stepped by the loop.
+
+**Slow-mo controller** (R clock): owns s. A request is `(scale, inMs, holdMs, outMs)`: ramp in with `easeOutQuad`, hold, ramp out with `easeInOutSine`. A newer request replaces the running one, starting from the current s.
+
+**Input is never queued or delayed** (S3, S12):
+- Delete `queuedActions` and `queuedRestart` from `app.ts`. `apply(action)` runs at once, always.
+- A `place` action calls `hitStop.endNow()` and asks slow-mo to ramp s to 1 over 60 ms *(tuning)*. The new placement's own effects then play at full speed. Effects already running from the earlier placement are not cancelled; they finish on B at normal speed.
+- Pickup, drag and hover do not touch either clock. The held piece runs on R.
+- Restart (button, Space, Enter, R) on the same frame: h = 1, s = 1, trauma = 0, kick = 0, all cues, sweeps and stacks cleared.
+
+**Existing call sites:**
+- The global `hitStop.advance()` zeroing of all dt is removed.
+- `triggerSlowMo`'s `setTimeout` chain becomes a slow-mo request.
+- The streak-milestone `setTimeScale(0)` plus `setTimeout(…, 70)` becomes `hitStop` with T = 70 and the normal ramp.
+- `director.receive` gets `boardNow` for cues and `worldNow` for texts. `hudView` gets `realNow`.
+- §9.4.6 still holds: core state resolves at t = 0.
+
+**Freeze jitter** (S4: the victim vibrates): while h < 1, the frozen cells (swelling line cells, swelling to-be-popped gloops, the landed piece) are offset by smoothed noise ±0.03c on x and y. The noise runs at 30 Hz on R, and the amplitude is multiplied by (1 − h). *(tuning)*
+
+### 9.13.b Pickup (R clock)
+On pointerdown in a slot (frame 0):
+1. **Scale:** the piece scales from `ct/c` to 1 (board scale) over 140 ms with `easeOutBack`. The overshoot is about 10% of the gap (S16: OutBack 150 ms).
+2. **Position:** the drawn position P_d starts at the piece's tray centre and is pulled to the finger by the drag spring (§9.13.c). That pull is the pickup flight. The 0.5c lag clamp is off for the first 140 ms.
+3. **Lift L:** goes 0 → 1 over 120 ms with `easeOutCubic` *(tuning)*. Visual y offset is −0.08c·L. It is visual only: the snap still uses P_f (S21).
+4. **Drop shadow:**
+   - Two soft shadow sprites per piece def, built once into an offscreen cache (`shadowBlur` is allowed there): blur 0.05c and 0.16c, colour `light.shadowDeep`.
+   - Each frame: crossfade the two by L. Offset (0.03c·L, 0.05c + 0.12c·L). Scale 1 + 0.06·L. Alpha 0.45 − 0.15·L. The shadow grows, softens and drops away as the piece lifts (S16: shadow pushed further on press). *(values tuning)*
+5. **Grab squash:** on frame 0, sx = 1.12 and sy = 1/1.12, anchored at the anchor A (below). Then sx returns to 1 with spring 8 Hz / ζ 0.4. *(tuning)*
+6. **Haptic:** `pick` (§9.13.k) on frame 0. Sound: pickUp (§13.2), unchanged.
+
+**Anchor A:** the piece's bottom-centre for touch (the piece hangs 1.1c above the finger, §8.3). The piece centre for mouse and keyboard.
+
+**Return to tray (invalid drop):** keep §8.3 (180 ms arc, `easeOutCubic`, scale back to ct). L goes 1 → 0 over the same 180 ms. On arrival: sx = 1.08, sy = 1/1.08, spring back 8 Hz / ζ 0.4. *(tuning)*
+
+### 9.13.c Drag (R clock)
+**Finger-derived position P_f:** touch puts the piece's bottom edge 1.1c above the finger, centred on it. Mouse centres it on the cursor. This offset never changes (S21, S22).
+
+**The snap target always uses P_f exactly**, as `pointer.ts` does now. Nothing below may feed into it.
+
+1. **Follow:** P_d follows P_f (plus the magnet offset, §9.13.d) with spring **7 Hz / ζ 0.75**, per axis.
+   - Steady-state lag ≈ 2ζ/ω = 34 ms. This matches the S16 follow speed of 30/s.
+   - Overshoot on a hard stop ≈ 3%.
+   - |P_d − P_f| is clamped to ≤ 0.5c *(tuning)*.
+   - Keyboard and click-click held pieces move cell to cell with spring 12 Hz / ζ 0.8 *(tuning)*. Their target cell is exact.
+2. **Velocity v:** the finite difference of P_f, smoothed with τ = 50 ms *(tuning)*, in c/s. v_d is the spring's own velocity, used for the stretch.
+3. **Tilt θ** (leans into the motion, S16): target `θ* = clamp(0.5° · v_x, −5°, +5°)`, with v_x in c/s, so 10 c/s gives the full 5°. Smoothed with spring 5 Hz / ζ 0.6. The pivot is A. Positive v_x gives clockwise rotation (top leans right). This replaces §8.3's ±6° clamp. *(gains tuning)*
+4. **Stretch along motion** (S10, S11):
+   - Target `s* = 1 + clamp(0.01 · |v_d|, 0, 0.10)`, so 10 c/s gives 1.10. Spring 6 Hz / ζ 0.5.
+   - Applied as rotate(φ)·scale(s, 1/s)·rotate(−φ) about A, where φ = atan2(v_d). It holds φ when |v_d| < 0.5 c/s.
+5. **Jelly follow-through (per-cell lag):**
+   - Cells farther from A lag when the finger speeds up and overshoot when it stops (S13). Lag that grows with height is a shear, so it is drawn as one shear about A: `x' = x + k·(y − A_y)`. The body stays one silhouette, and the determinant stays 1.
+   - k sits on spring 4 Hz / ζ 0.3. Its target is 0. Each frame, k's spring velocity gets the kick `+0.3 · Δv_x` (Δv_x is the frame change of smoothed v_x in c/s), and |k| ≤ 0.15.
+   - Result: starting a drag to the right, the top lags left. Stopping, the top swings right, then wobbles about 3 times and settles in about 0.3 s. *(tuning)*
+6. **Transform order** (about A): translate(P_d + lift) · rotate(θ) · shear(k) · stretch · grabSquash · scale(pickup scale).
+7. **Reduced motion:** P_d = P_f exactly. No tilt, no stretch, no shear, no grab squash. Pickup scale is linear over 100 ms with no overshoot. The shadow uses a fixed L = 1.
+
+### 9.13.d Snap preview (R clock)
+- **Ghost appears** (target becomes valid): alpha 0 → 0.32 and scale 0.92 → 1 about the ghost's centre, over 80 ms `easeOutQuad`. Line and pop previews (§8.4) fade in with the same alpha ramp.
+- **Ghost disappears** (target invalid or drag ends): alpha → 0 over 60 ms, linear, drawn at the last target. No scale.
+- **Target change** (valid → a different valid cell): the ghost jumps to the new cell at once. It does not slide, because the target must stay honest (S21). Then:
+  - **Magnet tick:** ghost scale 1.06 → 1 over 90 ms `easeOutQuad`. The held piece gets a velocity kick of 0.02c toward the new ghost (added to the drag spring's velocity). *(tuning)*
+- **Magnet pull** (visual only): while a target is valid, the drag spring's target is P_f + clamp(0.15 · (ghostPos − P_f), 0.12c). The snap still reads P_f. *(tuning)*
+- **Magnet haptic** (optional, touch only): `snap` 5 ms. It fires only when the target changes to a valid cell, at most once per 120 ms, never within 120 ms of any other haptic, and never while |v| > 8 c/s. A rare, subtle tick for a frequent event (S18).
+- **Reduced motion:** the ghost appears and disappears with alpha only (80 / 60 ms), no magnet tick or pull. The haptic follows the Vibration setting, not reduced motion.
+
+### 9.13.e Placement (B clock unless noted; t = 0 at release, the core is already resolved)
+1. **Travel** from P_d to the target over **60 ms** (S12: under 100 ms reads as instant). It replaces §9.2.1's 70 ms `easeOutQuad`.
+   - **Anticipation**, 0–20 ms (S13): the piece moves 0.05c opposite to the travel direction (straight up if the travel distance is under 0.3c), with sy 1 → 1.06, sx = 1/sy.
+   - **Slam**, 20–60 ms: the piece moves to the target with `easeInQuad`.
+   - The shadow's L goes → 0 over the same 60 ms. *(split and sizes tuning)*
+2. **Smear** (S14): only if the travel distance is ≥ 0.3c. On the last 2 frames of travel, draw the piece stretched along the travel direction, s = 1 + min(0.3, 0.15 · distance/c), perpendicular 1/s, plus one afterimage at the previous frame's position at alpha 0.3. The smear is never drawn on the land frame.
+3. **During travel**, the target cells show the ghost (alpha 0.32). Any gloop that the piece merges into is drawn with the placed cells masked out, so the piece never appears at the target before it lands.
+4. **Land frame L** (t = 60): squash **sx 1.16, sy 1/1.16** (S13). The squashed body is:
+   - the piece, if it joined nothing, or
+   - **the merged gloop as one body** (anchored at the piece's bottom-centre, amplitude × max(0.4, √(pieceCells / gloopCells))).
+   
+   Never draw the piece over its own gloop. That removes the seams seen in `before-place-sheet.png` at +134 to +439 ms.
+5. **Per-column stagger:**
+   - The squashed body is rendered once into a pooled offscreen canvas at L.
+   - It is drawn as one vertical strip per column. Each strip gets its own sy, anchored at the body's bottom edge. The whole body uses one sx = 1 / mean(sy).
+   - Strips start in order of their distance from the column under the finger at release: 8 ms per column step, at most 24 ms. *(tuning)*
+   - Each strip holds its peak for one frame. It then returns to 1 with spring **6 Hz / ζ 0.22**, which brings the oscillation down to 10% in 280 ms by S15's formula, matching the old 280 ms elastic.
+6. **Settle:** the strips' springs settle in about 300 ms. The §9.2.3 ripple into the merged gloop stays as is (22 ms × d, scaleY 1 − 0.08·0.75^d), timed from L.
+7. **Neighbour jiggle** (S10):
+   - **Touching:** every other gloop with a cell 4-adjacent to a placed cell gets an impulse that pushes it 0.04c away from the contact, plus a squash amplitude of 0.05. Both use spring 8 Hz / ζ 0.3, starting 20 ms after L.
+   - **All others** on the board: squash amplitude 0.015, delay 20 ms + 12 ms per Manhattan step from the piece, capped at 6 steps.
+   - One transform per gloop, never per cell.
+   - The face blink from §9.2.5 is kept. *(sizes tuning)*
+8. **Camera kick** (S17, S8): on L, the camera offset jumps to **0.04c** along the travel direction (straight down if travel < 0.3c), then springs back to 0 with spring **9 Hz / ζ 0.55** on W. *(tuning; S17 gives about 2 frames)*
+   - Camera = kick + trauma shake (§9.13.g). It moves the board, tray, board effects and particles. It does not move the HUD, DOM or background, the same as today.
+   - The combined camera offset is clamped to ≤ 0.45c.
+9. **Dust** (§9.2.4), the `place` sound, and the `place` haptic all fire on L, not on release. The sound is 60 ms after the finger lifts, which is still under the 100 ms instant threshold (S12).
+10. **Bug fix (lingering placed cells):** the placement layer draws only placed cells that are **not** in `cleared.cells ∪ popped cells`.
+    - Placed cells that the same move removes are drawn only by their pop cues. They land with the squash, then swell, freeze and burst with their line.
+    - The `theme.cell` backing patch is also not drawn at removed indices.
+    - The layer's lifetime is L + 24 + 300 ms at most. It never outlives its cells.
+
+### 9.13.f Line clear (B clock; F = L + 16 = t 76 is the peak frame)
+1. **Hitstop length** (S4 shape: floor + linear + cap; inside S5's 50/100/150 ladder):
+   - n = unique cells removed by the move (cleared ∪ popped, ≤ 64).
+   - **T = min(cap, floor + 2·n)** ms:
+
+| Biggest event of the move | floor | cap | Examples |
+|---|---|---|---|
+| Lines only, or pops under 8 cells | 34 | 100 | 1 line, n 8 → **50** (S5 small, about 3 frames); 2 lines, n 16 → 66; 3 lines → 82; 4 lines → 98 |
+| Big Pop (≥ 8) | 50 | 120 | 1 line + 8-cell pop, n 16 → 82 |
+| Huge Pop (≥ 15) | 60 | 130 | 1 line + 15, n 23 → 106 |
+| Mega Pop (≥ 24), All Clear | 70 | **150** | 1 line + 24, n 32 → 134; 1 line + 28 + extra lines → capped at 150 |
+
+   - No hitstop for a placement that removes nothing (frequent events stay light, S1, S18).
+   - First-time moments add no extra freeze. They use their event's T.
+   - Combo scaling: §9.13.h.
+   - Reduced motion: no hitstop (design §23.4, kept).
+2. **Anticipation swell** (S13), from release t 0 to F (76 ms), `easeOutQuad`:
+   - Cleared-line cells scale uniformly 1 → 1.12, with the popping face.
+   - Gloops that will pop swell as one body to 1.06.
+   - The swell peaks at F, the same frame the landed piece is at full squash. Both sides are at the point of contact (S3).
+3. **Freeze on the peak** (S17): `hitStop.schedule(F, T)`. During the freeze:
+   - The frozen cells jitter (§9.13.a).
+   - **White flash** over the cleared-line cells: additive `light.flash`, alpha 0.85 → 0, linear over **50 ms** on R, starting at F (S7: 52 ms). This replaces §9.4.1's 160 ms.
+   - Flash alpha by line count *(tuning, photosensitivity §9.13.m)*: 0.85 for 1–2 lines, 0.6 for 3, 0.45 for 4 or more.
+4. **Sweep:** starts at F on B. It does not move while h is held, then accelerates out as h ramps up, so the burst eases in for free.
+   - Speed: **1 cell per 28 ms** of B time. This is about §9.4.2's 1600 px/s at c = 44, but no longer tied to resolution.
+   - Origin and direction: as §9.4.2.
+   - The bar is a cached sprite: no gradient is created per frame.
+5. **Per-cell burst** when the sweep reaches a cell:
+   - **Squash, 30 ms** (`easeOutQuad`): on top of the 1.12 swell, scale 0.85 along the sweep axis and 1/0.85 across it.
+   - **Burst, 90 ms:** uniform scale → 0 with `easeInBack`. Particles emit on the first burst frame.
+   - Per cell: 120 ms in total, down from 180. *(tuning)*
+6. **Directional particles:** still 5 per cleared cell (§9.3).
+   - 3 of the 5 take the inherited direction: the unit vector of 0.6·(sweep direction) + 0.4·(away from the placed piece's centroid), ±35° random, speed × 1.15.
+   - The other 2 keep §9.3's random direction.
+   - Gravity, life and colours stay as §9.3. *(mix tuning)*
+7. **Impact frame** = the first burst frame of the move. On it, fire together:
+   - trauma (§9.13.g),
+   - camera kick 0.05c straight down (spring as §9.13.e),
+   - the line haptic (§9.13.k),
+   - the lineClear sound, via a director `onImpact` callback, not at input time (S18: keep haptic, audio and visual in sync).
+   
+   The score count-up starts here too (§9.13.i).
+8. **Typical 1-line timeline:** release 0 → land 60 → peak and freeze 76 → freeze ends 126 → first burst 156 → full row done by about 156 + 7·28 + 90 = 442 ms. Input stays live throughout.
+
+### 9.13.g Gloop pops, trauma shake, slow-mo, one label at a time
+1. **Hitstop:** the bigger tiers in §9.13.f.1.
+2. **Wave through the gloop** (replaces §9.4.4's fixed 38 ms per step):
+   - D = the gloop's largest BFS distance from its entry cells.
+   - **Step = min(38, 330 / D) ms** (B). The last cell starts its burst ≤ 330 ms after the first, so a 28-cell Mega is done in **≤ 450 ms** including the 120 ms burst. Today it takes about 1.8 s. Small gloops keep 38 ms.
+   - Each popped cell gets its own anticipation: from `burstAt − 70`, it swells 1 → 1.12 over 40 ms, squashes 30 ms (0.85 along the direction from its BFS parent, 1/0.85 across), then bursts as in §9.13.f.5.
+   - The bulge is visible as it travels ahead of the bursts.
+   - Particles inherit the parent → cell direction (same 3-of-5 rule).
+   - §9.4.4 kept: Huge and Mega faces pop last and grow to 1.3×.
+3. **Trauma shake** (S9) replaces §9.5's table and `fx/shake.ts`'s random 33 ms lerp.
+   - State: trauma τ ∈ [0, 1], decaying **linearly at 1.6 per s** on W *(tuning: τ 1 lasts 625 ms)*.
+   - **Shake = τ²** (S9).
+   - Offset x and y = 0.35c · τ² · nₓ,ᵧ(t), and roll = 1.5° · τ² · n_r(t). The roll pivots on the board centre.
+   - n is 1D smoothed value noise, not per-frame random (S9): a 256-entry table filled once from the cosmetic RNG, cosine-interpolated, 15 Hz on W, with a different table offset for each channel. It slows with slow-mo, as S9 recommends.
+   - **Phone at τ = 1:** 0.35c = 15.4 px and 1.5° (S9's 2D advice; roll kept ≤ 2°).
+   - **Desktop multiplier: 0.7** on offset and roll. c is already 68 there, so 0.35·68·0.7 = 16.7 px, close to the old 12 × 1.4.
+   - **Additions**, applied on impact frames (`τ = min(1, τ + add)`; "≥" means `τ = max(τ, value)`):
+
+| Event (impact frame) | τ change | Peak shake (phone) |
+|---|---|---|
+| 1 / 2 / 3 / 4+ lines (first burst) | +0.35 / +0.45 / +0.55 / +0.65 | ≈ 1.9 / 3.1 / 4.7 / 6.5 px (matches the old 2/4/6/9) |
+| Big Pop (gloop's first burst) | +0.15 | |
+| Huge Pop: first burst / face burst | +0.20 / ≥ 0.70 | ≈ 7.5 px at the face |
+| Mega Pop: first burst / face burst | +0.30 / ≥ 0.90 | ≈ 12.5 px, 1.2° at the face |
+| All Clear (last burst of the move) | ≥ 0.90 | ≈ 12.5 px |
+| Stuck (game over, t 0) | +0.45, x channel only (y and roll 0) | ≈ 3.1 px horizontal |
+| Placement only | 0 (kick only) | |
+
+   - (S9 example additions: +0.2 / +0.5. Ours are larger because τ² keeps small events small.) The combo bonus is in §9.13.h.
+4. **Camera kick on pops:** straight down. Big 0.06c and Huge 0.08c on the gloop's first burst. Mega and All Clear 0.12c on the face (or last) burst. Spring as §9.13.e. *(tuning)*
+5. **Impact flash for Mega and All Clear** (S17 impact frames, S8):
+   - One frame of the board area, drawn in the gloop's flavour `glow` (All Clear: `light.flash`) at alpha **0.25**. It fades to 0 over 80 ms on R, on the face/last burst frame.
+   - Never pure full-white (S5 restraint, §9.13.m).
+   - The §9.10 sky flashes are capped at alpha 0.25.
+6. **Time dilation** (S7, S17): Mega Pop and All Clear keep **0.35×** but are now timed to the climax.
+   - It starts on the Mega face burst (All Clear: the last burst).
+   - Ramp in over 40 ms (`easeOutQuad`), hold **300 ms** (R), ramp out over 200 ms (`easeInOutSine`). The old hold was 450 ms.
+   - The fast wave reads as a burst, and only the final pop plays slowly.
+   - "New best!" uses the same 0.35×, 40/300/200, starting on that move's impact frame.
+   - One slow-mo per 3 s is kept. A place action ramps s to 1 over 60 ms (§9.13.a). Reduced motion: none.
+7. **One big label at a time** (fixes the pile-up of "First Mega Pop!", "+160 coins", "Mega Pop!", "+6,242" and the duplicated "Double!" in `before-pop-sheet.png` and `before-line-sheet.png`). There are two lanes on W.
+   - **Top lane** ("New best!", "You beat {friend}!", streak banners): centred on the board, baseline at grid top + 0.9c. One item at a time. A newer item makes the older one fade over 120 ms.
+   - **Centre stack:** one stack per move, top to bottom:
+     - **label:** the event label (§9.7), **or** the first-time text if this move is a first-time moment (design §23.3). Never both. First-time moments no longer use `director.banner`.
+     - **points:** "+6,242".
+     - **coins line:** "+{n} coins", only for first-time bonuses.
+   - **Stack sizes:**
+     - Item heights are 1.0 × their font size. Gaps are 0.08c.
+     - Fonts as §9.7. A label shrinks so that its cached sprite width ≤ 0.92 × grid width (8c).
+     - Mega Pop, All Clear and first-time labels are 72 px before fitting. Other first-time labels are 48 px.
+   - **Stack position:**
+     - x = centroid x, clamped so the widest item keeps 0.2c from the grid's side edges.
+     - Top y = (centroid y − H/2), clamped to [grid top + 2.0c, grid bottom − 1.0c − H]. If that range is empty, centre the stack on the grid. Clearing the bottom by 1.0c keeps it off the toast that sits on the board's bottom edge.
+   - **Stack motion:**
+     - It appears on the move's impact frame. Points pop in as §9.7, and the label follows 60 ms later.
+     - The whole stack rises 0.6c *(tuning)* over its life: 900 ms, or 1200 ms for Mega, All Clear and first-time.
+     - A new stack makes the old one fade over 120 ms at once. Two stacks are never drawn at full alpha together.
+
+### 9.13.h Combo escalation (tier as §9.6)
+| Tier | Hitstop × (S1: multi-hit sequences get *shorter* freezes) | Trauma bonus (lines add) | Particle count × | Kick × | Haptic extra |
+|---|---|---|---|---|---|
+| 0 (C 1–2) | 1.0 | +0 | 1.0 | 1.0 | none |
+| 1 (3–4) | 0.9 | +0.05 | 1.5 (§9.6) | 1.1 | none |
+| 2 (5–7) | 0.8 | +0.10 | 1.75 | 1.2 | +1 tick |
+| 3 (8–11) | 0.7 | +0.15 | 2.0 | 1.3 | +2 ticks |
+| 4 (12+) | 0.6 | +0.20 | 2.0 | 1.4 | +2 ticks |
+
+- **Hitstop:** T' = max(min(T, 50), round(T × m)). It never drops below the 50 ms rung (S5). The 150 ms cap still holds.
+- **Sweep step:** 28 ms / (1 + 0.1·tier), at least 20 ms *(tuning)*. The rhythm speeds up instead of getting heavier.
+- **Particle budget** (S22): when more than 300 particles are live, new emissions are scaled by (420 − live)/120. The 420 cap is unchanged.
+- **Haptic tick:** each tick appends a 50 ms gap and an 8 ms pulse to the line pattern.
+- Trauma is capped at 1. The camera clamp (0.45c) holds.
+- §9.6 visuals and audio are unchanged.
+
+### 9.13.i Score count-up with punch (R clock, HUD)
+- **Start:** the move's impact frame, or L for a placement that clears nothing. Until then the HUD shows the old score. Duration D = min(600, 150 + points/10) ms, `easeOutCubic` (§9.7, kept).
+- **Tick rhythm:**
+  - The shown number updates on ticks every **40 ms** (25 Hz), plus a final tick exactly at D with the exact value.
+  - Each tick adds +0.03 to the score's scale, with spring 12 Hz / ζ 0.5. This replaces the flat 1.08. *(tuning)*
+- **Punch on land (at D):**
+  - The scale jumps to the punch size in 1 frame, then springs to 1 with spring **7 Hz / ζ 0.35**. That gives one visible undershoot of about 6%.
+  - Punch size by points: < 500 → 1.10; < 2,000 → 1.14; < 10,000 → 1.18; ≥ 10,000 → 1.24. *(tuning)*
+  - The pivot is the number's centre.
+- **Colour pulse:** at D, the number is drawn a second time on top in the move's §9.6 tier colour (`fx.numberFill` … `fx.comboTier4`). That copy's alpha goes 1 → 0 over 300 ms `easeOutQuad`. No colour mixing, no allocation.
+- The §9.7 sugar sparkle (≥ 1,000) fires at D.
+- **Reduced motion:** 150 ms count with no ticks or punch. The colour pulse stays (it does not move).
+
+### 9.13.j Game over settle (replaces nothing in §9.8 except where noted)
+- On `stuck` (t 0), the slow-mo controller gets s → **0.4** over 60 ms (`easeOutQuad`), holds 240 ms (R), then goes back to 1 over 150 ms (`easeInOutSine`). Total 450 ms, ending exactly when the §9.8 panel slides up at t 450 ms (R, unchanged). *(tuning; S17: slow before the climax)*
+- During the settle, the stuck tray shake, worried → dizzy faces, trauma and near-miss pulse play slowed on W.
+- The game-over settle ignores the 3 s slow-mo limit and replaces any slow-mo that is running.
+- Haptic `stuck` at t 0.
+- **Restart stays instant:** see the restart rule in §9.13.a. "Play again" is focused and live from t 0.
+- **Reduced motion:** no settle. The panel still comes at 450 ms.
+
+### 9.13.k Haptics (`navigator.vibrate`, replaces §16)
+**Rules:**
+- **Every pulse ≤ 20 ms; every gap ≥ 50 ms.** S18: a good tick is 10–20 ms, and the motor rings 20–50 ms after it. Big events use several short pulses, never long ones.
+- Fire on the **visual impact frame** (S18 sync):
+  - pick: frame 0
+  - place: L
+  - lines: the move's impact frame
+  - pops: the gloop's first burst and face burst
+  - stuck: t 0
+  
+  This is done through director callbacks, not in `apply()`.
+- **Rate limit:**
+  - A new call less than **60 ms** after the previous call's start is dropped, unless its priority is higher. A higher-priority call replaces the running pattern (`vibrate` cancels the current one).
+  - Priority: mega > allClear > huge > big > lines > stuck > place > pick > snap.
+  - Snap ticks follow their own 120 ms rule (§9.13.d).
+  - Total pattern length ≤ 400 ms.
+
+| Event | Pattern (ms) |
+|---|---|
+| pick | 10 |
+| snap (optional) | 5 |
+| place | 12 |
+| 1 line | 16 |
+| 2 lines | [18, 50, 12] |
+| 3 lines | [20, 50, 14, 50, 10] |
+| 4+ lines | [20, 50, 16, 50, 12, 50, 8] |
+| Big Pop (first burst) | [14, 50, 10] |
+| Huge Pop: first burst / face | [18, 50, 14, 50, 10] / 20 |
+| Mega Pop: first burst / face | [20, 50, 16, 50, 12] / [20, 50, 20, 50, 20] |
+| All Clear (last burst) | [20, 50, 20, 50, 20, 50, 20] |
+| stuck | [12, 88, 12, 88, 12] (on the 3 tray-shake cycles, §9.8) |
+| combo tier extra | + [50, 8] per tick (§9.13.h) |
+| UI buttons | none |
+
+*(Pattern sizes are tuning within S18's 10–20 ms pulse limit.)*
+
+- **Settings:** the "Vibration" setting gates everything, as today (S18: make haptics optional). Reduced motion does not turn haptics off.
+- **iOS gap:** iOS Safari and current Firefox have no Vibration API (S19), so all of this is a silent no-op there. The iOS 17.4+ `<input type="checkbox" switch>` haptic (S20) only works for direct taps on DOM controls, not for canvas drag and release. **Not implemented; a documented gap.**
+
+### 9.13.l Reduced motion (extends §9.11; everything not listed is off)
+| Item | Reduced motion |
+|---|---|
+| Clocks | h is always 1 (no hitstop), s is always 1 (no slow-mo, no game-over settle) |
+| Pickup | linear 100 ms scale, no overshoot, no grab squash, static shadow (L = 1), no lift offset |
+| Drag | P_d = P_f, no tilt, stretch, shear or magnet pull |
+| Ghost | alpha fades only (80 / 60 ms) |
+| Placement | no travel: the piece appears at the target on release with a 150 ms alpha fade-in of a `light.flash` highlight (§9.11). No smear, squash, jiggle or kick. Dust ×0.3. |
+| Line clear | no swell, freeze, jitter, sweep or burst scaling: cells fade 1 → 0 over 150 ms together (§9.11). Flash replaced by that fade. Particles ×0.3, random directions. |
+| Gloop pops | simultaneous 150 ms fade. No wave, shake, kick, impact flash or slow-mo. |
+| Labels | the centre stack and top lane appear with a 150 ms alpha fade, no pop scale, no rise |
+| Score | 150 ms count, no tick or punch, colour pulse kept |
+| Haptics | unchanged (Vibration setting only) |
+
+### 9.13.m Performance and safety
+- **Allocation-free per frame:**
+  - The particle pool preallocates 420 `Particle` objects and removes by swap. No `push` of new literals, no `splice`.
+  - Cues, sweeps, placement layers and stacks come from fixed pools: 128 cues, 16 sweeps, 3 placement layers, 2 stacks, 2 top-lane items.
+  - `pointerMove` mutates one drag object (no `{ ...drag }`).
+  - `shakeOffset()` returns one shared vector.
+  - Body `Path2D`s are cached per c.
+  - No `createLinearGradient` per frame: sweep bars and vignettes are cached sprites.
+  - `director.receive` may allocate (once per move, not per frame).
+- **Budget:** §9.12, all effects ≤ 4 ms per frame at Mega Pop + combo 12. Shadow sprites: 2 per piece def, built lazily. Squash canvases: 3 pooled.
+- **No `shadowBlur` or `filter` per frame** (§18).
+- **Hitstop safety:**
+  - T ≤ 150 ms total.
+  - One freeze can never extend past firstStart + 150.
+  - h ≥ 0.0001.
+  - Input ends it.
+  - Slow-mo s ≥ 0.35. The slow-mo controller always ends at 1 even if the tab is hidden: it uses R dt clamped to 50 ms.
+- **Photosensitivity** *(tuning, in line with WCAG 2.3.1's "three flashes in one second")*:
+  - At most **3 flash starts per rolling 1,000 ms** (R) across line flashes, impact flashes and sky flashes. Later requests are skipped; the cells still burst.
+  - No overlay over the full board or screen above alpha **0.25**, and never pure white over the full board.
+  - Line flashes are limited to the cleared cells, with alpha by line count as in §9.13.f.3.
+- **Camera:** |kick + shake| ≤ 0.45c, roll ≤ 1.5° (× 0.7 on desktop).
+
+### 9.13.n Test checklist (unit tests, colocated)
+1. `hitStopMs(n, tier, comboTier)` gives:
+   - (8, lines, 0) = 50, (16, lines, 0) = 66, (32, lines, 0) = 98, (40, lines, 0) = 100
+   - (16, big, 0) = 82, (23, huge, 0) = 106, (32, mega, 0) = 134, (44, mega, 0) = 150
+   - (32, mega, 4) = 80, (8, lines, 4) = 50
+   - n = 0 → 0
+   - never > 150 for any n ≤ 64 and any tier
+2. Hitstop controller:
+   - h is 0.0001 (not 0) during the hold, and reaches exactly 1 at T.
+   - Two overlapping `schedule` calls never freeze longer than 150 ms from the first start.
+   - `endNow()` gives h = 1 on the same step and cancels armed freezes.
+3. Clocks: during a freeze, `realDt` and `worldDt` are non-zero and `boardDt ≈ 0`. With s = 0.35, `worldDt = 0.35 · realDt` and `realDt` is unchanged.
+4. Input is not delayed: `apply(place)` during an active hitstop changes the session state on the same call (no queue). A restart during a hitstop sets h = s = 1 and τ = 0 the same frame.
+5. Snap target: for a given finger position, the chosen (row, col) is identical whether the drawn piece is lagging, tilted or stretched (snap reads P_f only).
+6. Spring helper: 2 Hz / ζ 0.367 reduces oscillation to about 10% in 0.5 s (S15's example), and it is stable for dt = 50 ms.
+7. Volume: every squash and stretch helper returns sx·sy = 1 within 1e−9 (grab, land, burst squash, drag stretch); shear has determinant 1.
+8. Trauma:
+   - shake(τ) = τ² (0.3 → 0.09, 0.6 → 0.36, 0.9 → 0.81)
+   - linear decay of 1.6/s; additions clamp at 1; the "≥" events set max(τ, v)
+   - phone offset at τ = 1 equals 0.35c
+   - the stuck event moves x only
+   - noise output is continuous (|Δ| per 1 ms ≤ a bound)
+9. Wave: for D = 27, step = 330/27 and the last burst starts ≤ 330 ms after the first. For D = 3, step = 38.
+10. Haptics:
+    - every pulse (even indices) in every pattern is ≤ 20 ms and every gap is ≥ 50 ms
+    - total ≤ 400 ms
+    - the rate limiter drops a same-priority call within 60 ms and passes a higher-priority one
+    - snap is dropped within 120 ms of any haptic
+11. Reduced motion: hitstop T = 0, slow-mo requests ignored, trauma additions 0, kick 0, tilt/stretch/shear 0, particle count ×0.3, P_d = P_f.
+12. Placement layer: its drawn cell set ∩ (cleared ∪ popped) = ∅.
+13. Label stack:
+    - at most one stack has alpha > 0.5 at any time
+    - the stack rect lies inside [grid top + 2.0c, grid bottom − 1.0c] and does not overlap the top-lane rect for centroids anywhere on the board
+    - a first-time moment yields one label, not two
+14. Flash limiter: a 4th flash start within 1,000 ms is refused. No full-board overlay alpha > 0.25.
+15. Score punch: the shown value changes at most once per 40 ms, equals the exact score at D, and punch size by points matches the table.
 
 ---
 
@@ -535,6 +915,7 @@ Tutorial bubble: bottom edge 12 px above the tray top, centred on the target slo
 ---
 
 ## 16. Haptics (`navigator.vibrate`, skipped silently where unsupported; setting "Vibration")
+(superseded by §9.13.k)
 | Event | Pattern (ms) |
 |---|---|
 | pick up | 5 |
