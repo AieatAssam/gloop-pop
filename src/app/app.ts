@@ -92,6 +92,14 @@ export function bootApp(): void {
     }
     state.tray = [{ defId: 1, flavour: 4 }, null, null]; state.combo = 11; state.bestCombo = 11; state.fuse = 2; state.status = 'playing'; state.moves = 0; session = createSession({ state, best: session.best }); runBest = session.best; runEvents = []; gameOverAt = -1; shownStatus = '';
   }
+  if (debug && query.get('demo') === 'feel') {
+    // Debug-only capture scenes for game-feel QA (research/game-feel.md): scene=place | line | pop. No autoplay; drag the first tray piece yourself.
+    const scene = query.get('scene') ?? 'place'; const state = structuredClone(session.state); state.mode = 'classic'; state.board = new Array<number>(64).fill(0);
+    if (scene === 'line') { for (const row of [6, 7]) for (let col = 0; col < 6; col += 1) state.board[row * 8 + col] = 2 + ((row + col) % 2) * 3; state.board[2 * 8 + 2] = 6; state.board[2 * 8 + 3] = 6; state.board[3 * 8 + 2] = 7; state.tray = [{ defId: 9, flavour: 1 }, { defId: 3, flavour: 6 }, { defId: 13, flavour: 7 }]; }
+    else if (scene === 'pop') { for (let row = 1; row <= 4; row += 1) for (let col = 0; col < 8; col += 1) { if ((row === 2 && col === 0) || (row === 3 && (col === 3 || col === 4)) || (row === 4 && col === 7)) continue; state.board[row * 8 + col] = 4; } state.board[6 * 8 + 0] = 2; state.board[6 * 8 + 1] = 2; state.board[7 * 8 + 0] = 5; state.tray = [{ defId: 1, flavour: 4 }, { defId: 3, flavour: 6 }, { defId: 13, flavour: 7 }]; state.combo = 4; state.bestCombo = 4; }
+    else { state.board[7 * 8 + 0] = 3; state.board[7 * 8 + 1] = 3; state.board[6 * 8 + 6] = 5; state.tray = [{ defId: 9, flavour: 1 }, { defId: 3, flavour: 6 }, { defId: 13, flavour: 7 }]; }
+    state.status = 'playing'; state.moves = 0; session = createSession({ state, best: session.best }); runBest = session.best; runEvents = []; gameOverAt = -1; shownStatus = '';
+  }
   let activeChallenge = parseChallenge(window.location.search); let challengeBeaten = false;
   if (activeChallenge) { const clean = new URL(window.location.href); clean.searchParams.delete('beat'); clean.searchParams.delete('f'); history.replaceState(history.state, '', clean); }
   const requestedSkin = query.get('skin'); if (demoFaces && requestedSkin && skinMap[requestedSkin]) setEquippedCosmetics({ theme: save.equipped.theme as keyof typeof PALETTE.theme, skin: skinMap[requestedSkin], popEffect: save.equipped.pop as PopEffectId });

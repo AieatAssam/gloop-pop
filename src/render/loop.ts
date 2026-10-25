@@ -12,11 +12,13 @@ export function startRenderLoop(draw: FrameCallback, frameEnded?: (frameMs: numb
   let timeScale = 1;
   let request = 0;
   const hitStop = createHitStopClock();
+  // Debug-only (?debug=1&slowmo=0.25): stretch all animation time, hit-stop included, for frame-by-frame capture.
+  const debugQuery = typeof location === 'undefined' ? undefined : new URLSearchParams(location.search); const debugSlow = debugQuery?.get('debug') === '1' ? Math.min(1, Math.max(0.05, Number(debugQuery.get('slowmo') ?? '1') || 1)) : 1;
   let ramp: { from: number; to: number; start: number; duration: number } | undefined;
   const frame = (now: number): void => {
     if (!active) return;
     const start = performance.now();
-    const rawDt = previous === 0 ? 0 : Math.min(50, Math.max(0, now - previous));
+    const rawDt = (previous === 0 ? 0 : Math.min(50, Math.max(0, now - previous))) * debugSlow;
     previous = now;
     if (ramp) { const t = Math.min(1, Math.max(0, (performance.now() - ramp.start) / ramp.duration)); timeScale = ramp.from + (ramp.to - ramp.from) * easeInOutSine(t); if (t >= 1) ramp = undefined; }
     const visualDt = hitStop.advance(rawDt);
