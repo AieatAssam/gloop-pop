@@ -3,6 +3,7 @@ import { migrate } from '../meta/migrate';
 import { chooseBotMove } from '../core/sim';
 import { seededRng } from '../core/rng';
 import { createFeelScene, createGoalScene, debugSaveWritesDisabled, debugTutorialState, markTutorialSkipped } from './demoScenes';
+import { clearDebugAudioTrace, enableDebugAudioTrace } from '../audio/engine';
 import { PALETTE } from '../render/palette';
 import type { Layout } from '../render/layout';
 import type { GameState } from '../core/types';
@@ -12,6 +13,8 @@ import type { LevelDef } from '../core/levels';
 import { levelParams } from '../core/levels';
 
 export { chooseBotMove, createFeelScene, createGoalScene, debugSaveWritesDisabled, debugTutorialState, markTutorialSkipped };
+export const startAudioTrace = enableDebugAudioTrace;
+export const clearAudioTrace = clearDebugAudioTrace;
 
 export function veteranSaveState() { return migrate(veteranSave); }
 export function createAutoplayRng() { return seededRng('gloop-pop/debug-autoplay'); }

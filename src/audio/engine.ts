@@ -31,6 +31,8 @@ let musicEnabled = true;
 let sfxVolume = 1;
 let musicVolume = 1;
 let visibilityBound = false;
+export interface AudioTraceEntry { t: number; kind: 'playSegment' | 'tone' | 'playCandyBar'; id: string; gainDb: number; bus: 'sfx' | 'music' }
+let debugAudioTrace: AudioTraceEntry[] | null = null;
 let noiseSeed = (typeof performance === 'undefined' ? 1 : performance.now()) | 0;
 function noiseSample(): number {
   noiseSeed = (noiseSeed + 0x6d2b79f5) | 0;
@@ -49,6 +51,18 @@ try {
 } catch { /* Audio session hints are optional. */ }
 
 export function getAudioGraph(): AudioGraph | null { return graph; }
+
+/** Debug-only hook, installed by the lazy debug chunk. */
+export function enableDebugAudioTrace(): AudioTraceEntry[] {
+  if (!debugAudioTrace) debugAudioTrace = [];
+  return debugAudioTrace;
+}
+
+export function clearDebugAudioTrace(): void { if (debugAudioTrace) debugAudioTrace.length = 0; }
+
+export function traceAudioCall(t: number, kind: AudioTraceEntry['kind'], id: string, gainDb: number, bus: AudioTraceEntry['bus']): void {
+  if (debugAudioTrace) debugAudioTrace.push({ t, kind, id, gainDb, bus });
+}
 
 export function initAudioOnFirstInput(): AudioGraph | null {
   if (graph) {

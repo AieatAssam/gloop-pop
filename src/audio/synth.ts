@@ -1,4 +1,4 @@
-import { claimVoice, getAudioGraph, scheduleAt, type VoicePriority } from './engine';
+import { claimVoice, getAudioGraph, scheduleAt, traceAudioCall, type VoicePriority } from './engine';
 
 export type Wave = OscillatorType;
 
@@ -17,6 +17,7 @@ export function tone(options: { frequency: number; endFrequency?: number; durati
   if (!graph) return;
   const { context } = graph;
   const at = safeTime(context, options.at);
+  traceAudioCall(at, 'tone', `${options.wave ?? 'sine'}:${Math.round(options.frequency)}Hz`, 20 * Math.log10(options.peak), options.bus ?? 'sfx');
   const oscillator = context.createOscillator();
   const envelope = context.createGain();
   oscillator.type = options.wave ?? 'sine';

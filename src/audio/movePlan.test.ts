@@ -20,7 +20,7 @@ describe('SG §13.3 and §13.4 move audio plan', () => {
     expect(line).not.toHaveBeenCalled();
     onImpact(plan);
     expect(line).toHaveBeenCalledTimes(1);
-    expect(line).toHaveBeenCalledWith({ combo: 4, lines: 1, tier: 1 });
+    expect(line).toHaveBeenCalledWith({ combo: 4, lines: 1, tier: 1, mega: false });
   });
 
   it('routes tier-two combo harmony and sparkle from the planned line clear', () => {

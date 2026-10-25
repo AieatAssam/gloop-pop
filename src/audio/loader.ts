@@ -1,6 +1,6 @@
 import { AUDIO_MANIFEST, type SegmentId } from './manifest';
 import { findSpriteOffset } from './sprite';
-import { claimVoice, getAudioGraph, scheduleAt } from './engine';
+import { claimVoice, getAudioGraph, scheduleAt, traceAudioCall } from './engine';
 import { VoiceRandom } from './voices';
 import { createRng, nextFloat } from '../core/rng';
 
@@ -84,7 +84,11 @@ export function audioLoadDebug(): { format: AudioFormat | 'none'; decoded: numbe
 export function playSegment(id: SegmentId, options: { at?: number; rate?: number; rateVariation?: number; gain?: number; gainDbVariation?: number; priority?: 'ui' | 'deal' | 'coin' | 'pop' | 'place' | 'ladder' | 'stinger'; group?: string; variants?: number } = {}): boolean {
   const graph = getAudioGraph();
   const buffer = buffers.get(id);
-  if (!graph || !buffer) return false;
+  if (!graph) return false;
+  if (!buffer) {
+    traceAudioCall(options.at ?? scheduleAt(), 'playSegment', id, 20 * Math.log10(options.gain ?? 1), 'sfx');
+    return false;
+  }
   const group = options.group ?? id;
   const variant = variantRandom.variant(group, options.variants ?? 1);
   const rateVariation = options.rateVariation ?? 0;
@@ -93,15 +97,17 @@ export function playSegment(id: SegmentId, options: { at?: number; rate?: number
   const level = (options.gain ?? 1) * 10 ** (gainDbVariation / 20);
   const variantId = ((options.variants ?? 1) > 1 ? `${id.slice(0, -1)}${variant + 1}` : id) as SegmentId;
   const selected = buffers.get(variantId) ?? buffer;
+  const at = options.at ?? scheduleAt();
+  traceAudioCall(at, 'playSegment', variantId, 20 * Math.log10(level), 'sfx');
   const source = graph.context.createBufferSource();
   const gain = graph.context.createGain();
   source.buffer = selected;
-  source.playbackRate.setValueAtTime(rate, options.at ?? scheduleAt());
-  gain.gain.setValueAtTime(level, options.at ?? scheduleAt());
+  source.playbackRate.setValueAtTime(rate, at);
+  gain.gain.setValueAtTime(level, at);
   source.connect(gain);
   gain.connect(graph.sfxBus);
   if (!claimVoice(source, options.priority ?? 'place', gain)) return false;
-  source.start(options.at ?? scheduleAt());
+  source.start(at);
   return true;
 }
 

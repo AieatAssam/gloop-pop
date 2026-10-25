@@ -77,6 +77,7 @@ export async function bootApp(): Promise<void> {
   const gameCanvas = canvas;
   const query = new URLSearchParams(window.location.search); const debug = query.get('debug') === '1'; const veteranDemo = debug && query.get('save') === 'veteran';
   const dbg = debug ? await import('./debugTools') : null;
+  const audioTrace = dbg?.startAudioTrace();
   // spec-note: The level bot is development-only, even for debug URLs, so it never ships in the production bundle.
   const chooseAdventureBot = debug && import.meta.env.DEV ? (await import('../core/levelBot')).chooseLevelMove : undefined;
   setSaveWritesDisabled(dbg?.debugSaveWritesDisabled(query, veteranDemo) ?? false);
@@ -152,6 +153,7 @@ export async function bootApp(): Promise<void> {
       trayPoint(slot: number): { x: number; y: number };
       dropPoint(slot: number, row: number, col: number): { x: number; y: number };
       botMove(): { slot: number; row: number; col: number } | null;
+      audioTrace?: { t: number; kind: 'playSegment' | 'tone' | 'playCandyBar'; id: string; gainDb: number; bus: 'sfx' | 'music' }[];
     };
     const clientPoint = (x: number, y: number): { x: number; y: number } => { const rect = canvas.getBoundingClientRect(); return { x: rect.left + x * rect.width / layout.width, y: rect.top + y * rect.height / layout.height }; };
     (window as Window & { __gloopDebug?: DebugApi }).__gloopDebug = {
@@ -171,6 +173,7 @@ export async function bootApp(): Promise<void> {
         if (state.mode === 'adventure' && chooseAdventureBot) { const move = chooseAdventureBot(state, rng); return move?.type === 'place' ? { slot: move.slot, row: move.row, col: move.col } : null; }
         const move = dbg?.chooseBotMove(state, rng); return move ? { slot: move.slot, row: move.row, col: move.col } : null;
       },
+      ...(audioTrace ? { audioTrace } : {}),
     };
   }
   const boosterBar = createBoosterBar((id) => { if (id === 'shuffle') pointer.cancel(); apply({ type: 'booster', id }); }); uiRoot.append(boosterBar.element);
@@ -249,6 +252,7 @@ export async function bootApp(): Promise<void> {
     }, (elapsed) => { surface.reportFrame(elapsed); if (autoplay && router.current === 'play' && !paused && session.state.status === 'rescueOffer') { if (rescueOfferAt < 0) rescueOfferAt = renderElapsed; if (renderElapsed - rescueOfferAt >= 600) { rescueOfferAt = -1; apply({ type: 'useRescue' }); } } else if (session.state.status !== 'rescueOffer') rescueOfferAt = -1; if (autoplay && router.current === 'play' && !paused && session.state.status === 'playing' && renderElapsed >= autoplayAt) { autoplayAt = renderElapsed + autoplayInterval; enableAudio(); const move = demoMega && session.state.moves === 0 ? { slot: 0 as const, row: 3, col: 3 } : botRng && dbg ? dbg.chooseBotMove(session.state, botRng) : undefined; if (move) apply({ type: 'place', slot: move.slot, row: move.row, col: move.col }); } });
 
   function apply(action: Action): void {
+    if (action.type === 'place') dbg?.clearAudioTrace();
     const hadGoalStrip = Boolean(session.state.goals || session.state.adventure);
     if (action.type === 'booster' && action.id === 'shuffle') pointer.cancel();
     if (action.type === 'place' && !shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion())) renderLoop.requestSlowMo(renderLoop.timeScale, 0, 0, 60);

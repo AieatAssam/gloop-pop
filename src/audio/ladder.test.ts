@@ -8,6 +8,7 @@ vi.mock('./engine', () => ({
   getAudioGraph: () => candyBarFixture.graph,
   scheduleAt: () => 0,
   claimVoice: () => true,
+  traceAudioCall: () => undefined,
 }));
 vi.mock('./loader', () => ({ getSegmentBuffer: () => null }));
 

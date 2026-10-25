@@ -1,4 +1,4 @@
-import { claimVoice, getAudioGraph, scheduleAt } from './engine';
+import { claimVoice, getAudioGraph, scheduleAt, traceAudioCall } from './engine';
 import { getSegmentBuffer } from './loader';
 import type { CosmeticRandom } from './voices';
 import { createRng, nextFloat } from '../core/rng';
@@ -25,6 +25,7 @@ export function rungRate(rung: number): number { return foldRate((rungMidi[Math.
 export function playCandyBar(rung: number, at = scheduleAt(), variation = 1, bodyDb = -10, tinkDb = -14, priority: 'ladder' | 'stinger' = 'ladder', random: CosmeticRandom = cosmeticRandom): void {
   const graph = getAudioGraph();
   if (!graph) return;
+  traceAudioCall(at, 'playCandyBar', `rung:${Math.max(0, Math.min(10, Math.floor(rung)))}`, bodyDb, 'sfx');
   const midi = rungMidi[Math.max(0, Math.min(10, Math.floor(rung)))] ?? 72;
   const pitchVariation = 2 ** (((random() * 2 - 1) * 3) / 1200);
   const gainVariation = 10 ** (((random() * 2 - 1) * 1) / 20);

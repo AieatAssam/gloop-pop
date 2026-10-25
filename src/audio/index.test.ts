@@ -70,7 +70,7 @@ describe('stinger routing', () => {
     }
     expect(recordings[0]).toEqual(recordings[1]);
     expect(recordings[0]?.map((call) => call.split(':')[0])).toEqual(['gloopPop', 'gooPop', 'gloopPop', 'megaStinger']);
-    expect(recordings[0]?.[0]).toContain('"gainDb":-14');
-    expect(recordings[0]?.[1]).toContain('"gainDb":-10');
+    expect(recordings[0]?.[0]).toContain('"gainDb":-16');
+    expect(recordings[0]?.[1]).toContain('"gainDb":-12');
   });
 });
