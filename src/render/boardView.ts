@@ -2,24 +2,31 @@
 import { components } from '../core/gloops';
 import { PIECES } from '../core/pieces';
 import { canPlace, previewPlacement } from '../core/game';
-import type { GameState, Piece, Preview } from '../core/types';
+import type { GameEvent, GameState, Piece, Preview } from '../core/types';
 import { PALETTE } from './palette';
 import { withAlpha } from './colour';
 import { drawGloop, drawPiece } from './gloopRenderer';
 import { roundRectPath } from './silhouette';
 import { S } from '../ui/strings';
 import type { Layout, Rect } from './layout';
+import { easeOutBack, easeInBack } from './easing';
+import { nearMissFacts, type NearMissFacts } from '../core/nearMiss';
 
 export interface SlotView { rect: Rect; piece: Piece | null; cell: number }
 export interface BoardView {
-  draw(context: CanvasRenderingContext2D, layout: Layout, state: GameState, elapsed: number, drag?: DragView, demo?: string): SlotView[];
+  draw(context: CanvasRenderingContext2D, layout: Layout, state: GameState, elapsed: number, drag?: DragView, demo?: string, gameOverAt?: number): SlotView[];
+  receive(events: readonly GameEvent[], time: number, state: GameState): void;
   cellAt(x: number, y: number, layout: Layout): { row: number; col: number } | null;
   slotAt(x: number, y: number, layout: Layout, state: GameState): number;
 }
 export interface DragView { slot: number; x: number; y: number; pointerType: string; selected: boolean; row?: number; col?: number }
 
 export function createBoardView(): BoardView {
-  let boardCache: HTMLCanvasElement | undefined; let boardCacheKey = '';
+  let boardCache: HTMLCanvasElement | undefined; let boardCacheKey = ''; let previousTrayCount = -1; let trayDealAt = -1;
+  let previousSeed: string | undefined; let previousBoard: number[] | undefined; let waveGroups: ReturnType<typeof components> = []; let waveAt = -1;
+  let entryAt = -1;
+  let lossNearMiss: NearMissFacts | undefined;
+  const happyUntil = new Map<number, number>(); const grinUntil = new Map<number, number>(); let allClearUntil = -1;
   const slotsFor = (layout: Layout, state: GameState): SlotView[] => {
     const result: SlotView[] = [];
     for (let i = 0; i < 3; i += 1) {
@@ -29,15 +36,24 @@ export function createBoardView(): BoardView {
     return result;
   };
   return {
-    draw(ctx, layout, state, elapsed, drag, demo = '') {
+    draw(ctx, layout, state, elapsed, drag, demo = '', gameOverAt = -1) {
       if (demo === 'faces') { drawFaceDemo(ctx, layout, elapsed); return []; }
       const board = layout.board; const c = layout.cellSize; const gx = board.x + (board.width - c * 8) / 2; const gy = board.y + (board.height - c * 8) / 2;
+      if (!layout.portrait) drawDesktopPanelBacking(ctx, layout);
+      const firstBoardFrame = previousSeed === undefined;
+      if (previousSeed !== undefined && previousSeed !== state.seed) { waveGroups = previousBoard ? components(previousBoard) : []; waveAt = elapsed; }
+      previousSeed = state.seed; previousBoard = state.board;
       const key = `${board.width}:${board.height}:${c}`;
       if (!boardCache || boardCacheKey !== key) { boardCache = createBoardLayer(board.width, board.height, c); boardCacheKey = key; }
       ctx.drawImage(boardCache, board.x, board.y, board.width, board.height);
-      const groups = demo === 'board' ? showcase() : components(state.board);
-      for (const gloop of groups) drawGloop(ctx, gloop, c, gx, gy, elapsed, state.status === 'over' ? 'dizzy' : 'idle');
+      const groups = demo === 'board' ? showcase() : components(state.board); const filled = state.board.reduce((sum, value) => sum + (value > 0 ? 1 : 0), 0);
+      if (firstBoardFrame && (state.mode === 'daily' || state.mode === 'tutorial') && state.moves === 0 && filled > 0) entryAt = elapsed;
+      for (const gloop of groups) { const anchor = Math.min(...gloop.cells); const expression = state.status === 'over' ? elapsed - gameOverAt >= 300 ? 'dizzy' : 'worried' : state.combo >= 8 ? 'starEyes' : state.status === 'stuck' || filled >= 45 ? 'worried' : allClearUntil > elapsed ? 'happy' : happyUntil.get(anchor) !== undefined && happyUntil.get(anchor)! > elapsed ? 'happy' : grinUntil.get(anchor) !== undefined && grinUntil.get(anchor)! > elapsed ? 'grin' : 'idle'; if (entryAt >= 0) { const minRow = Math.min(...gloop.cells.map((cell) => Math.floor(cell / 8))); const minCol = Math.min(...gloop.cells.map((cell) => cell % 8)); const t = Math.min(1, Math.max(0, (elapsed - entryAt - (minRow + minCol) * 15) / 250)); const scale = easeOutBack(t); const centreX = gx + (minCol + 1) * c; const centreY = gy + (minRow + 1) * c; ctx.save(); ctx.translate(centreX, centreY); ctx.scale(scale, scale); drawGloop(ctx, gloop, c, gx - centreX, gy - centreY, elapsed, expression); ctx.restore(); } else drawGloop(ctx, gloop, c, gx, gy, elapsed, expression); }
+      if (entryAt >= 0 && elapsed - entryAt > 490) entryAt = -1;
+      if (waveAt >= 0) { for (let i = waveGroups.length - 1; i >= 0; i -= 1) { const old = waveGroups[i]!; const minRow = Math.min(...old.cells.map((cell) => Math.floor(cell / 8))); const minCol = Math.min(...old.cells.map((cell) => cell % 8)); const age = elapsed - waveAt - (minRow + minCol) * 12; if (age >= 250) { if (i === 0) { waveGroups = []; waveAt = -1; } continue; } if (age < 0) continue; const t = age / 250; const scale = Math.max(0, 1 - easeInBack(t)); const centreX = gx + (minCol + 1) * c; const centreY = gy + (minRow + 1) * c; ctx.save(); ctx.translate(centreX, centreY); ctx.scale(scale, scale); drawGloop(ctx, old, c, gx - centreX, gy - centreY, elapsed, 'popping'); ctx.restore(); } }
+      if (state.status === 'over' && lossNearMiss?.pieceOneCellShort && gameOverAt >= 0) { const age = elapsed - gameOverAt - 200; if (age >= 0 && age < 700) { const fact = lossNearMiss.pieceOneCellShort; const piece = state.tray[fact.slot]; const pulse = 0.5 + 0.5 * Math.sin(age / 350 * Math.PI * 2); ctx.save(); ctx.globalAlpha = 0.25; if (piece) drawPiece(ctx, piece.flavour, PIECES[piece.defId]!.cells, c, gx + fact.col * c, gy + fact.row * c, elapsed, 'worried', 1); ctx.restore(); const def = piece ? PIECES[piece.defId]! : undefined; if (def) for (const [dr, dc] of def.cells) { const blockedRow = fact.row + dr; const blockedCol = fact.col + dc; const blocked = (state.board[blockedRow * 8 + blockedCol] ?? 0) > 0; if (blocked) { ctx.save(); ctx.globalAlpha = pulse; ctx.strokeStyle = PALETTE.fx.popPreview; ctx.lineWidth = c * 0.07; ctx.beginPath(); ctx.arc(gx + (blockedCol + 0.5) * c, gy + (blockedRow + 0.5) * c, c * (0.28 + 0.08 * pulse), 0, Math.PI * 2); ctx.stroke(); ctx.restore(); } } } }
       const slotViews = slotsFor(layout, state);
+      if (previousTrayCount !== state.traysDealt) { previousTrayCount = state.traysDealt; trayDealAt = elapsed; }
       slotViews.forEach((slot, i) => {
         const r = slot.rect;
         // SG §8.2 tray wells: keep the specified translucent frameDark fill and add a soft interior lift for legibility.
@@ -46,7 +62,9 @@ export function createBoardView(): BoardView {
         ctx.globalAlpha = 0.72; ctx.fillStyle = slotLight; ctx.fill(roundRectPath(r.x + 2, r.y + 2, r.width - 4, r.height - 4, 16)); ctx.globalAlpha = 1;
         if (!slot.piece || drag?.slot === i) return;
         const def = PIECES[slot.piece.defId]!; const pc = Math.min(slot.cell, r.width / 5.4, r.height / 5.4); const fit = hasFit(state, slot.piece); const x = r.x + (r.width - def.w * pc) / 2; const y = r.y + (r.height - def.h * pc) / 2;
-        drawPiece(ctx, slot.piece.flavour, def.cells, pc, x, y, elapsed, fit ? 'idle' : 'worried', fit ? 1 : 0.45);
+        const stuckShake = !fit && state.status === 'over' && gameOverAt >= 0 && elapsed - gameOverAt < 300 ? Math.sin((elapsed - gameOverAt) / 300 * Math.PI * 6) * 6 : 0;
+        const dealAge = elapsed - trayDealAt - i * 60; const dealProgress = trayDealAt < 0 ? 1 : Math.min(1, Math.max(0, dealAge / 240)); const dealScale = trayDealAt < 0 ? 1 : 0.6 + 0.4 * easeOutBack(dealProgress); const dealY = dealAge < 240 ? -0.6 * pc * (1 - dealProgress) : 0;
+        ctx.save(); ctx.translate(x + def.w * pc / 2, y + def.h * pc / 2 + dealY); ctx.scale(dealScale, dealScale); drawPiece(ctx, slot.piece.flavour, def.cells, pc, -def.w * pc / 2 + stuckShake, -def.h * pc / 2, elapsed, !fit && state.status === 'over' ? 'sad' : fit ? 'idle' : 'worried', fit ? 1 : 0.45); ctx.restore();
       });
       if (drag) {
         const piece = state.tray[drag.slot]; if (piece) {
@@ -59,6 +77,11 @@ export function createBoardView(): BoardView {
       }
       return slotViews;
     },
+    receive(events, time, state) { const groups = components(state.board); if (state.status === 'over') lossNearMiss = nearMissFacts(state); else lossNearMiss = undefined; for (const event of events) {
+      if (event.type === 'allClear') allClearUntil = time + 700;
+      if (event.type === 'cleared') for (const group of groups) if (group.cells.some((cell) => event.cells.some((clearCell) => Math.abs(cell % 8 - clearCell % 8) + Math.abs(Math.floor(cell / 8) - Math.floor(clearCell / 8)) <= 2))) happyUntil.set(Math.min(...group.cells), time + 700);
+      if (event.type === 'placed' && event.mergedInto.length > 0) for (const group of groups) if (event.cells.some((cell) => group.cells.includes(cell))) grinUntil.set(Math.min(...group.cells), time + 800);
+    } },
     cellAt(x, y, layout) {
       const c = layout.cellSize; const gx = layout.board.x + (layout.board.width - c * 8) / 2; const gy = layout.board.y + (layout.board.height - c * 8) / 2;
       const col = Math.floor((x - gx) / c); const row = Math.floor((y - gy) / c);
@@ -66,6 +89,17 @@ export function createBoardView(): BoardView {
     },
     slotAt(x, y, layout, state) { return slotsFor(layout, state).findIndex((slot) => x >= slot.rect.x && x <= slot.rect.x + slot.rect.width && y >= slot.rect.y && y <= slot.rect.y + slot.rect.height && !!slot.piece); },
   };
+}
+
+// SG §11.3: desktop HUD and tray each sit on an opaque panel backing.
+function drawDesktopPanelBacking(ctx: CanvasRenderingContext2D, layout: Layout): void {
+  const panel = (x: number, y: number, width: number, height: number): void => {
+    ctx.save(); ctx.fillStyle = PALETTE.ui.panelSolid; ctx.strokeStyle = PALETTE.ui.panelBorder; ctx.lineWidth = 2;
+    ctx.fill(roundRectPath(x, y, width, height, 24)); ctx.stroke(roundRectPath(x, y, width, height, 24));
+    ctx.strokeStyle = withAlpha(PALETTE.ui.panelHighlight, 0.65); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x + 26, y + 1); ctx.lineTo(x + width - 26, y + 1); ctx.stroke(); ctx.restore();
+  };
+  panel(layout.score.x - 22, layout.score.y + 12, 240, 450);
+  panel(layout.tray.x - 16, layout.tray.y - 10, layout.tray.width + 32, layout.tray.height + 20);
 }
 
 function createBoardLayer(width: number, height: number, c: number): HTMLCanvasElement {

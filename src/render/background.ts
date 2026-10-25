@@ -14,6 +14,8 @@ export interface Background {
   setTheme(theme: ThemeKey, elapsedMs: number): void;
   resize(width: number, height: number, layout: Layout): void;
   draw(context: CanvasRenderingContext2D, elapsedMs: number, layout: Layout, stage?: number): void;
+  react(kind: 'clear' | 'combo' | 'tier4' | 'big' | 'huge' | 'mega' | 'allClear' | 'gameOver', elapsedMs: number, flavour?: number): void;
+  setReducedMotion(enabled: boolean): void;
 }
 
 const stars: Dot[] = [];
@@ -53,6 +55,9 @@ export function createBackground(themeId: ThemeKey = 'midnight'): Background {
   let moonStarted = 0;
   const sprites = new Map<string, HTMLCanvasElement>();
   let transitionCanvas: HTMLCanvasElement | undefined;
+  let reactionAt = -1; let reactionKind: 'clear' | 'combo' | 'tier4' | 'big' | 'huge' | 'mega' | 'allClear' | 'gameOver' = 'clear'; let reactionColour: string = selected.horizon;
+  let reducedMotion = false;
+  let lastClearAt = -1;
 
   const makeSprite = (colour: string, radius: number): HTMLCanvasElement => {
     const size = Math.ceil(radius * 2);
@@ -122,19 +127,39 @@ export function createBackground(themeId: ThemeKey = 'midnight'): Background {
       const fade = Math.min(1, Math.max(0, (elapsedMs - themeChangedAt) / 400));
       if (transitionCanvas && fade < 1) { context.save(); context.globalAlpha = 1 - fade; context.drawImage(transitionCanvas, 0, 0, layout.width, layout.height); context.restore(); }
       if (cacheWidth > 0) { context.save(); context.globalAlpha = fade; context.drawImage(cache, 0, 0, layout.width, layout.height); context.restore(); }
-      context.save(); context.globalAlpha = fade; drawStars(context, layout.width, layout.height, elapsedMs, selected); context.restore();
+      const reactionAge = elapsedMs - reactionAt; const allClearFlash = !reducedMotion && reactionKind === 'allClear' && reactionAge >= 0 && reactionAge < 300;
+      context.save(); context.globalAlpha = fade; drawStars(context, layout.width, layout.height, elapsedMs, selected, allClearFlash); context.restore();
       const progress = Math.min(1, Math.max(0, (elapsedMs - moonStarted) / 2400));
       const moonY = moonFrom + (moonTarget - moonFrom) * easeInOutSine(progress);
       if (fade < 1 && previousSilhouette) { context.save(); context.globalAlpha = 1 - fade; context.drawImage(previousSilhouette, 0, 0, layout.width, layout.height); context.restore(); }
       context.save(); context.globalAlpha = fade; context.drawImage(silhouetteCache, 0, 0, layout.width, layout.height);
-      drawMoon(context, layout.width, layout.height, elapsedMs, nextStage, moonY, selected, selectedId);
+      drawMoon(context, layout.width, layout.height, elapsedMs, nextStage, moonY, selected, selectedId, !reducedMotion && reactionKind === 'allClear' && reactionAge < 800 ? 2 : 1);
       drawThemeAir(context, layout.width, layout.height, elapsedMs, selected, selectedId);
       context.restore();
       if (fade >= 1) { transitionCanvas = undefined; previousSilhouette = undefined; }
-      drawBokeh(context, layout.width, layout.height, elapsedMs, sprites, selected);
+      const clearBoost = elapsedMs - lastClearAt >= 0 && elapsedMs - lastClearAt < 300 ? 0.08 : 0;
+      const pulse = !reducedMotion && reactionKind === 'combo' && reactionAge >= 0 && reactionAge < 500 ? 1 + 0.25 * Math.sin(Math.PI * reactionAge / 500) : 1;
+      const speed = reactionKind === 'tier4' && reactionAge >= 0 && reactionAge < 500 ? 3 : 1;
+      drawBokeh(context, layout.width, layout.height, reducedMotion ? 0 : elapsedMs, sprites, selected, clearBoost, pulse, speed);
       drawSprinkles(context, layout.width, layout.height, elapsedMs, sprites);
+      const age = elapsedMs - reactionAt; const duration = reducedMotion ? 200 : reactionKind === 'allClear' ? 800 : reactionKind === 'combo' ? 1200 : reactionKind === 'gameOver' ? 400 : 500;
+      if (reactionAt >= 0 && age < duration && ['big', 'huge', 'mega', 'gameOver', 'combo', 'tier4'].includes(reactionKind)) {
+        context.save(); const fadeAmount = Math.max(0, 1 - age / duration); const alpha = (reducedMotion ? 0.08 : reactionKind === 'big' ? 0.18 : reactionKind === 'huge' ? 0.26 : reactionKind === 'mega' ? 0.36 : reactionKind === 'gameOver' ? 0.35 : 0.25) * fadeAmount;
+        if (reactionKind === 'combo' || reactionKind === 'tier4') { const glow = context.createRadialGradient(layout.width * 0.5, layout.height * 0.62, 0, layout.width * 0.5, layout.height * 0.62, layout.width * 0.9); glow.addColorStop(0, withAlpha(reactionColour, alpha)); glow.addColorStop(1, withAlpha(reactionColour, 0)); context.fillStyle = glow; context.fillRect(0, layout.height * 0.36, layout.width, layout.height * 0.5); }
+        else { context.globalAlpha = alpha; context.fillStyle = reactionKind === 'gameOver' ? PALETTE.ui.scrim : reactionColour; context.fillRect(0, 0, layout.width, layout.height); } context.restore();
+      }
+      if (!reducedMotion && selectedId === 'midnight' && ['big', 'huge', 'mega'].includes(reactionKind) && age >= 0 && age < 400) drawJarRimFlicker(context, layout.width, layout.height, age, selected);
     },
+    react(kind, elapsedMs, flavour = 0) { reactionKind = kind; reactionAt = elapsedMs; if (kind !== 'gameOver') lastClearAt = elapsedMs; if (flavour > 0) reactionColour = PALETTE.flavour[(['cherry','orange','lemon','apple','blueberry','grape','bubblegum'] as const)[flavour - 1]!].glow; },
+    setReducedMotion(enabled) { reducedMotion = enabled; },
   };
+}
+
+function drawJarRimFlicker(ctx: CanvasRenderingContext2D, width: number, height: number, age: number, colours: ThemeColours): void {
+  const scale = Math.min(width, height); const desktop = width >= 900 && height / width < 1.25; const rows = desktop ? [height * 0.57, height * 0.72] : [height * 0.30, height * 0.48];
+  ctx.save(); ctx.globalAlpha = (1 - age / 400) * (0.55 + 0.45 * Math.sin(age / 34)); ctx.strokeStyle = colours.silhouetteRim; ctx.lineWidth = 2;
+  for (const jar of jars) { if (desktop && jar.x < 0.28) continue; const jarWidth = Math.min(desktop ? jar.width * width * 0.72 : jar.width * width, width * (desktop ? 0.11 : 0.16)); const jarHeight = Math.min(jar.height * scale, height * 0.11); const top = rows[jar.row]! - jarHeight; const x = jar.x * width - jarWidth / 2; ctx.beginPath(); ctx.moveTo(x + jarWidth * 0.18, top + 1); ctx.quadraticCurveTo(x + jarWidth / 2, top - 2, x + jarWidth * 0.82, top + 1); ctx.stroke(); }
+  ctx.restore();
 }
 
 function drawThemeSilhouette(ctx: CanvasRenderingContext2D, width: number, height: number, colours: ThemeColours, theme: ThemeKey): void {
@@ -276,11 +301,11 @@ function drawJar(ctx: CanvasRenderingContext2D, cx: number, bottom: number, widt
   ctx.restore();
 }
 
-function drawStars(ctx: CanvasRenderingContext2D, width: number, height: number, elapsed: number, colours: ThemeColours): void {
+function drawStars(ctx: CanvasRenderingContext2D, width: number, height: number, elapsed: number, colours: ThemeColours, forceTwinkle = false): void {
   const count = height / width >= 1.25 ? 60 : 110;
   for (let i = 0; i < count; i += 1) {
     const star = stars[i]!;
-    if (!star.twinkle) continue;
+    if (!star.twinkle && !forceTwinkle) continue;
     ctx.globalAlpha = 0.5 + 0.5 * Math.sin(elapsed / star.period * Math.PI * 2 + star.phase);
     ctx.fillStyle = colours.star;
     ctx.beginPath(); ctx.arc(star.x * width, star.y * height, star.radius, 0, Math.PI * 2); ctx.fill();
@@ -288,7 +313,7 @@ function drawStars(ctx: CanvasRenderingContext2D, width: number, height: number,
   ctx.globalAlpha = 1;
 }
 
-function drawMoon(ctx: CanvasRenderingContext2D, width: number, height: number, elapsed: number, stage: number, yFraction: number, colours: ThemeColours, theme: ThemeKey): void {
+function drawMoon(ctx: CanvasRenderingContext2D, width: number, height: number, elapsed: number, stage: number, yFraction: number, colours: ThemeColours, theme: ThemeKey, haloScale = 1): void {
   const x = theme === 'sunset' ? width * 0.5 : theme === 'kitchen' ? width * 0.5 : theme === 'dawn' ? width * 0.76 : width * 0.78;
   const radius = width < 600 ? width * 0.07 : 46;
   const pulse = theme === 'midnight' && stage >= 6 ? 1 + 0.06 * Math.sin(elapsed / 6000 * Math.PI * 2) : 1;
@@ -303,7 +328,7 @@ function drawMoon(ctx: CanvasRenderingContext2D, width: number, height: number, 
     for (let i = 0; i < 12; i += 1) { const a = i * Math.PI / 6; ctx.beginPath(); ctx.moveTo(Math.cos(a) * radius * 1.25, Math.sin(a) * radius * 1.25); ctx.lineTo(Math.cos(a) * radius * 1.65, Math.sin(a) * radius * 1.65); ctx.stroke(); } ctx.restore();
   }
   if (theme !== 'sunset') {
-  const halo = ctx.createRadialGradient(x, y, 0, x, y, radius * 3 * pulse);
+  const halo = ctx.createRadialGradient(x, y, 0, x, y, radius * 3 * pulse * haloScale);
   halo.addColorStop(0, withAlpha(colours.moon, theme === 'kitchen' ? 0.32 : 0.25)); halo.addColorStop(1, withAlpha(colours.moon, 0));
   ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(x, y, radius * 3 * pulse, 0, Math.PI * 2); ctx.fill();
   }
@@ -314,15 +339,15 @@ function drawMoon(ctx: CanvasRenderingContext2D, width: number, height: number, 
   if (theme === 'observatory') { ctx.save(); ctx.translate(x, y); ctx.rotate(-0.28); ctx.strokeStyle = withAlpha(colours.moon, 0.86); ctx.lineWidth = Math.max(2, radius * 0.07); ctx.beginPath(); ctx.ellipse(0, 0, radius * 1.7, radius * 0.48, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
 }
 
-function drawBokeh(ctx: CanvasRenderingContext2D, width: number, height: number, elapsed: number, sprites: Map<string, HTMLCanvasElement>, colours: ThemeColours): void {
+function drawBokeh(ctx: CanvasRenderingContext2D, width: number, height: number, elapsed: number, sprites: Map<string, HTMLCanvasElement>, colours: ThemeColours, alphaBoost = 0, scale = 1, speed = 1): void {
   ctx.globalAlpha = 1;
   const count = height / width >= 1.25 ? 12 : 18;
   for (let i = 0; i < count; i += 1) {
     const light = bokeh[i]!;
-    const y = ((light.y * height - elapsed / 1000 * light.speed) % (height + light.radius * 2) + height + light.radius * 2) % (height + light.radius * 2) - light.radius;
+    const y = ((light.y * height - elapsed / 1000 * light.speed * speed) % (height + light.radius * 2) + height + light.radius * 2) % (height + light.radius * 2) - light.radius;
     const x = light.x * width + Math.sin(elapsed / 2400 + light.phase) * 12;
     const sprite = sprites.get([colours.bokehA, colours.bokehB, colours.bokehC][light.colourIndex]!);
-    if (sprite) ctx.drawImage(sprite, x - light.radius, y - light.radius, light.radius * 2, light.radius * 2);
+    if (sprite) { const r = light.radius * scale; ctx.globalAlpha = 1; ctx.drawImage(sprite, x - r, y - r, r * 2, r * 2); if (alphaBoost > 0) { ctx.globalAlpha = 0.1; ctx.drawImage(sprite, x - r, y - r, r * 2, r * 2); } }
   }
 }
 

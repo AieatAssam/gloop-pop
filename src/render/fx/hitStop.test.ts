@@ -1,0 +1,3 @@
+import { describe, expect, it } from 'vitest';
+import { createHitStopClock } from './hitStop';
+describe('hit-stop clock', () => { it('freezes visual dt for the requested real-time window', () => { const clock = createHitStopClock(); clock.start(50); expect(clock.advance(16)).toBe(0); expect(clock.advance(34)).toBe(0); expect(clock.active).toBe(false); expect(clock.advance(16)).toBe(16); }); it('keeps the longer overlapping stop', () => { const clock = createHitStopClock(); clock.start(50); clock.advance(20); clock.start(70); expect(clock.advance(50)).toBe(0); expect(clock.advance(20)).toBe(0); expect(clock.advance(16)).toBe(16); }); });

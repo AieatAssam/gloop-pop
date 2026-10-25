@@ -1,29 +1,68 @@
-// SG §9.2.2 and §9.4.3: small non-blocking squash and pop cues.
+// SG §9.1–9.10: pooled, non-blocking placement and pop choreography.
 import type { GameEvent } from '../core/types';
 import type { Layout } from './layout';
-import { PALETTE } from './palette';
+import { PALETTE, FLAVOUR_KEYS } from './palette';
+import { withAlpha } from './colour';
+import { S } from '../ui/strings';
+import { easeOutElastic, easeOutQuad, easeInBack } from './easing';
+import type { GameState } from '../core/types';
 import { createParticles } from './fx/particles';
+import { createTextSprites } from './fx/texts';
+import { createShake } from './fx/shake';
 import { getEquippedPopEffect } from './themes';
+import { reducedParticleCount } from '../platform/motion';
 
-interface Cue { cell: number; at: number; flavour: number; kind: 'place' | 'pop' }
-export function createDirector(): { receive(events: readonly GameEvent[], time: number): void; draw(ctx: CanvasRenderingContext2D, layout: Layout, time: number): void } {
-  const cues: Cue[] = [];
-  const particles = createParticles(); let lastDraw = 0;
+interface Cue { cell: number; at: number; flavour: number; kind: 'place' | 'ripple' | 'pop'; line?: boolean; distance?: number; particleCount?: number; dustCount?: number; dustX?: number; dustY?: number; jelly?: boolean; emitted?: boolean }
+interface Sweep { axis: 'row' | 'column'; fixed: number; origin: number; direction: -1 | 1; at: number }
+interface Banner { text: string; at: number; duration: number; colour: string; coins: number; size: number }
+export interface Director { receive(events: readonly GameEvent[], time: number, reduced?: boolean, state?: GameState, layout?: Layout): void; draw(ctx: CanvasRenderingContext2D, layout: Layout, time: number, reduced?: boolean): void; banner(text: string, time: number, coins?: number, flavour?: number, size?: number): void; shakeOffset(): { x: number; y: number }; }
+export function createDirector(): Director {
+  const cues: Cue[] = []; const sweeps: Sweep[] = []; const particles = createParticles(); const texts = createTextSprites(); const shake = createShake();
+  let lastDraw = 0; let currentBanner: Banner | undefined; let vignetteAt = -1; let vignetteColour: string = PALETTE.fx.comboTier3;
   return {
-    receive(events, time) { for (const event of events) {
-      if (event.type === 'placed') for (const cell of event.cells) cues.push({ cell, at: time, flavour: event.piece.flavour, kind: 'place' });
-      if (event.type === 'cleared') for (let i = 0; i < event.cells.length; i += 1) { const cell = event.cells[i]!; const flavour = event.flavoursByCell[i] ?? 1; cues.push({ cell, at: time, flavour, kind: 'pop' }); const c = 68; particles.emit((cell % 8 + 0.5) * c, (Math.floor(cell / 8) + 0.5) * c, c, flavour, 5, getEquippedPopEffect()); }
-      if (event.type === 'popped') for (const group of event.gloops) for (const cell of group.cells) { cues.push({ cell, at: time + (group.bfs.indexOf(cell) * 38), flavour: group.flavour, kind: 'pop' }); const c = 68; const x = (cell % 8 + 0.5) * c; const y = (Math.floor(cell / 8) + 0.5) * c; particles.emit(x, y, c, group.flavour, 3, getEquippedPopEffect()); particles.jellyDrop(x, y, c, group.flavour); }
-    } },
-    draw(ctx, layout, time) {
-      const dt = Math.min(0.05, Math.max(0, (time - lastDraw) / 1000)); lastDraw = time; particles.update(dt);
-      ctx.save(); ctx.translate(layout.board.x + (layout.board.width - layout.cellSize * 8) / 2, layout.board.y + (layout.board.height - layout.cellSize * 8) / 2); ctx.scale(layout.cellSize / 68, layout.cellSize / 68); particles.draw(ctx); ctx.restore();
-      const c = layout.cellSize; const gx = layout.board.x + (layout.board.width - c * 8) / 2; const gy = layout.board.y + (layout.board.height - c * 8) / 2;
-      for (let i = cues.length - 1; i >= 0; i -= 1) { const cue = cues[i]!; const age = time - cue.at; const duration = cue.kind === 'place' ? 280 : 180; if (age < 0) continue; if (age >= duration) { cues.splice(i, 1); continue; }
-        const t = age / duration; const scale = cue.kind === 'place' ? (t < 0.25 ? 1 + 0.14 * t / 0.25 : 1.14 - 0.14 * (t - 0.25) / 0.75) : t < 1 / 3 ? 1 + 0.22 * t * 3 : 1.22 * (1 - (t - 1 / 3) * 1.5);
-        const x = gx + (cue.cell % 8) * c + c / 2; const y = gy + Math.floor(cue.cell / 8) * c + c / 2;
-        ctx.save(); ctx.globalAlpha = Math.max(0, 1 - t); ctx.translate(x, y); ctx.scale(scale, cue.kind === 'place' ? 1 - (scale - 1) * 1.1 : scale); ctx.fillStyle = cue.kind === 'place' ? PALETTE.flavour[Object.keys(PALETTE.flavour)[cue.flavour - 1] as keyof typeof PALETTE.flavour].light : PALETTE.light.specular; ctx.beginPath(); ctx.arc(0, 0, c * 0.22, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    receive(events, time, reduced = false, state, layout) { let lastRemovalAt = time + 70; for (const event of events) {
+      if (event.type === 'placed') {
+        const bottomRow = Math.max(...event.cells.map((cell) => Math.floor(cell / 8))); const bottomCells = event.cells.filter((cell) => Math.floor(cell / 8) === bottomRow); const dustX = bottomCells.reduce((sum, cell) => sum + (cell % 8 + 0.5) * 68, 0) / bottomCells.length; const dustCueCell = bottomCells[0]!;
+        for (const cell of event.cells) cues.push({ cell, at: time + 70, flavour: event.piece.flavour, kind: 'place', ...(cell === dustCueCell ? { dustCount: reducedParticleCount(6, reduced), dustX, dustY: (bottomRow + 1) * 68 } : {}) });
+        if (state && event.mergedInto.length) { const distances = bfsDistances(state, event.cells, event.piece.flavour); for (const cell of event.mergedInto) { const distance = distances.get(cell); if (distance !== undefined) cues.push({ cell, at: time + 70 + (reduced ? 0 : distance * 22), flavour: event.piece.flavour, kind: 'ripple', distance }); } }
       }
+      if (event.type === 'cleared') {
+        const lineCount = event.rows.length + event.cols.length; const cellSet = new Set(event.cells);
+        const scoredEvent = events.find((entry) => entry.type === 'scored'); const combo = scoredEvent?.type === 'scored' ? scoredEvent.combo : 0; const lastFlavour = event.flavoursByCell[event.flavoursByCell.length - 1] ?? 1;
+        if (combo >= 8) { vignetteAt = time + 70; vignetteColour = PALETTE.flavour[FLAVOUR_KEYS[lastFlavour - 1]!].glow; }
+        if (combo >= 12) for (let i = 0; i < 24; i += 1) particles.emit(i / 24 * 544, 0, 68, lastFlavour, 1, 'confetti');
+        const placed = events.find((entry) => entry.type === 'placed'); const placedCells = placed?.type === 'placed' ? placed.cells : [];
+        const rowOrigins = new Map(event.rows.map((row) => [row, nearestOnLine(placedCells, row, 'row')])); const colOrigins = new Map(event.cols.map((col) => [col, nearestOnLine(placedCells, col, 'column')]));
+        if (!reduced) { for (const [row, origin] of rowOrigins) sweeps.push({ axis: 'row', fixed: row, origin, direction: -1, at: time + 70 }, { axis: 'row', fixed: row, origin, direction: 1, at: time + 70 }); for (const [col, origin] of colOrigins) sweeps.push({ axis: 'column', fixed: col, origin, direction: -1, at: time + 70 }, { axis: 'column', fixed: col, origin, direction: 1, at: time + 70 }); }
+        for (let i = 0; i < event.cells.length; i += 1) { const cell = event.cells[i]!; const row = Math.floor(cell / 8); const col = cell % 8; const flavour = event.flavoursByCell[i] ?? 1; const delayCells = Math.min(rowOrigins.has(row) ? Math.abs(col - rowOrigins.get(row)!) : Infinity, colOrigins.has(col) ? Math.abs(row - colOrigins.get(col)!) : Infinity); const delay = reduced ? 0 : delayCells * ((layout?.cellSize ?? 44) / 1.6); const popAt = time + 70 + delay; lastRemovalAt = Math.max(lastRemovalAt, popAt); cues.push({ cell, at: popAt, flavour, kind: 'pop', line: cellSet.has(cell), particleCount: 5 }); }
+        if (!reduced && lineCount > 0) shake.trigger(lineCount >= 4 ? 9 : lineCount * 2, lineCount >= 4 ? 260 : 80 + lineCount * 40);
+      }
+      if (event.type === 'popped') { let largest = 0; for (const group of event.gloops) { largest = Math.max(largest, group.size); for (const cell of group.cells) { const delay = reduced ? 0 : group.bfs.indexOf(cell) * 38; const popAt = time + 70 + delay; lastRemovalAt = Math.max(lastRemovalAt, popAt); cues.push({ cell, at: popAt, flavour: group.flavour, kind: 'pop', particleCount: 3, jelly: true }); } } if (!reduced && largest >= 24) shake.trigger(12, 420); else if (!reduced && largest >= 15) shake.trigger(shake.state.amplitude + 4, shake.state.duration + 80); else if (!reduced && largest >= 8) shake.trigger(shake.state.amplitude + 2, shake.state.duration); }
+      if (event.type === 'allClear' && !reduced) shake.trigger(12, 420);
+      if (event.type === 'stuck' && !reduced) shake.trigger(3, 200, true);
+      if (event.type === 'scored' && event.points > 0) { const cleared = events.find((entry) => entry.type === 'cleared'); if (cleared?.type === 'cleared') { const pop = events.find((entry) => entry.type === 'popped'); const largestPop = pop?.type === 'popped' ? Math.max(0, ...pop.gloops.map((gloop) => gloop.size)) : 0; const removed = [...new Set([...cleared.cells, ...(pop?.type === 'popped' ? pop.gloops.flatMap((gloop) => gloop.cells) : [])])]; const centre = centroid(removed); const lines = cleared.rows.length + cleared.cols.length; const size = event.points < 500 ? 28 : event.points < 2000 ? 36 : event.points < 10000 ? 48 : 64; const tier = event.combo >= 12 ? PALETTE.fx.comboTier4 : event.combo >= 8 ? PALETTE.fx.comboTier3 : event.combo >= 5 ? PALETTE.fx.comboTier2 : event.combo >= 3 ? PALETTE.fx.comboTier1 : PALETTE.fx.numberFill; const x = (centre.x + 0.5) * 68; const y = (centre.y + 0.5) * 68; const textAt = Math.min(lastRemovalAt, time + 260); texts.add(S.pointsPop(event.points), size, tier, x, y, textAt, 750, event.combo >= 5); const label = events.some((entry) => entry.type === 'allClear') ? S.allClear : largestPop >= 24 ? S.megaPop : largestPop >= 15 ? S.hugePop : largestPop >= 8 ? S.bigPop : lines >= 5 ? S.lineCount(lines) : lines === 4 ? S.quad : lines === 3 ? S.triple : lines === 2 ? S.double : S.pop; texts.add(label, largestPop >= 24 || events.some((entry) => entry.type === 'allClear') ? 72 : Math.round(size * 0.7), tier, x, y - size * 0.72, textAt + 60, largestPop >= 24 || events.some((entry) => entry.type === 'allClear') ? 1200 : 900, event.combo >= 5); } }
+    } },
+    draw(ctx, layout, time, reduced = false) {
+      const dt = Math.min(0.05, Math.max(0, (time - lastDraw) / 1000)); lastDraw = time; particles.update(dt); shake.update(dt * 1000, reduced);
+      const c = layout.cellSize; const gx = layout.board.x + (layout.board.width - c * 8) / 2; const gy = layout.board.y + (layout.board.height - c * 8) / 2;
+      ctx.save(); ctx.translate(gx, gy); ctx.scale(c / 68, c / 68); particles.draw(ctx); ctx.restore(); texts.draw(ctx, time, c / 68, gx, gy, layout.portrait ? 1 : 1.3);
+      for (let i = cues.length - 1; i >= 0; i -= 1) { const cue = cues[i]!; const age = time - cue.at; const duration = reduced ? 150 : cue.kind === 'place' ? 280 : cue.kind === 'ripple' ? 240 : 180; if (age < 0) continue; if (age >= duration) { cues.splice(i, 1); continue; }
+        if (!cue.emitted && (cue.particleCount || cue.dustCount)) { cue.emitted = true; const cellX = (cue.cell % 8 + 0.5) * 68; const cellY = (Math.floor(cue.cell / 8) + 0.5) * 68; if (cue.particleCount) particles.emit(cellX, cellY, 68, cue.flavour, reducedParticleCount(cue.particleCount, reduced), getEquippedPopEffect()); if (cue.dustCount) particles.dust(cue.dustX ?? cellX, cue.dustY ?? cellY, cue.dustCount); if (cue.jelly && !reduced) particles.jellyDrop(cellX, cellY, 68, cue.flavour); }
+        const t = age / duration; const scaleX = reduced ? 1 : cue.kind === 'place' ? 1.14 - 0.14 * easeOutElastic(t) : cue.kind === 'ripple' ? 1 : t < 1 / 3 ? 1 + 0.22 * easeOutQuad(t * 3) : 1.22 * Math.max(0, 1 - easeInBack((t - 1 / 3) * 1.5)); const scaleY = reduced ? 1 : cue.kind === 'place' ? 0.84 + 0.16 * easeOutElastic(t) : cue.kind === 'ripple' ? 1 - 0.08 * 0.75 ** (cue.distance ?? 0) * Math.max(0, 1 - easeOutElastic(t)) : scaleX;
+        const x = gx + (cue.cell % 8) * c + c / 2; const y = gy + Math.floor(cue.cell / 8) * c + c / 2;
+        ctx.save(); ctx.globalAlpha = reduced ? Math.max(0, 1 - t) * 0.55 : Math.max(0, 1 - t); ctx.translate(x, y + c * 0.22 * (scaleY - 1)); ctx.scale(scaleX, scaleY); ctx.fillStyle = cue.kind === 'place' || cue.kind === 'ripple' ? PALETTE.flavour[FLAVOUR_KEYS[cue.flavour - 1]!].light : PALETTE.light.specular; ctx.beginPath(); ctx.arc(0, 0, c * 0.22, 0, Math.PI * 2); ctx.fill();
+        if (cue.kind === 'pop' && cue.line && !reduced) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.85 * Math.max(0, 1 - age / 160); ctx.fillStyle = PALETTE.light.flash; ctx.fillRect(-c * 0.48, -c * 0.48, c * 0.96, c * 0.96); } ctx.restore();
+      }
+      for (let i = sweeps.length - 1; i >= 0; i -= 1) { const sweep = sweeps[i]!; const age = time - sweep.at; if (age < 0) continue; const distance = age * (1600 / 1000 / c); if (distance > 8) { sweeps.splice(i, 1); continue; } const position = sweep.origin + sweep.direction * distance; if (position < -0.5 || position > 8.5) continue; const horizontal = sweep.axis === 'row'; const x = horizontal ? gx + position * c : gx + sweep.fixed * c; const y = horizontal ? gy + sweep.fixed * c : gy + position * c; const gradient = horizontal ? ctx.createLinearGradient(x - c * 0.25, 0, x + c * 0.25, 0) : ctx.createLinearGradient(0, y - c * 0.25, 0, y + c * 0.25); gradient.addColorStop(0, withAlpha(PALETTE.light.flash, 0)); gradient.addColorStop(0.5, withAlpha(PALETTE.light.flash, reduced ? 0.35 : 0.9)); gradient.addColorStop(1, withAlpha(PALETTE.light.flash, 0)); ctx.save(); ctx.fillStyle = gradient; if (horizontal) ctx.fillRect(x - c * 0.25, gy + sweep.fixed * c, c * 0.5, c); else ctx.fillRect(gx + sweep.fixed * c, y - c * 0.25, c, c * 0.5); ctx.restore(); }
+      if (currentBanner) drawBanner(ctx, layout, currentBanner, time);
+      const vignetteAge = time - vignetteAt; if (vignetteAt >= 0 && vignetteAge < 900 && !reduced) drawVignette(ctx, layout, vignetteColour, 0.35 * (1 - vignetteAge / 900));
     },
+    banner(text, time, coins = 0, flavour = 0, size = 48) { currentBanner = { text, at: time, duration: 1600, colour: flavour > 0 ? PALETTE.flavour[FLAVOUR_KEYS[flavour - 1]!].base : PALETTE.ui.gold, coins, size }; },
+    shakeOffset() { return { x: shake.state.x, y: shake.state.y }; },
   };
 }
+function nearestOnLine(cells: readonly number[], line: number, axis: 'row' | 'column'): number { const candidates = cells.filter((cell) => (axis === 'row' ? Math.floor(cell / 8) : cell % 8) === line); const start = candidates.length ? (axis === 'row' ? candidates[0]! % 8 : Math.floor(candidates[0]! / 8)) : 3.5; return start; }
+function bfsDistances(state: GameState, starts: readonly number[], flavour: number): Map<number, number> { const distances = new Map<number, number>(); const queue = [...starts]; for (const cell of starts) distances.set(cell, 0); for (let i = 0; i < queue.length; i += 1) { const cell = queue[i]!; const nextDistance = distances.get(cell)! + 1; const row = Math.floor(cell / 8); const col = cell % 8; for (const next of [row > 0 ? cell - 8 : -1, row < 7 ? cell + 8 : -1, col > 0 ? cell - 1 : -1, col < 7 ? cell + 1 : -1]) if (next >= 0 && state.board[next] === flavour && !distances.has(next)) { distances.set(next, nextDistance); queue.push(next); } } return distances; }
+function drawVignette(ctx: CanvasRenderingContext2D, layout: Layout, colour: string, alpha: number): void { ctx.save(); for (const edge of ['top', 'right', 'bottom', 'left'] as const) { const gradient = edge === 'top' ? ctx.createLinearGradient(0, 0, 0, layout.height * 0.12) : edge === 'bottom' ? ctx.createLinearGradient(0, layout.height, 0, layout.height * 0.88) : edge === 'left' ? ctx.createLinearGradient(0, 0, layout.width * 0.12, 0) : ctx.createLinearGradient(layout.width, 0, layout.width * 0.88, 0); gradient.addColorStop(0, withAlpha(colour, alpha)); gradient.addColorStop(1, withAlpha(colour, 0)); ctx.fillStyle = gradient; ctx.fillRect(0, 0, layout.width, layout.height); } ctx.restore(); }
+function centroid(cells: readonly number[]): { x: number; y: number } { if (!cells.length) return { x: 3.5, y: 3.5 }; let x = 0; let y = 0; for (const cell of cells) { x += cell % 8; y += Math.floor(cell / 8); } return { x: x / cells.length, y: y / cells.length }; }
+function drawBanner(ctx: CanvasRenderingContext2D, layout: Layout, banner: Banner, time: number): void { const age = time - banner.at; if (age > banner.duration) return; const t = Math.max(0, Math.min(1, age / 220)); const y = layout.board.y - 20 + 62 * t; ctx.save(); ctx.globalAlpha = Math.min(1, (banner.duration - age) / 240); ctx.textAlign = 'center'; ctx.font = `800 ${banner.size}px "Baloo 2", sans-serif`; ctx.lineJoin = 'round'; ctx.lineWidth = 6; ctx.strokeStyle = PALETTE.fx.numberOutline; ctx.fillStyle = banner.colour; ctx.strokeText(banner.text, layout.width / 2, y); ctx.fillText(banner.text, layout.width / 2, y); if (banner.coins > 0) { ctx.font = '800 18px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.gold; ctx.fillText(S.coinBonus(banner.coins), layout.width / 2, y + 24); } ctx.restore(); }

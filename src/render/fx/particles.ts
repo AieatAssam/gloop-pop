@@ -21,6 +21,7 @@ export function createParticles(seed = 0x504f5058) {
       const colour = PALETTE.flavour[FLAVOUR_KEYS[flavour - 1]!].base;
       pool.add({ x, y, vx: (random() - 0.5) * 80, vy: -80 - random() * 80, ax: 0, ay: 1400, rot: 0, vrot: (random() - 0.5) * 3, size: cell * 0.12, size1: 0, life: 0.8, age: 0, colour, kind: 'jelly', bounce: 0, burst: false });
     },
+    dust(x: number, y: number, count: number): void { for (let i = 0; i < count; i += 1) { const angle = random() < 0.5 ? Math.PI + (random() - 0.5) * Math.PI / 3 : (random() - 0.5) * Math.PI / 3; const speed = 40 + random() * 50; pool.add({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, ax: 0, ay: 0, rot: random() * Math.PI * 2, vrot: (random() - 0.5) * 8, size: 1.5 + random() * 1.5, size1: 0, life: 0.28, age: 0, colour: PALETTE.fx.sugar, kind: 'sparkles', bounce: 0, burst: false }); } },
     update(dt: number): void {
       for (const p of pool.items) {
         const threshold = p.kind === 'fireworks' ? 0.7 : p.kind === 'bubbles' ? 1 : 2;

@@ -7,6 +7,8 @@ export interface NearMissFacts {
   pieceOneCellShort: { slot: number; shape: ShapeKey; row: number; col: number } | null;
   lineOneFromFull: { kind: 'row' | 'column'; index: number } | null;
 }
+export type NearMissMessage = { kind: 'newBest' | 'bestShort' | 'piece' | 'line' | 'xp' | 'weekly' | 'achievement' | 'fallback'; amount: number; shape?: ShapeKey; lineKind?: 'row' | 'column'; index?: number; level?: number; name?: string; unit?: string };
+export interface NearMissExtras { xpRemaining?: number; level?: number; levelCost?: number; weeklyRemaining?: number; weeklyTarget?: number; achievement?: { remaining: number; target: number; name: string; unit: string } }
 const shapeByFamily: Record<string, ShapeKey> = {
   Dot: 'dot', I2: 'bar2', I3: 'bar3', I4: 'bar4', I5: 'bar5', O2: 'squareSmall', O3: 'squareBig',
   R23: 'rectangle', L3: 'cornerSmall', L4: 'cornerL', T4: 'tee', S4: 'zigzag', L5: 'cornerBig',
@@ -33,5 +35,18 @@ export function nearMissFacts(state: GameState): NearMissFacts {
     if (empty === 1) lineOneFromFull = { kind: 'column', index: col };
   }
   return { pieceOneCellShort, lineOneFromFull };
+}
+
+export function nearMissMessages(state: GameState, oldBest: number, fallbackBiggestPop: number, linesCleared: number, extras: NearMissExtras = {}): NearMissMessage[] {
+  const facts = nearMissFacts(state); const result: NearMissMessage[] = [];
+  if (oldBest > 0 && state.score > oldBest) result.push({ kind: 'newBest', amount: state.score - oldBest });
+  else if (oldBest > 0 && oldBest - state.score <= oldBest * 0.15) result.push({ kind: 'bestShort', amount: oldBest - state.score });
+  if (result.length < 2 && facts.pieceOneCellShort) result.push({ kind: 'piece', amount: 1, shape: facts.pieceOneCellShort.shape });
+  if (result.length < 2 && facts.lineOneFromFull) result.push({ kind: 'line', amount: 1, lineKind: facts.lineOneFromFull.kind, index: facts.lineOneFromFull.index });
+  if (result.length < 2 && extras.xpRemaining !== undefined && extras.levelCost !== undefined && extras.xpRemaining <= extras.levelCost * 0.25) result.push({ kind: 'xp', amount: extras.xpRemaining, level: extras.level });
+  if (result.length < 2 && extras.weeklyRemaining !== undefined && extras.weeklyTarget !== undefined && extras.weeklyRemaining <= extras.weeklyTarget * 0.2) result.push({ kind: 'weekly', amount: extras.weeklyRemaining });
+  if (result.length < 2 && extras.achievement && extras.achievement.remaining <= extras.achievement.target * 0.2) result.push({ kind: 'achievement', amount: extras.achievement.remaining, name: extras.achievement.name, unit: extras.achievement.unit });
+  if (result.length < 2) result.push({ kind: 'fallback', amount: fallbackBiggestPop > 0 ? fallbackBiggestPop : linesCleared });
+  return result.slice(0, 2);
 }
 

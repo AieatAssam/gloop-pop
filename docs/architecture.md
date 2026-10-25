@@ -63,6 +63,7 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   │   ├─ progression.ts     # xpToNext, addXp → level-ups, stars, run rewards
 │   │   ├─ catalogue.ts       # themes, skins, pop effects, prices and unlock rules (design §14)
 │   │   ├─ achievements.ts    # 40 defs + evaluate(events/runSummary/save) → unlocked ids
+│   │   ├─ firsts.ts          # design §23.2 lifetime discovery detection from events
 │   │   ├─ stats.ts           # lifetime stat accumulation from run summaries
 │   │   ├─ streak.ts          # design §11
 │   │   ├─ weeklyGoal.ts      # progress accounting and claim (design §12)
@@ -91,7 +92,7 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   │   ├─ trayView.ts        # tray slots, deal animation, dragged piece
 │   │   ├─ hudView.ts         # score, best, combo meter (canvas parts)
 │   │   ├─ director.ts        # turns GameEvents into timed animations/fx/sfx cues (SG §9)
-│   │   ├─ fx/particles.ts, fx/shake.ts, fx/texts.ts, fx/tweens.ts, fx/pool.ts
+│   │   ├─ fx/particles.ts, fx/shake.ts, fx/texts.ts, fx/tweens.ts, fx/hitStop.ts, fx/pool.ts
 │   │   ├─ ghostHand.ts       # tutorial hand (SG §11.10)
 │   │   ├─ miniGloop.ts       # small gloop illustrations for DOM cards/badges
 │   │   └─ shareCard.ts       # SG §12

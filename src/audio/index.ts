@@ -10,6 +10,8 @@
 import { isMasterMuted, isMusicEnabled, isSfxEnabled, setMasterMuted as setMute, setMusicEnabled as setMusic, setSfxEnabled as setSfx, toggleMasterMuted } from './engine';
 import { music, type MusicTier } from './music';
 import { resetPopSequence, sfx } from './sfx';
+import type { GameEvent } from '../core/types';
+import { PIECES } from '../core/pieces';
 
 export { initAudioOnFirstInput, getAudioGraph } from './engine';
 export { noteFor, PENTATONIC, resetPopSequence, sfx } from './sfx';
@@ -80,8 +82,19 @@ export function playForEvents(events: readonly AudioEvent[], ctx: AudioEventCont
   if (ctx.achievement) sfx.achievement();
 }
 
+export function playGameEvents(events: readonly GameEvent[], ctx: AudioEventContext = {}): void {
+  const audioEvents: AudioEvent[] = [];
+  for (const event of events) {
+    const audioEvent = event.type === 'placed'
+      ? { ...event, piece: { cells: PIECES[event.piece.defId]!.cells } }
+      : event;
+    audioEvents.push(audioEvent);
+  }
+  playForEvents(audioEvents, ctx);
+}
+
 export function setAudioPaused(paused: boolean): void { music.setPaused(paused); }
-export function startMusic(): void { music.start(); }
+export function startMusic(): void { music.setGameOver(false); music.setPaused(false); music.start(); }
 export function stopMusic(): void { music.stop(); }
 export function audioSettings(): { muted: boolean; sfx: boolean; music: boolean } {
   return { muted: isMasterMuted(), sfx: isSfxEnabled(), music: isMusicEnabled() };
