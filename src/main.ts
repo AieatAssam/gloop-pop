@@ -5,6 +5,8 @@ import '@fontsource/nunito/latin-800.css';
 import './ui/styles.css';
 import { setCssVars } from './ui/cssVars';
 import { bootApp } from './app/app';
+import { registerServiceWorker } from './platform/sw';
 
 setCssVars();
 bootApp();
+requestAnimationFrame(registerServiceWorker);

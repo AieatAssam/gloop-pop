@@ -25,7 +25,7 @@ export function drawHud(ctx: CanvasRenderingContext2D, layout: Layout, state: Ga
   const lostAge = elapsed - comboLostAt; const meterAlpha = state.combo > 0 ? 1 : comboLostAt >= 0 && lostAge < 200 ? Math.max(0, 1 - lostAge / 200) : 0;
   if (meterAlpha > 0) {
     ctx.globalAlpha = meterAlpha; const multiplier = state.combo >= 20 ? '10' : (1 + Math.max(0, state.combo - 1) * 0.5).toFixed(1);
-    if (state.combo > 0) { const baseX = layout.portrait ? layout.board.x + 8 : layout.score.x; const age = elapsed - comboPulseAt; const scale = age >= 0 && age < 160 ? 1 + 0.25 * (1 - age / 160) : 1; ctx.save(); ctx.translate(baseX, comboY); ctx.scale(scale, scale); ctx.fillText(S.combo(state.combo, multiplier), 0, 0); ctx.restore(); }
+    if (state.combo > 1) { const baseX = layout.portrait ? layout.board.x + 8 : layout.score.x; const age = elapsed - comboPulseAt; const scale = age >= 0 && age < 160 ? 1 + 0.25 * (1 - age / 160) : 1; ctx.save(); ctx.translate(baseX, comboY); ctx.scale(scale, scale); ctx.fillText(S.combo(state.combo, multiplier), 0, 0); ctx.restore(); }
     else { ctx.fillStyle = PALETTE.fx.comboLost; ctx.fillText(S.comboLost, layout.portrait ? layout.board.x + 8 : layout.score.x, comboY); }
     const baseX = layout.portrait ? layout.board.x + 8 : layout.score.x; const pipY = comboY + 18;
     for (let i = 0; i < 3; i += 1) { ctx.globalAlpha = meterAlpha * (i === 2 && state.fuse === 1 ? 0.65 + 0.35 * Math.sin(elapsed / 400 * Math.PI * 2) : 1); ctx.fillStyle = i < state.fuse ? PALETTE.fx.comboTier1 : PALETTE.ui.track; ctx.beginPath(); ctx.arc(baseX + 6 + i * 16, pipY, 5, 0, Math.PI * 2); ctx.fill(); }

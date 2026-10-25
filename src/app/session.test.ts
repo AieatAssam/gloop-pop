@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newGame } from '../core/game';
-import { createSession } from './session';
+import { createSession, runToResumeOnBoot } from './session';
 
 describe('session restore', () => {
   it('continues from a JSON-round-tripped board, tray, score, and combo', () => {
@@ -14,5 +14,11 @@ describe('session restore', () => {
     const session = createSession({ mode: 'classic' }); const replacement = newGame('tutorial', 'step-two').state;
     session.replace(replacement);
     expect(session.state).toBe(replacement);
+  });
+  it('does not resume a Daily unless the player enters Daily explicitly', () => {
+    expect(runToResumeOnBoot(newGame('daily', 'saved-daily').state)).toBeNull();
+    const classic = newGame('classic', 'saved-classic').state;
+    expect(runToResumeOnBoot(classic)).toBe(classic);
+    expect(runToResumeOnBoot(null)).toBeNull();
   });
 });

@@ -4,6 +4,10 @@ import type { Action, GameEvent, GameState, ModeId } from '../core/types';
 import { dayKeyFromMs } from '../core/daily';
 
 export interface Session { readonly state: GameState; readonly best: number; dispatch(action: Action): GameEvent[]; replace(state: GameState): void; restart(mode?: ModeId): void; }
+// spec-note: Daily state resumes only after an explicit Daily entry; general boot restores the regular run slot.
+export function runToResumeOnBoot(inProgress: GameState | null): GameState | null {
+  return inProgress?.mode === 'daily' ? null : inProgress;
+}
 export function createSession(options: { state?: GameState | null; best?: number; mode?: ModeId } = {}): Session {
   let mode = options.state?.mode ?? options.mode ?? 'classic';
   let result = options.state ? { state: options.state, events: [] as GameEvent[] } : newGame(mode, seed(mode));
