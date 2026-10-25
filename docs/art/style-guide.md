@@ -272,6 +272,11 @@ While the target is invalid: no ghost for pointer drags (keyboard: outline-only 
 | bubbles | ring, stroke 0.02c, `fx.bubble` | float up (gravity −200), pop into 3 dots at end of life |
 | confetti | rect 0.08c × 0.16c, colours `fx.confettiA–E` | flutter: scaleX = cos(age × 14), gravity 500, drag 1.5 |
 | fireworks | line streaks 0.2c long along velocity, `fx.firework` + flavour | speed ×1.5, then each spawns 2 sparkles at 70% life |
+| goldsparkles (M13) | as sparkles | colour `ui.gold` 60% / `fx.sugar` 40% (replaces the flavour glow) |
+| goldstars (M13) | as stars | colour `ui.gold` 70% / `ui.coinShade` 30% |
+| goldconfetti (M13) | as confetti | colours `ui.gold`, `ui.coinShade`, `ui.coinShine`, `fx.sugar` (uniform pick of 4) |
+
+The three Gold effects (design §14.4) are colour variants only: the same `kind`, counts, sizes, gravity, motion and timings as their base effect, the same pool and cap, and only existing palette roles, so they cost nothing extra per frame. Their Collection preview (the 160 × 112 canvas) draws the same ring of 18 dots as the other pop effects, in the effect's own colours instead of the four flavour colours.
 
 ### 9.4 Clear sweep and pop ripple (the signature moment)
 Timeline from the frame of placement (t = 0), after the 70 ms snap:
@@ -1303,27 +1308,57 @@ A full screen like Home (§11.3: the canvas keeps drawing the theme background, 
 
 **Header (fixed, height 64):** Back icon button (44) at x 12, y 10. Title "Adventure" (Screen title style), centred. Right: stars chip "★ 54" (chip §4, `ui.panelSolid`, a 16 px `ui.gold` star) and the coins chip, 8 px apart, right edge at W − 12.
 
-**Scroll area:** from y 64 to the bottom. `overflow-y: auto`, `overscroll-behavior: contain`. Content column width = min(W, 600), centred.
-- **Nodes:** `<button>` circles, **64 px** (hard levels **72 px**), centre x = column centre + `OFFSETS[(n − 1) mod 8] × column width`, with `OFFSETS = [0, 0.18, 0.28, 0.18, 0, −0.18, −0.28, −0.18]`. Vertical pitch **96 px** (desktop 104), measured from the bottom: level 1's centre is 120 px above the content bottom. A chapter header slot (132 px) sits above levels 20, 40, 60, 80 and 100, and above level 120 too, where it says the chapter is the last.
+**Scroll area:** from the header's bottom edge to the footer bar's top edge (below). `overflow-y: auto`, `overscroll-behavior: contain`. Content column width = min(W, 600), centred. The scroll viewport **ends at the footer bar**, so no node or chapter card can ever scroll under the bar or the header (M13; the M12 layout let the "Play level N" button cover the bottom of a chapter card on phones).
+
+**Map geometry (M13, binding).** One pure function, `mapGeometry({ w, h, safeTop, safeBottom })` in `src/ui/screens/mapGeometry.ts`, returns every position below. The DOM, the SVG path and the scroll target all use it; CSS sets sizes and looks only, never offsets. "Desktop" means viewport width ≥ 800, as before.
+
+| Constant | Phone | Desktop |
+|---|---|---|
+| Header height `HH` | 64 | 72 |
+| Footer bar height `FB` (16 + button + 16) | 88 (button 56) | 84 (button 52) |
+| Node diameter (hard) | 64 (72) | 72 (80) |
+| `RH` = hard node radius | 36 | 40 |
+| `CAP` = caption block under a node (3 + 16 stars/lock/Continue line, 3 + 14 "Hard" line) | 36 | 36 |
+| Node box width (circle and captions) | 80 | 88 |
+| Pitch `P = 2·RH + CAP + 8` | 116 | 124 |
+| Chapter card height `CARD` (fixed) | 112 | 112 |
+| Gap under a card `GU` (clears the 30 px mini gloop of the node below) / over a card `GO` | 32 / 12 | 32 / 12 |
+| Chapter slot `SLOT = CARD + GU + GO + 2·RH + CAP − P` | 148 | 148 |
+| Content padding: bottom `PB` / top `PT` | 24 / 16 | 24 / 16 |
+
+- **Node centres** (content coordinates, y down, content height `HC`): `up(n) = PB + RH + CAP + (n − 1)·P + floor((n − 1) / 20)·SLOT` is the distance from the content bottom, and `cy(n) = HC − up(n)`. `cx(n) = colW / 2 + OFFSETS[(n − 1) mod 8] × colW`. A node's **box** is from `cy − r` to `cy + r + CAP` (r = its own radius), box width as in the table, centred on `cx`.
+- **Chapter card c** (c = 1…6) sits above level 20c, the top end of its chapter: bottom edge `cy(20c) − RH − GU`, top edge 112 above that, width `min(colW − 32, 520)`, centred. With the slot above, there are always 12 px between a card's top edge and the box bottom of level 20c + 1.
+- **Content height** `HC = up(120) + RH + GU + CARD + PT` (phone 14,836 px, desktop 15,796 px).
+- **The frontier's mini gloop** (40 px, peeking 30 px over the node) is decoration: `pointer-events: none`, drawn above the path. It may overlap the caption of the node above it, never a card or a bar (GU covers it).
+- **Footer bar (fixed, new in M13):** `position: absolute; bottom: 0`, height `FB + safe-area-inset-bottom`, the column width (full width on phone; x 340 → 940 on desktop, like the header), background `ui.panel`, shadow `0 −4px 12px light.shadow` (the header's shadow, mirrored). The button sits 16 px below the bar's top edge. The bar never hides: when every level is won it holds the design §16.4 text line instead of the button, so the scroll geometry never changes.
+- **Scroll viewport:** top = `safeTop + HH`, height `V = h − safeTop − safeBottom − HH − FB`. The `.adventure-scroll` element's bottom inset is exactly `FB + safe-area-inset-bottom`.
+- **Chapter card text:** fixed height 112, `box-sizing: border-box`; every line is one line (`white-space: nowrap; overflow: hidden; text-overflow: ellipsis`), so a narrow phone can't make the card taller than its slot.
+
+**Nodes:** `<button>` circles, 64 px (hard levels 72 px; desktop 72 / 80), centred on (`cx`, `cy`) above. `OFFSETS = [0, 0.18, 0.28, 0.18, 0, −0.18, −0.28, −0.18]`. Level 1 is at the bottom. A chapter card sits above levels 20, 40, 60, 80 and 100, and above level 120 too, where it says the chapter is the last.
 - **Node states:**
   - *Won:* gradient `ui.secondaryTop` → `ui.secondaryBottom`, 4 px lip `ui.secondaryLip`, the number in Baloo 2 800 24 px `ui.textPrimary`. Under the node, three 16 px stars 4 px apart: earned = `ui.gold` with a `ui.coinShade` 1 px inner edge; not earned = `ui.track` with a 2 px `ui.panelBorder` outline.
   - *Next (the frontier):* the primary candy gradient (§11.1) with lip `ui.primaryLip`, the number in `ui.textOnPrimary`. A 40 px mini gloop of the chapter flavour (ch1 cherry, ch2 lemon, ch3 apple, ch4 blueberry, ch5 grape, ch6 bubblegum; expression `idle`) peeks over the node's top edge. The node pulses at scale 1 ↔ 1.06, 1,200 ms, `easeInOutSine` (CSS, off in reduced motion).
   - *Locked:* `ui.disabled` fill, number `ui.disabledText`, no lip, a 16 px lock icon in place of the stars. Disabled.
   - *Hard:* any of the above plus a 4 px ring `ui.danger` 3 px outside the node, and the label "Hard" (Small/caption style, `ui.danger`) under the stars.
   - *Paused attempt:* the label "Continue" (Small, `ui.textPrimary`) in place of the stars.
-- **Path:** one inline `<svg>` behind the nodes, a Catmull-Rom curve through the node centres. Stroke 10 px, `stroke-linecap: round`, `stroke-dasharray: 0 18` so it is drawn as sugar dots: `ui.panelBorder` alpha 0.9 for the part beyond the frontier, `ui.gold` alpha 0.8 up to the frontier node.
-- **Chapter header** (a card, §11.7, full column width minus 32, max 520): heading "Chapter 2 · Sugar cubes" (Button-secondary style), on the right "34 / 60 ★" (Small, `ui.gold` star). Two reward lines (Small, `ui.textSecondary`): "All 20 levels: 200 coins, 100 XP" and "All 60 stars: 300 coins", each with a check icon in `ui.success` once paid. A 56 px mini gloop of the chapter flavour sits on the left (§11.7 card illustration).
-- **Footer button (fixed):** primary "Play level 23", width min(W − 32, 360), centred, bottom edge 16 px above the bottom safe area. It opens that level's start card (the frontier, or the paused level if there is one). The scroll content gets 104 px of bottom padding so the button never covers level 1. When every level is won, the text line from design §16.4 replaces the button.
-- **On open:** scroll so the frontier node's centre is at 60% of the viewport height (instant, never animated, so it can't feel slow). A newly unlocked node (after a win) plays a one-time unlock: lock icon scales to 0 (160 ms), the node flips to "next" with `easeOutBack` 300 ms, and 6 sugar sparkles. Reduced motion: no flip, just the new state.
+- **Path:** one inline `<svg>` behind the nodes and the cards (cards are opaque and sit above it), a Catmull-Rom curve through the node centres from `mapGeometry`, `viewBox = 0 0 colW HC`. Stroke 10 px, `stroke-linecap: round`, `stroke-dasharray: 0 18` so it is drawn as sugar dots: `ui.panelBorder` alpha 0.9 for the part beyond the frontier, `ui.gold` alpha 0.8 up to the frontier node.
+- **Chapter card** (a card, §11.7, size and place above): heading "Chapter 2 · Sugar cubes" (Button-secondary style), "34 / 60 ★" (Small, `ui.gold` star). Two reward lines (Small, `ui.textSecondary`): "All 20 levels: 200 coins, 100 XP" and "All 60 stars: 300 coins", each with a check icon in `ui.success` once paid. A 56 px mini gloop of the chapter flavour sits on the left (§11.7 card illustration).
+- **Footer button:** primary "Play level 23", width min(W − 32, 360), centred in the footer bar. It opens that level's start card (the frontier, or the paused level if there is one).
+- **On open:** `scrollTop = clamp(round(cy(target) − 0.6 × V), 0, HC − V)`, where target = the paused level, else the frontier (at most 120). Instant, never animated, so it can't feel slow. The target node's box and its mini gloop are always fully inside the viewport. A newly unlocked node (after a win) plays a one-time unlock: lock icon scales to 0 (160 ms), the node flips to "next" with `easeOutBack` 300 ms, and 6 sugar sparkles. Reduced motion: no flip, just the new state.
 - **Performance:** about 140 DOM elements and one SVG path, built once per open. Only the frontier node animates (CSS transform). There is exactly one canvas, the frontier's mini gloop. No JS runs per frame on the map.
 
-| | Pixel 7 (412 × 915) | Desktop (1280 × 800) |
-|---|---|---|
-| Header | y 0 → 64, full width | y 0 → 72, column 600 centred (x 340 → 940); Back at column x + 12 |
-| Column | 412 wide; node centres x 91 … 321 (offsets ±74, ±115) | 600 wide; node centres x 472 … 808 (offsets ±108, ±168) |
-| Node / pitch | 64 px (hard 72) / 96 px | 72 px (hard 80) / 104 px |
-| Footer button | 360 × 56 at x 26, y 843 | 360 × 52 at x 460, y 732 |
-| Visible levels | about 8 | about 6 |
+| | Pixel 7 (412 × 915) | Small phone (360 × 740) | Desktop (1280 × 800) |
+|---|---|---|---|
+| Header | y 0 → 64, full width | y 0 → 64, full width | y 0 → 72, column 600 centred (x 340 → 940); Back at column x + 12 |
+| Scroll viewport | y 64 → 827 (V = 763) | y 64 → 652 (V = 588) | y 72 → 716 (V = 644) |
+| Column | 412 wide; node centres x 91 … 321 (offsets ±74, ±115) | 360 wide; node centres x 79 … 281 (offsets ±65, ±101) | 600 wide; node centres x 472 … 808 (offsets ±108, ±168) |
+| Node / pitch | 64 px (hard 72) / 116 px | 64 px (hard 72) / 116 px | 72 px (hard 80) / 124 px |
+| Chapter card | 380 × 112 at x 16 | 328 × 112 at x 16 | 520 × 112 at x 380 |
+| Footer bar | y 827 → 915, full width | y 652 → 740, full width | y 716 → 800, x 340 → 940 |
+| Footer button | 360 × 56 at x 26, y 843 | 328 × 56 at x 16, y 668 | 360 × 52 at x 460, y 732 |
+| Visible levels | about 6 | about 5 | about 5 |
+
+With a bottom safe-area inset (e.g. 34 px on iOS), the bar grows by the inset, V shrinks by it, and nothing else moves.
 
 ### 20.3 Level start card (modal)
 A modal panel (§11.3, max width 360 phone / 420 desktop, padding 24) over the map, or over the board when coming from "Next level". Enter and exit as §11.3. Contents from top to bottom, 12 px gaps:

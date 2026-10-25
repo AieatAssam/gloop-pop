@@ -712,3 +712,66 @@ Spec: design §24 (read §24.1 and §24.15 first), design §16.4 "Pass 3" string
   - The string audit finds no player-facing text outside `strings.ts`, and `check-no-hex` is clean.
   - The final message lists the screenshot set for the director: `demo=target`, `target-hit`, `mini-done`, `missions`, `missions-done`, `cubes`, `adventure-map`, `adventure-map-end`, `level-card&level=21`, `level-card&level=24&streak=3…`, `adventure-play&level=87`, `adventure-win&stars=1|2|3`, `adventure-lose`, `adventure-lose&losses=3`, each at 412 × 915 and 1280 × 800.
   - The director plays chapters 1–2 on a phone and records in `docs/balance-log.md` whether the hard levels feel short and fair (RT16). Any level that a human finds clearly unfair is fixed by a parameter change and regeneration, never by hand.
+
+## M13 Pass-3 polish
+
+Spec: design §24.5 (C goal), §24.6 (difficulty measure, bands, neighbour rule, calibration, tests, "Changing the table"), §14.4 and §15 #40 (Gold pop effects, Collector), §16.4 (C goal text); SG §20.2 (map geometry) and §9.3 (Gold effects). Background numbers: `docs/balance-log.md`, the three M13 sections. Do the chunks in order; each ships alone with `timeout 300 npm run check` passing. The M12 binding rules (input never waits, strings only in `strings.ts`, colours only from existing palette roles, no new runtime dependencies, demo saves never written) still apply. The frozen level bot (`levelBot.ts`) is **not** changed, and the pinned 400-day Daily hash, the Classic golden game and the sim tests pass unchanged.
+
+### M13.1 Level difficulty bands and the cube goal fix
+- **Implements:** design §24.5 C row and singular form, §24.6 from "Difficulty measure" to "Changing the table" (whole), the two goal-rotation swaps, §24.14 stale-attempt note, §16.4 C goal text.
+- **Files:**
+  - `src/core/levels.ts`: `GOAL_ROTATION` rows 3 and 6 per §24.6; `LevelDef` gains `margin: number`; export the tier band table and `inBand(band, wins, margin, moves)` and `harderThan(hard, neighbour)` (the neighbour rule, integer cross-multiply), pure.
+  - `src/core/levelGen.ts`: per-move traces in `playRun`; C's raw target = cube count; candidates, evaluation from traces, target search order, seed acceptance with the neighbour rule against the previously accepted level (`generateLevel(n, previous?)`), the step 7 replay check including `margin`. `calibrate(n, s)` stays context-free.
+  - `tools/gen-levels.mjs`: pass the previous level to `generateLevel`; the summary prints, per chapter and tier, mean W, min–max W and mean m, then the number of levels that fail a band or the neighbour rule (expected 0).
+  - `src/core/levels.data.ts`: regenerated with `timeout 900 npm run levels -- --write`.
+  - `src/core/adventure.ts`: no rule change (C progress already counts removed cubes; check a hard cube counts on removal).
+  - `src/meta/adventureProgress.ts`: `isStaleAttempt(state, def)`; the map open and resume paths (lazy chunk) drop a stale `adventure.inProgress` with no loss, no streak change, and armed Shuffle/Pop returned to stock.
+  - `src/ui/strings.ts`: `cubesGoal` and the C branch of `adventureGoalText`: "Clear {t} sugar cubes" / "Clear 1 sugar cube".
+  - `docs/balance-log.md`: a dated "M13 levels" section with the real `--verify` table and the seed indices; state whether it equals the director's forecast (it must).
+- **Tests:**
+  - `levels.test.ts` (timeout 90,000 ms), all 120 levels: (a) board and goal flavour rebuild; (b) `calibrate(n, s)` equals the stored def, including `margin`, and the replay agrees; (c) **band table test**: for every level `inBand(band, wins, margin, moves)` is true, and for every hard level `harderThan(h, b)` holds for b = h − 1 and h + 1 (when it exists), with a failure message naming the level, tier and number; (d) every C target is 1…cube count; (e) no hard level has an M goal; (f) the staircase (6, 21, 41, 46, 51, 61, 81, 91, all easy-band); (g) per chapter, mean W hard < normal < easy; intro caps and the 20-move intro limit, as before.
+  - `levelGen.test.ts` (new): evaluation from synthetic traces (a run that meets the goals on move 5 of 14 has movesLeft 9; a run that never meets them is a loss); lower median for W = 1, 4, 7 and 12; candidate order on a two-goal level (C descending outside, X descending inside, X candidates only from runs that reached c); rounding, minimums and intro caps applied before deduplication.
+  - `levels.test.ts` or `levelGen.test.ts`: `inBand` boundaries: hard W 4 and 7 pass, 3 and 8 fail; hard m 3 at 15 moves passes, m 4 at 15 fails, m 2 at 14 passes, m 3 at 14 fails; easy m 6 at 26 passes, m 5 at 26 fails; `harderThan` passes at W exactly 2 below and equal shares, fails at 1 below or a larger share.
+  - `adventureProgress.test.ts`: a fixture save made on the M12 table (Level 25 at 3 stars, Level 30 at 1 star, frontier 41, a paused attempt on Level 40 with the old seed and target 1) loads with the same stars, wins, frontier, streak and boosters; the paused attempt is reported stale and dropped with no loss and the streak unchanged; a later 1-star win on Level 25 keeps 3 stars; a paused attempt made on the current table is not stale.
+  - `strings.test.ts` and `levelCard.test.ts`: "Clear 3 sugar cubes" and "Clear 1 sugar cube"; no "Clear all".
+  - `levelBot.test.ts`: the golden Level 1 result is unchanged (the bot is frozen).
+- **Done when:** `timeout 900 npm run levels -- --write` run twice gives a byte-identical table; every `level:seedIndex:targets` value equals the director's forecast list in `docs/balance-log.md` ("M13 forecast", compare with a one-off script and report the result); `timeout 900 npm run levels -- --verify` passes and prints 0 failing levels; `levels.test.ts` takes under 30 s (report the time); `timeout 300 npm run check` passes.
+
+### M13.2 Adventure map layout and the debug tutorial
+- **Implements:** SG §20.2 "Scroll area", "Map geometry", nodes, path, chapter card, footer bar and button, "On open", the three-column table; the debug tutorial decision below.
+- **Debug tutorial (decision):** with `?debug=1` on a save where `tutorialDone` is false and there is no saved run, the tutorial is now **marked done properly**, through the same code path as "Skip" (`tutorialDone = true`, `tutorialStep4Pending` removed, no XP, coins or achievements), instead of being skipped silently. On demo URLs with save writes disabled this happens on the in-memory copy only. `?debug=1&tutorial=1` runs the real tutorial in debug. The logic is one pure function, `debugTutorialState(save, query)` in `src/app/demoScenes.ts`, called from `app.ts` at boot.
+- **Files:**
+  - `src/ui/screens/mapGeometry.ts` (new, pure): `mapGeometry({ w, h, safeTop, safeBottom })` → `{ desktop, pitch, slot, contentHeight, colW, viewportTop, viewportHeight, barHeight, nodes: { level, cx, cy, r, box }[], cards: { chapter, x, y, w, h }[], scrollTopFor(level) }`.
+  - `src/ui/screens/adventureMap.ts`: every node, card and path point from `mapGeometry` (inline px); `yFor` and the `+ 164` / `+ 168` offsets removed; a `.adventure-footer-bar` element holding the button or the all-won line; scroll target from `scrollTopFor`.
+  - `src/ui/styles.css`: `.adventure-scroll` bottom inset `calc(var(--safe-area-bottom) + 88px)` (84 px at ≥ 800 wide); the bar's background and mirrored header shadow; `.adventure-chapter-card` `height: 112px; box-sizing: border-box` and one-line copy (`nowrap`, ellipsis); the column's 104 px bottom padding removed.
+  - `src/app/demoScenes.ts` and `src/app/app.ts`: `debugTutorialState`; `demo=adventure-map` accepts `&frontier=N` (1…120, default 23).
+  - `docs/architecture.md`: record `mapGeometry.ts`. `docs/qa-checklist.md`: the M13 map lines and the URLs below.
+- **Tests:**
+  - `mapGeometry.test.ts` (new) for 412 × 915, 360 × 740, 1280 × 800 and 390 × 844 with `safeBottom` 34: (1) no two node boxes intersect; (2) no node box or frontier mini-gloop box (40 × 40, top 30 px above the circle) intersects a chapter card; (3) every node box and card is inside the column, and cards are ≥ 16 px from each side; (4) content height − level 1 box bottom ≥ 24; (5) `pitch`, `slot`, `contentHeight` and `viewportHeight` equal SG §20.2 (116/124, 148, 14,836/15,796, 763/588/644, and 658 for the safe-area case); (6) for targets 1, 20, 21, 23, 41, 60, 100, 119 and 120, `scrollTopFor` is within [0, contentHeight − viewportHeight] and the target's box and mini gloop lie fully inside [scrollTop, scrollTop + viewportHeight]; (7) every card's top is exactly 12 px below the box bottom of level 20c + 1.
+  - `adventureMap.test.ts` (jsdom): node and card inline positions equal `mapGeometry` for `innerWidth` 412 and 1280; 6 cards; the footer bar holds the "Play level 23" button, and on the all-won save it holds the §16.4 line and no button; the button still opens the frontier or the paused level.
+  - `styles.test.ts`: the scroll inset, the bar height, the 112 px card height and `nowrap` copy are pinned; the old `var(--node-y) + 164px` rule is gone.
+  - `demoScenes.test.ts`: `debugTutorialState` on a fresh save with `debug=1` sets `tutorialDone` and changes nothing else (coins, XP, achievements, seenTips except the pending tip); with `tutorial=1` the save is unchanged; with a saved run the save is unchanged; a demo URL still never writes storage.
+- **Done when:** the tests pass; `timeout 300 npm run check` passes; the director's screenshots below show no overlap between the footer bar, the header, chapter cards and nodes.
+
+### M13.3 Gold pop effects (late coin sink)
+- **Implements:** design §14.2, §14.4 (3 rows, total, the Gold paragraph), §15 #40 (24 items); SG §9.3 Gold rows and preview.
+- **Files:**
+  - `src/meta/catalogue.ts`: `goldsparkles` 1,500, `goldstars` 2,000, `goldconfetti` 2,500 (kind `pop`), after `fireworks`.
+  - `src/render/themes.ts`: `PopEffectId` gains the three ids. `src/render/fx/particles.ts`: a pure `popParticleStyle(effect, random, flavourGlow)` → `{ kind, colour }` where each Gold id maps to its base `kind` and the SG §9.3 colours; gravity, size and life follow the base effect.
+  - `src/ui/screens/collection.ts`: the preview dots in the effect's colours. `src/ui/strings.ts`: "Gold Sparkles", "Gold Stars", "Gold Confetti".
+  - `src/meta/migrate.ts`: the three ids are valid in `owned.pops` and `equipped.pop`. `src/meta/achievements.ts`: Collector needs all 24 items; an already unlocked Collector stays unlocked.
+- **Tests:**
+  - `catalogue.test.ts`: 24 items; the three prices; the purchasable total is 16,000; buying a Gold effect with too few coins is refused with the save unchanged.
+  - `particles.test.ts` (new, or the existing render test file): each Gold id returns its base `kind`; with a stub `random`, `goldsparkles` gives `ui.gold` below 0.6 and `fx.sugar` above, `goldstars` gives `ui.gold` below 0.7 and `ui.coinShade` above, `goldconfetti` picks from its 4 roles; particle counts per cell are unchanged.
+  - `migrate.test.ts`: a save that owns and equips `goldconfetti` survives sanitize; an unknown pop id is still dropped.
+  - `achievements.test.ts`: Collector fires at 24 items, not at 21; a save with Collector already unlocked and 21 items keeps it after load.
+  - `strings.test.ts`: the three names; no hype words. `check-no-hex` stays clean (no new hex anywhere).
+- **Done when:** the tests pass; `timeout 300 npm run check` passes and the bundle stays ≤ 115 KB gz (report it); no new palette roles were added.
+
+### M13 screenshots (the director takes them; the coding agent only lists them in the final message)
+- `/gloop-pop/?debug=1&demo=adventure-map` at **412 × 915**, **360 × 740** and 1280 × 800: frontier 23; the Chapter 1 card sits between Levels 20 and 21 and the footer bar covers nothing.
+- `/gloop-pop/?debug=1&demo=adventure-map&frontier=41` at **412 × 915** and **360 × 740**: the Chapter 2 card sits just under the frontier, the case that overlapped in M12.
+- `/gloop-pop/?debug=1&demo=adventure-map-end` at 360 × 740: the footer bar holds the all-won line.
+- `/gloop-pop/?debug=1&demo=level-card&level=25` at 412 × 915 and 360 × 740: a hard level start card ("Hard level" chip, a "Clear {t} sugar cubes" goal, 14 moves).
+- `/gloop-pop/?debug=1&demo=level-card&level=50` at 412 × 915: the swapped hard F level.
+- `/gloop-pop/?debug=1&save=veteran`, then Collection → Pop effects, at 412 × 915: the three Gold rows with prices.
