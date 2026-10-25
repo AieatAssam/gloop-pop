@@ -1,6 +1,7 @@
 // M7.2 and SG §11.14: settings controls mirror design §16.4 and persist through app callbacks.
 import type { SaveV2 } from '../../meta/saveSchema';
 import { S } from '../strings';
+import { el } from '../dom';
 
 export interface SettingsActions {
   change(key: 'sfx' | 'music' | 'haptics' | 'cbPatterns', value: boolean): void;
@@ -40,4 +41,4 @@ function volumeRow(label: string, value: number, disabled: boolean, key: 'sfxVol
 }
 function selectRow(label: string, options: readonly [string, string][], value: string, change: (value: string) => void): HTMLElement { const row = document.createElement('label'); row.className = 'settings-row'; const text = document.createElement('span'); text.textContent = label; const select = document.createElement('select'); select.setAttribute('aria-label', label); for (const [name, id] of options) { const option = document.createElement('option'); option.value = id; option.textContent = name; select.append(option); } select.value = value; select.addEventListener('change', () => change(select.value)); row.append(text, select); return row; }
 function confirmReset(panel: HTMLElement, reset: () => void): void { const copy = document.createElement('p'); copy.className = 'rescue-copy'; copy.textContent = S.resetConfirm; const confirm = button(S.deleteEverything, 'button button--danger', reset); const cancel = button(S.cancel, 'button button--secondary', () => { copy.remove(); confirm.remove(); cancel.remove(); }); panel.append(copy, confirm, cancel); }
-function button(label: string, className: string, action: () => void): HTMLButtonElement { const value = document.createElement('button'); value.type = 'button'; value.className = className; value.textContent = label; value.addEventListener('click', action); return value; }
+function button(label: string, className: string, action: () => void): HTMLButtonElement { const value = el('button', className, label); value.addEventListener('click', action); return value; }

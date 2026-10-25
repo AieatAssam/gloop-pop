@@ -2,6 +2,7 @@
 import type { GameState } from '../core/types';
 import { S } from './strings';
 import { iconMarkup } from './icons';
+import { el } from './dom';
 
 export function createLevelResultPanel(state: GameState, reward: { xp: number; coins: number; progress?: number; progressMax?: number }, actions: { next(): void; replay(): void; assistAgain?(): void; map(): void }, nearLines: string[] = [], progress: { winStreak: number; streakReset: boolean; assistAvailable: boolean } = { winStreak: 0, streakReset: false, assistAvailable: false }): HTMLElement {
   const adventure = state.adventure; if (!adventure?.result) throw new Error('Adventure result is required');
@@ -29,4 +30,4 @@ export function createLevelResultPanel(state: GameState, reward: { xp: number; c
   else { panel.append(button(S.tryAgain, 'button button--primary', () => actions.replay())); if (progress.assistAvailable && actions.assistAgain) panel.append(button(S.tryAgainAssist, 'button button--secondary', () => actions.assistAgain?.())); }
   panel.append(button(S.map, 'text-button', () => actions.map())); queueMicrotask(() => panel.querySelector('button')?.focus()); return panel;
 }
-function button(text: string, cls: string, action: () => void): HTMLButtonElement { const element = document.createElement('button'); element.type = 'button'; element.className = cls; element.textContent = text; element.addEventListener('click', action); return element; }
+function button(text: string, cls: string, action: () => void): HTMLButtonElement { const element = el('button', cls, text); element.type = 'button'; element.addEventListener('click', action); return element; }

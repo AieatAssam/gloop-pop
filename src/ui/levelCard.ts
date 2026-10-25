@@ -1,7 +1,7 @@
 // SG §20.3: compact modal card with pictured goals, moves and star thresholds.
 import { levelParams, type LevelDef, type LevelGoal } from '../core/levels';
 import { createMiniGloop } from '../render/miniGloop';
-import { S } from './strings';
+import { S, formatNumber } from './strings';
 import { PALETTE } from '../render/palette';
 import { drawCube } from '../render/cubes';
 import { drawGloop } from '../render/gloopRenderer';
@@ -76,7 +76,7 @@ export function createLevelCard(def: LevelDef, actions: { play(selection?: Boost
   shade.addEventListener('keydown', key); shade.tabIndex = -1; return shade;
   function updateMoves(): void { count.textContent = moveCount(def.moves, baseBonus + (selection.moves ? 3 : 0) + (assist ? 5 : 0)); }
 }
-function moveCount(moves: number, bonus: number): string { return bonus ? `${new Intl.NumberFormat('en-US').format(moves)} +${new Intl.NumberFormat('en-US').format(bonus)}` : new Intl.NumberFormat('en-US').format(moves); }
+function moveCount(moves: number, bonus: number): string { return bonus ? `${formatNumber(moves)} +${formatNumber(bonus)}` : formatNumber(moves); }
 function animateBalance(element: HTMLElement, start: number, end: number): void {
   const began = performance.now(); const tick = (now: number): void => { const t = Math.min(1, (now - began) / 300); element.textContent = S.coinBalance(Math.round(start + (end - start) * t)); if (t < 1) requestAnimationFrame(tick); };
   requestAnimationFrame(tick);

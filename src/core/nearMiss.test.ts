@@ -3,7 +3,7 @@ import { makeBoard } from './board';
 import { nearMissFacts, nearMissMessages } from './nearMiss';
 import { newGame } from './game';
 import { newAdventureGame } from './adventure';
-import { LEVELS } from './levels.data';
+import { LEVELS } from './levelTable';
 
 describe('near miss facts', () => {
   it('finds one-cell-short pieces and lines from a real board', () => {

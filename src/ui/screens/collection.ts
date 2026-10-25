@@ -8,6 +8,7 @@ import { withAlpha } from '../../render/colour';
 import { components } from '../../core/gloops';
 import { getEquippedPopEffect, getEquippedSkin, getEquippedTheme, setEquippedCosmetics, type PopEffectId, type SkinId } from '../../render/themes';
 import { S } from '../strings';
+import { el } from '../dom';
 
 const KINDS: readonly ItemKind[] = ['theme','skin','pop'];
 const SKIN_MAP: Record<string, SkinId> = { plain:'plain', googly:'googlyEyes', freckles:'freckles', catears:'catEars', glasses:'glasses', mustache:'mustache', bowtie:'bowtie', crown:'crown' };
@@ -35,7 +36,7 @@ export function createCollectionScreen(save: SaveV2, onBack: () => void, onSave:
  }
 }
 function tabLabel(kind: ItemKind): string { return kind==='theme'?S.collectionThemes:kind==='skin'?S.collectionSkins:S.collectionPops; }
-function button(label:string, className:string, action:()=>void):HTMLButtonElement { const el=document.createElement('button'); el.type='button';el.className=className;el.textContent=label;el.addEventListener('click',action);return el; }
+function button(label:string, className:string, action:()=>void):HTMLButtonElement { const value=el('button',className,label);value.addEventListener('click',action);return value; }
 function syncCosmetics(save:SaveV2):void { setEquippedCosmetics({theme:save.equipped.theme as ThemeKey,skin:SKIN_MAP[save.equipped.skin]??'plain',popEffect:save.equipped.pop as PopEffectId}); }
 function previewCanvas(kind:ItemKind,id:string):HTMLCanvasElement {
  const canvas=document.createElement('canvas');canvas.width=160;canvas.height=112;canvas.className=`collection-preview${kind==='pop'?' collection-preview-pop':''}`;const ctx=canvas.getContext('2d');if(!ctx)return canvas;

@@ -2,27 +2,37 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
+// spec-note: The M14 lead decision keeps total gzipped JavaScript as the metric and sets its soft target to 110 KB.
+
 export function checkSize(dist = resolve('dist'), audioDirectory = resolve('public/audio'), log = console) {
-if (!statSync(dist, { throwIfNoEntry: false })?.isDirectory()) {
-  log.error('dist/ is missing; run the build first.');
-  return 1;
-}
+  if (!statSync(dist, { throwIfNoEntry: false })?.isDirectory()) {
+    log.error('dist/ is missing; run the build first.');
+    return 1;
+  }
 
-function jsFiles(directory) {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) return jsFiles(path);
-    return extname(path) === '.js' ? [path] : [];
-  });
-}
+  function jsFiles(directory) {
+    return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) return jsFiles(path);
+      return extname(path) === '.js' ? [path] : [];
+    });
+  }
 
-const files = jsFiles(dist);
-const total = files.reduce((sum, path) => sum + gzipSync(readFileSync(path)).byteLength, 0);
-log.log(`Gzipped JavaScript total: ${(total / 1024).toFixed(2)} KB (${files.length} files)`);
-if (total >= 150 * 1024) {
-  log.error('Bundle exceeds the 150 KB gzipped limit.');
-  return 1;
-}
+  const files = jsFiles(dist);
+  const bytes = new Map(files.map((path) => [path, gzipSync(readFileSync(path), { level: 9 }).byteLength]));
+  const total = [...bytes.values()].reduce((sum, size) => sum + size, 0);
+  const debugFiles = files.filter((path) => /(?:^|[/\\])debug-[^/\\]+\.js$/.test(path));
+  const debug = debugFiles.reduce((sum, path) => sum + (bytes.get(path) ?? 0), 0);
+  const player = total - debug;
+  const entry = files.filter((path) => /(?:^|[/\\])index-[^/\\]+\.js$/.test(path)).reduce((sum, path) => sum + (bytes.get(path) ?? 0), 0);
+  log.log(`Gzipped JavaScript total: ${(total / 1024).toFixed(2)} KB (soft target 110 KB)`);
+  log.log(`Player JS: ${(player / 1024).toFixed(2)} KB`);
+  log.log(`Entry chunk: ${(entry / 1024).toFixed(2)} KB`);
+  log.log(`Debug chunk: ${(debug / 1024).toFixed(2)} KB`);
+  if (player > 112 * 1024 || total > 150 * 1024 || debug > 8 * 1024) {
+    log.error('JavaScript bundle exceeds an M14 budget.');
+    return 1;
+  }
 
 let failed = false;
 if (statSync(audioDirectory, { throwIfNoEntry: false })?.isDirectory()) {

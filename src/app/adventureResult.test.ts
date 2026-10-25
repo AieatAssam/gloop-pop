@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { newAdventureGame } from '../core/adventure';
-import { LEVELS } from '../core/levels.data';
+import { LEVELS } from '../core/levelTable';
 import type { GameEvent } from '../core/types';
 import { adventureResultLabel, qualifiesForRescueSave, recordPendingAdventureResult } from './adventureResult';
 

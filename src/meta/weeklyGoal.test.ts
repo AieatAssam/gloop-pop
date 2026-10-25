@@ -3,7 +3,7 @@ import { defaultSave } from './saveSchema';
 import { addWeeklyProgress, claimWeeklyReward, syncWeek, weeklyGoalNearMiss, WEEKLY_TARGETS } from './weeklyGoal';
 import { newGame } from '../core/game';
 import { newAdventureGame } from '../core/adventure';
-import { LEVELS } from '../core/levels.data';
+import { LEVELS } from '../core/levelTable';
 
 describe('weekly goal', () => {
   it('resets by week and pays a completed goal once', () => {

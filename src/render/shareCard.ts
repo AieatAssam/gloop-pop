@@ -2,7 +2,7 @@
 // own body, face and topper renderer, so the card looks like the game and not like generic blobs.
 import type { DailyResult } from '../meta/dailyRecord';
 import { FLAVOUR_KEYS, PALETTE, type ThemeKey } from './palette';
-import { S } from '../ui/strings';
+import { S, formatNumber } from '../ui/strings';
 import { withAlpha } from './colour';
 import { drawGloop } from './gloopRenderer';
 import { components, largestSquare } from '../core/gloops';
@@ -10,7 +10,7 @@ import type { Flavour, Gloop } from '../core/types';
 
 export interface ShareCardData { title: string; date: string; score: number; combo: number; biggestPop: number; lines: number; streak: number; theme: ThemeKey; daily?: DailyResult; board?: readonly number[]; biggestGloop?: { cells: number[]; flavour: number }; heroFlavour?: number }
 const W = 1080; const H = 1350; const COUNTER_Y = 1060;
-const fmt = (n: number): string => new Intl.NumberFormat('en-US').format(n);
+const fmt = formatNumber;
 
 export function renderShareCard(data: ShareCardData): HTMLCanvasElement {
   const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H; const ctx = canvas.getContext('2d'); if (!ctx) return canvas;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LEVELS } from '../core/levels.data';
+import { LEVELS } from '../core/levelTable';
 import { newAdventureGame } from '../core/adventure';
 import { defaultSave } from './saveSchema';
 import { armBoosters, BOOSTERS, buyBooster, returnUnused } from './boosters';

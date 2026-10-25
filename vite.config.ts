@@ -4,7 +4,8 @@ import { join, relative, sep } from 'node:path';
 import { defineConfig, type Plugin, type ResolvedConfig } from 'vite';
 
 export function precacheFilter(file: string): boolean {
-  return !file.split('\\').join('/').replace(/^\.?\//, '').startsWith('audio/');
+  const normalized = file.split('\\').join('/').replace(/^\.?\//, '');
+  return !normalized.startsWith('audio/') && !/(?:^|\/)assets\/debug-/.test(normalized);
 }
 
 export function renderServiceWorker(template: string, version: string, precache: string[], audioFiles: string[]): string {
@@ -52,6 +53,8 @@ export default defineConfig({
     target: 'es2020',
     assetsInlineLimit: 0,
     sourcemap: false,
+    modulePreload: { polyfill: false },
+    rollupOptions: { output: { chunkFileNames: (chunk) => chunk.name === 'debugTools' ? 'assets/debug-[hash].js' : 'assets/[name]-[hash].js' } },
   },
   plugins: [serviceWorkerPlugin()],
 });

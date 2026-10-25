@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { defaultSave } from './saveSchema';
 import { assistAvailable, dropStaleAdventureAttempt, isStaleAttempt, recordLevelResult, unlockAdventure } from './adventureProgress';
 import { newAdventureGame } from '../core/adventure';
-import { LEVELS } from '../core/levels.data';
+import { LEVELS } from '../core/levelTable';
 import { migrate } from './migrate';
 import veteran from './fixtures/save-v1-veteran.json';
 

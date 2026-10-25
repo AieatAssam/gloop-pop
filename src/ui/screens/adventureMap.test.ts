@@ -4,7 +4,7 @@ import { defaultSave } from '../../meta/saveSchema';
 import { createAdventureMap } from './adventureMap';
 import { mapGeometry } from './mapGeometry';
 import { newAdventureGame } from '../../core/adventure';
-import { LEVELS } from '../../core/levels.data';
+import { LEVELS } from '../../core/levelTable';
 
 beforeEach(() => { vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null); });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });

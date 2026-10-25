@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import { LEVELS } from '../core/levels.data';
+import { LEVELS } from '../core/levelTable';
 import { newAdventureGame } from '../core/adventure';
 import { computeLayout } from '../render/layout';
 import { createBoosterBar } from './boosterBar';

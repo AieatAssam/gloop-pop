@@ -14,10 +14,8 @@ import { attachKeyboard } from '../input/keyboard';
 import { createSession, runToResumeOnBoot } from './session';
 import { createGameUi } from '../ui/dom';
 import { createTopBar } from '../ui/topBar';
-import { S } from '../ui/strings';
+import { S, formatNumber } from '../ui/strings';
 import { loadSave, saveNow, setSaveWritesDisabled } from '../platform/saveStore';
-import veteranSave from '../meta/fixtures/save-v1-veteran.json';
-import { migrate } from '../meta/migrate';
 import type { SaveV2 } from '../meta/saveSchema';
 import { recordAdventureRunStats, recordRun } from '../meta/stats';
 import { grantXp, rewardsForRun, totalXpForLevel, xpToNext } from '../meta/progression';
@@ -60,9 +58,6 @@ import { createSettingsScreen } from '../ui/screens/settings';
 import { createHowToPlayScreen } from '../ui/screens/howToPlay';
 import { defaultSave } from '../meta/saveSchema';
 import { setColourBlindPatterns } from '../render/gloopRenderer';
-import { chooseBotMove } from '../core/sim';
-import { seededRng } from '../core/rng';
-import { createFeelScene, createGoalScene, debugSaveWritesDisabled, debugTutorialState, markTutorialSkipped } from './demoScenes';
 import { musicState } from '../audio/musicState';
 import { createCreditsScreen } from '../ui/screens/credits';
 import { drawGoalStrip } from '../render/goalStrip';
@@ -70,7 +65,6 @@ import { nextTarget } from '../core/goals';
 import { addMissionProgress, claimMission, missionNearMiss, rerollMission, rollDay } from '../meta/missions';
 import { MISSIONS } from '../core/missions';
 import { newAdventureGame } from '../core/adventure';
-import { levelParams } from '../core/levels';
 import { assistAvailable, dropStaleAdventureAttempt, recordLevelResult, unlockAdventure } from '../meta/adventureProgress';
 import { armBoosters, returnUnused, type BoosterSelection } from '../meta/boosters';
 import { createBoosterBar } from '../ui/boosterBar';
@@ -82,19 +76,14 @@ export async function bootApp(): Promise<void> {
   if (!canvas || !uiRoot) throw new Error('Missing game surface.');
   const gameCanvas = canvas;
   const query = new URLSearchParams(window.location.search); const debug = query.get('debug') === '1'; const veteranDemo = debug && query.get('save') === 'veteran';
+  const dbg = debug ? await import('./debugTools') : null;
   // spec-note: The level bot is development-only, even for debug URLs, so it never ships in the production bundle.
   const chooseAdventureBot = debug && import.meta.env.DEV ? (await import('../core/levelBot')).chooseLevelMove : undefined;
-  setSaveWritesDisabled(debugSaveWritesDisabled(query, veteranDemo));
-  let save = veteranDemo ? migrate(veteranSave) : loadSave(); save = rollDay(save, dayKeyFromMs(Date.now()));
-  if (debug && (query.get('demo') === 'missions' || query.get('demo') === 'missions-done')) {
-    const today = dayKeyFromMs(Date.now()); const done = query.get('demo') === 'missions-done';
-    save.missions.day = today; save.missions.slots = done
-      ? [{id:'lines15',pos:0,progress:15,claimed:true,issued:today},{id:'lines40',pos:0,progress:40,claimed:true,issued:today},{id:'lines80',pos:0,progress:80,claimed:true,issued:today}]
-      : [{id:'lines15',pos:0,progress:15,claimed:false,issued:today},{id:'lines40',pos:0,progress:32,claimed:false,issued:today},{id:'lines80',pos:0,progress:80,claimed:true,issued:today}];
-    save.missions.rerollDay = null; save.missions.shownToday = save.missions.slots.map((slot) => slot.id); save.missions.setPaid = done;
-  }
+  setSaveWritesDisabled(dbg?.debugSaveWritesDisabled(query, veteranDemo) ?? false);
+  let save = veteranDemo && dbg ? dbg.veteranSaveState() : loadSave(); save = rollDay(save, dayKeyFromMs(Date.now()));
+  if (debug && dbg) save = dbg.debugMissionSave(save, query, dayKeyFromMs(Date.now()));
   const savedRun = runToResumeOnBoot(save.inProgress);
-  const tutorialSave = debugTutorialState(save, query);
+  const tutorialSave = dbg?.debugTutorialState(save, query) ?? save;
   if (tutorialSave !== save) { save = tutorialSave; saveNow(save); }
   const skinMap: Record<string, SkinId> = { plain:'plain', googly:'googlyEyes', googlyEyes:'googlyEyes', freckles:'freckles', catears:'catEars', catEars:'catEars', glasses:'glasses', mustache:'mustache', bowtie:'bowtie', crown:'crown' };
   const syncCosmetics = (): void => setEquippedCosmetics({ theme: save.equipped.theme as keyof typeof PALETTE.theme, skin: skinMap[save.equipped.skin] ?? 'plain', popEffect: save.equipped.pop as PopEffectId });
@@ -109,45 +98,12 @@ export async function bootApp(): Promise<void> {
   const debugLevelDef = levelTable?.[requestedLevel - 1];
   const adventurePlayDemo = adventureDemo === 'adventure-play' || adventureDemo === 'adventure-win' || adventureDemo === 'adventure-lose';
   const debugLevelState = debugLevelDef && (adventurePlayDemo || (!levelScene && query.has('level'))) ? newAdventureGame(debugLevelDef, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state : null;
-  if (debug && adventureDemo === 'level-card' && debugLevelDef) {
-    // spec-note: The capture tuple is shuffle,moves,pop so this fixture shows the specified free Shuffle, short Moves buy, and capped Pop.
-    const [shuffle, moves, pop] = (query.get('boosters') ?? '0,0,0').split(',').map((value) => Math.max(0, Math.min(5, Number(value) || 0)));
-    save.owned.modes = Array.from(new Set<ModeId>([...save.owned.modes, 'adventure'])); save.adventure.frontier = requestedLevel;
-    save.adventure.winStreak = Math.max(0, Number(query.get('streak')) || 0); save.profile.coins = Math.max(0, Number(query.get('coins')) || 0);
-    save.adventure.boosters = { moves: moves ?? 0, shuffle: shuffle ?? 0, pop: pop ?? 0 };
-    save.adventure.levels[String(requestedLevel)] = { stars: 0, wins: 0, losses: 0, lossRun: Math.max(0, Number(query.get('losses')) || 0), bestScore: 0 };
-  }
-  if (debug && debugLevelState?.adventure && adventureDemo === 'adventure-play') {
-    const armed = new Set((query.get('armed') ?? '').split(','));
-    debugLevelState.adventure.boosters.shuffle = armed.has('shuffle') ? 'armed' : 'none'; debugLevelState.adventure.boosters.pop = armed.has('pop') ? 'armed' : 'none';
-  }
-  if (debug && adventureDemo === 'adventure-lose' && debugLevelDef) {
-    save.owned.modes = Array.from(new Set<ModeId>([...save.owned.modes, 'adventure'])); save.adventure.frontier = requestedLevel;
-    save.adventure.levels[String(requestedLevel)] = { stars: 0, wins: 0, losses: Math.max(0, Number(query.get('losses')) || 0), lossRun: Math.max(0, Number(query.get('losses')) || 0), bestScore: 0 };
-  }
-  if (debug && ['adventure-map', 'adventure-map-end'].includes(adventureDemo)) {
-    save.owned.modes = Array.from(new Set<ModeId>([...save.owned.modes, 'adventure']));
-    const requestedFrontier = Math.max(1, Math.min(120, Math.round(Number(query.get('frontier')) || 23)));
-    save.adventure.frontier = adventureDemo === 'adventure-map-end' ? 121 : requestedFrontier;
-    save.adventure.levels = {};
-    for (let level = 1; level < save.adventure.frontier; level += 1) save.adventure.levels[String(level)] = { stars: (((level - 1) % 3) + 1) as 1 | 2 | 3, wins: 1, losses: 0, lossRun: 0, bestScore: 0 };
-    if (adventureDemo === 'adventure-map') { save.adventure.inProgress = newAdventureGame(levelTable?.[requestedFrontier - 1] ?? (await import('../ui/adventureBundle')).LEVELS[requestedFrontier - 1]!, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state;
-      // spec-note: Demo chapters fully before the requested frontier have already paid their all-level reward.
-      save.adventure.chaptersDone = Array.from({ length: Math.floor((requestedFrontier - 1) / 20) }, (_, index) => index + 1); }
-    if (adventureDemo === 'adventure-map-end') { save.adventure.levels = Object.fromEntries(Array.from({ length: 120 }, (_, index) => [String(index + 1), { stars: 3 as const, wins: 1, losses: 0, lossRun: 0, bestScore: 0 }])); save.adventure.chaptersDone = [1, 2, 3, 4, 5, 6]; save.adventure.chaptersAllStars = [1, 2, 3, 4, 5, 6]; }
-  }
+  if (debug && dbg && levelTable) save = dbg.debugAdventureSave(save, query, levelTable, requestedLevel);
   const runDebugTutorial = debug && query.get('tutorial') === '1';
   const beginTutorial = (!debug || runDebugTutorial) && !debugLevelState && !savedRun && !save.tutorialDone;
   let session = createSession({ state: debugLevelState ?? savedRun ?? (beginTutorial ? tutorialGame(1) : null), best: bestFor(save, debugLevelState?.mode ?? savedRun?.mode ?? 'classic'), mode: 'classic', goals: save.tutorialDone || (debug && !runDebugTutorial) });
-  if (debug && session.state.adventure && adventureDemo === 'adventure-play') session.state.adventure.movesLeft = 3;
-  if (debug && session.state.adventure && adventureDemo === 'adventure-win') {
-    const stars = Number(query.get('stars') ?? 3); const value = Math.max(1, Math.min(3, stars)) as 1 | 2 | 3;
-    session.state.adventure.goals.forEach((goal) => { goal.progress = goal.target; }); session.state.adventure.movesLeft = 6; session.state.adventure.result = { won: true, reason: 'goals', movesLeft: 6, stars: value }; session.state.status = 'over';
-  }
-  if (debug && session.state.adventure && adventureDemo === 'adventure-lose') {
-    const reason = query.get('reason') === 'stuck' ? 'stuck' : 'moves'; session.state.adventure.goals = [{ kind: 'F', flavour: 6, target: 30, progress: 26 }];
-    session.state.adventure.movesLeft = reason === 'moves' ? 0 : 3; session.state.adventure.result = { won: false, reason, movesLeft: session.state.adventure.movesLeft, stars: 0 }; session.state.status = 'over';
-  }
+  const debugAdventure = debug && dbg ? dbg.debugAdventureState(session.state, query) : undefined;
+  if (debugAdventure) session = createSession({ state: debugAdventure, best: session.best });
   canvas.setAttribute('aria-label', `${S.logo}. ${S.howToControls}`);
   updateCanvasAria();
   let runBest = session.best; let runStartedAt = performance.now(); let pauseStartedAt = 0; let runReward = { xp: 0, coins: 0, progress: 0, progressMax: xpToNext(save.profile.level), currentLevel: save.profile.level, level: undefined as number | undefined };
@@ -166,34 +122,11 @@ export async function bootApp(): Promise<void> {
   let effectFrameMs = 0;
   let goalCrossingTarget = -1; let goalCrossingCoins = 0; let goalCrossingAt = -1; let goalCrossingWorldAt = -1; let goalCrossingCuePlayed = false; let miniDoneAt = -1; let miniDoneWorldAt = -1;
   let lastSlowMoAt = -10000; let newBestShown = false;
-  const demoBoard = query.get('demo') === 'board'; const demoFaces = query.get('demo') === 'faces'; const demoCubes = query.get('demo') === 'cubes'; const demoBg = query.get('demo') === 'bg'; const demoThemes = query.get('demo') === 'themes'; const demoMega = query.get('demo') === 'mega'; const autoplay = debug && (query.get('autoplay') === '1' || demoMega); const autoplayInterval = query.get('speed') === 'fast' ? 150 : 450; let autoplayAt = 0; let rescueOfferAt = -1; const botRng = seededRng('gloop-pop/debug-autoplay');
-  if (debug && demoCubes) {
-    const state = structuredClone(session.state); state.mode = 'classic'; state.board = new Array<number>(64).fill(0);
-    state.board[48] = 8; state.board[49] = 9; state.board[50] = 8; state.board[51] = 9; state.board[52] = 8; state.board[53] = 9; state.board[54] = 8;
-    state.board[9] = 8; state.board[14] = 8;
-    state.tray = [{ defId: 0, flavour: 1 }, null, null]; state.combo = 0; state.bestCombo = 0; state.fuse = 0; state.status = 'playing'; state.moves = 0;
-    session = createSession({ state, best: session.best }); runBest = session.best; runEvents = []; gameOverAt = -1; shownStatus = '';
-  }
-  if (debug && demoMega) {
-    // spec-note: The QA scenario builds a 28-cell apple gloop around one two-cell gap; its line clear resolves as a Mega Pop at combo tier 4.
-    const state = structuredClone(session.state); state.mode = 'classic'; state.board = new Array<number>(64).fill(0);
-    for (let row = 1; row <= 4; row += 1) for (let col = 0; col < 8; col += 1) {
-      if ((row === 2 && col === 0) || (row === 3 && (col === 3 || col === 4)) || (row === 4 && col === 7)) continue;
-      state.board[row * 8 + col] = 4;
-    }
-    state.tray = [{ defId: 1, flavour: 4 }, null, null]; state.combo = 11; state.bestCombo = 11; state.fuse = 2; state.status = 'playing'; state.moves = 0; session = createSession({ state, best: session.best }); runBest = session.best; runEvents = []; gameOverAt = -1; shownStatus = '';
-  }
-  if (debug && query.get('demo') === 'feel') {
-    // Debug-only capture scenes for game-feel QA (research/game-feel.md): place | line | pop | combo | mega.
-    const scene = query.get('scene') ?? 'place'; const state = structuredClone(session.state); state.mode = 'classic'; state.board = new Array<number>(64).fill(0);
-    if (scene === 'combo' || scene === 'mega') { Object.assign(state, createFeelScene(session.state, scene)); }
-    else if (scene === 'line') { for (const row of [6, 7]) for (let col = 0; col < 6; col += 1) state.board[row * 8 + col] = 2 + ((row + col) % 2) * 3; state.board[2 * 8 + 2] = 6; state.board[2 * 8 + 3] = 6; state.board[3 * 8 + 2] = 7; state.tray = [{ defId: 9, flavour: 1 }, { defId: 3, flavour: 6 }, { defId: 13, flavour: 7 }]; }
-    else if (scene === 'pop') { for (let row = 1; row <= 4; row += 1) for (let col = 0; col < 8; col += 1) { if ((row === 2 && col === 0) || (row === 3 && (col === 3 || col === 4)) || (row === 4 && col === 7)) continue; state.board[row * 8 + col] = 4; } state.board[6 * 8 + 0] = 2; state.board[6 * 8 + 1] = 2; state.board[7 * 8 + 0] = 5; state.tray = [{ defId: 1, flavour: 4 }, { defId: 3, flavour: 6 }, { defId: 13, flavour: 7 }]; state.combo = 4; state.bestCombo = 4; }
-    else { state.board[7 * 8 + 0] = 3; state.board[7 * 8 + 1] = 3; state.board[6 * 8 + 6] = 5; state.tray = [{ defId: 9, flavour: 1 }, { defId: 3, flavour: 6 }, { defId: 13, flavour: 7 }]; }
-    state.status = 'playing'; state.moves = 0; session = createSession({ state, best: session.best }); runBest = session.best; runEvents = []; gameOverAt = -1; shownStatus = '';
-  }
+  const demoBoard = query.get('demo') === 'board'; const demoFaces = query.get('demo') === 'faces'; const demoBg = query.get('demo') === 'bg'; const demoThemes = query.get('demo') === 'themes'; const demoMega = query.get('demo') === 'mega'; const autoplay = debug && (query.get('autoplay') === '1' || demoMega); const autoplayInterval = query.get('speed') === 'fast' ? 150 : 450; let autoplayAt = 0; let rescueOfferAt = -1; const botRng = debug && dbg ? dbg.createAutoplayRng() : undefined;
+  const debugScene = debug && dbg ? dbg.debugGameScene(session.state, query) : undefined;
+  if (debugScene) { session = createSession({ state: debugScene, best: session.best }); runBest = session.best; runEvents = []; gameOverAt = -1; shownStatus = ''; }
   if (debug && ['target', 'target-hit', 'mini-done'].includes(query.get('demo') ?? '')) {
-    const scene = query.get('demo') as 'target' | 'target-hit' | 'mini-done'; const state = createGoalScene(session.state, scene);
+    const scene = query.get('demo') as 'target' | 'target-hit' | 'mini-done'; const state = dbg?.createGoalScene(session.state, scene) ?? session.state;
     session = createSession({ state, best: 9000 }); runBest = 9000; shownScore = state.score; scoreAnimFrom = state.score; scoreAnimStart = 0; runEvents = []; gameOverAt = -1; shownStatus = '';
     if (scene === 'target-hit') { goalCrossingTarget = 5000; goalCrossingCoins = 5; goalCrossingAt = 0; goalCrossingWorldAt = 0; goalCrossingCuePlayed = true; }
     if (scene === 'mini-done') { miniDoneAt = 0; miniDoneWorldAt = 0; }
@@ -234,9 +167,9 @@ export async function bootApp(): Promise<void> {
         return pointerDropPoint(row, col, PIECES[piece.defId]!.w, PIECES[piece.defId]!.h, layout, canvas.getBoundingClientRect());
       },
       botMove: () => {
-        const state = session.state; const rng = seededRng(`${state.seed}/gloop-debug-bot`);
+        const state = session.state; const rng = dbg?.createBotRng(`${state.seed}/gloop-debug-bot`); if (!rng) return null;
         if (state.mode === 'adventure' && chooseAdventureBot) { const move = chooseAdventureBot(state, rng); return move?.type === 'place' ? { slot: move.slot, row: move.row, col: move.col } : null; }
-        const move = chooseBotMove(state, rng); return move ? { slot: move.slot, row: move.row, col: move.col } : null;
+        const move = dbg?.chooseBotMove(state, rng); return move ? { slot: move.slot, row: move.row, col: move.col } : null;
       },
     };
   }
@@ -305,22 +238,22 @@ export async function bootApp(): Promise<void> {
       const holdGoalFeedback = debug && (query.get('hold') === '1' || query.get('hold') !== '0' && ['target-hit', 'mini-done'].includes(query.get('demo') ?? ''));
       drawGoalStrip(ctx, layout, session.state, shownScore, frame.realNow, { target: goalCrossingTarget, coins: goalCrossingCoins, at: goalCrossingAt, worldAt: goalCrossingWorldAt, hold: holdGoalFeedback }, miniDoneAt, miniDoneWorldAt, frame.worldNow, reduced);
       if (tutorialActive && tutorialStep < 4 && !tutorialTouched) { const target = tutorialStep === 1 ? { row: 6, col: 6, width: 2 } : tutorialStep === 2 ? { row: 6, col: 3, width: 1 } : { row: 4, col: 6, width: 2 }; const cells = tutorialStep === 2 ? [[0, 0], [1, 0]] as const : [[0, 0], [0, 1]] as const; const hand = tutorialHandPoints(layout.board, layout.tray, layout.cellSize, target.row, target.col, target.width); drawGhostHand(ctx, elapsedMs, hand.from, hand.to, layout.cellSize, cells); }
-      if (debug && query.get('overlay') !== '0') {
+      if (debug && dbg && query.get('overlay') !== '0') {
         const adventure = session.state.adventure; const levelDef = adventure && loadedAdventureLevels?.[adventure.level - 1];
-        const advLine = adventure && levelDef ? `adv L${adventure.level} s${levelDef.s} K${levelParams(adventure.level).k} wins ${levelDef.wins}/12 · goals ${adventure.goals.reduce((sum, goal) => sum + goal.progress, 0)}/${adventure.goals.reduce((sum, goal) => sum + goal.target, 0)}` : '';
-        drawDebug(ctx, layout, surface.dpr, dtMs, surface, effectFrameMs, audioDebugLine(), advLine);
+        const advLine = adventure && levelDef ? dbg.adventureDebugLine(adventure.level, levelDef.s, levelDef.wins, adventure.goals.reduce((sum, goal) => sum + goal.progress, 0), adventure.goals.reduce((sum, goal) => sum + goal.target, 0)) : '';
+        dbg.drawDebug(ctx, layout, surface.dpr, dtMs, surface, effectFrameMs, audioDebugLine(), advLine);
       }
     }
     updateTutorial(elapsedMs);
     updateOverlay();
-    }, (elapsed) => { surface.reportFrame(elapsed); if (autoplay && router.current === 'play' && !paused && session.state.status === 'rescueOffer') { if (rescueOfferAt < 0) rescueOfferAt = renderElapsed; if (renderElapsed - rescueOfferAt >= 600) { rescueOfferAt = -1; apply({ type: 'useRescue' }); } } else if (session.state.status !== 'rescueOffer') rescueOfferAt = -1; if (autoplay && router.current === 'play' && !paused && session.state.status === 'playing' && renderElapsed >= autoplayAt) { autoplayAt = renderElapsed + autoplayInterval; enableAudio(); const move = demoMega && session.state.moves === 0 ? { slot: 0 as const, row: 3, col: 3 } : chooseBotMove(session.state, botRng); if (move) apply({ type: 'place', slot: move.slot, row: move.row, col: move.col }); } });
+    }, (elapsed) => { surface.reportFrame(elapsed); if (autoplay && router.current === 'play' && !paused && session.state.status === 'rescueOffer') { if (rescueOfferAt < 0) rescueOfferAt = renderElapsed; if (renderElapsed - rescueOfferAt >= 600) { rescueOfferAt = -1; apply({ type: 'useRescue' }); } } else if (session.state.status !== 'rescueOffer') rescueOfferAt = -1; if (autoplay && router.current === 'play' && !paused && session.state.status === 'playing' && renderElapsed >= autoplayAt) { autoplayAt = renderElapsed + autoplayInterval; enableAudio(); const move = demoMega && session.state.moves === 0 ? { slot: 0 as const, row: 3, col: 3 } : botRng && dbg ? dbg.chooseBotMove(session.state, botRng) : undefined; if (move) apply({ type: 'place', slot: move.slot, row: move.row, col: move.col }); } });
 
   function apply(action: Action): void {
     const hadGoalStrip = Boolean(session.state.goals || session.state.adventure);
     if (action.type === 'booster' && action.id === 'shuffle') pointer.cancel();
     if (action.type === 'place' && !shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion())) renderLoop.requestSlowMo(renderLoop.timeScale, 0, 0, 60);
     const filledBeforeResolve = action.type === 'place' ? session.state.board.filter((cell) => cell > 0).length + (PIECES[session.state.tray[action.slot]?.defId ?? -1]?.cells.length ?? 0) : 0;
-    const scoreBefore = session.state.score; const pendingScoreFrom = shownScore; const events = action.type === 'place' ? dispatchImmediately(() => renderLoop.endNow(), () => session.dispatch(action)) : session.dispatch(action); const scoreDelta = session.state.score - scoreBefore; if (events.some((event) => event.type === 'cleared' || event.type === 'popped' || event.type === 'allClear' || event.type === 'gameOver')) live.textContent = `${S.score} ${new Intl.NumberFormat('en-US').format(session.state.score)}${adventureResultLabel(session.state) ? ` · ${adventureResultLabel(session.state)}` : session.state.status === 'over' ? ` · ${S.noRoom}` : ''}`; if (action.type === 'place' && tutorialActive && events.some((event) => event.type === 'placed')) advanceTutorial(); if (action.type === 'place' && filledBeforeResolve >= 52 && events.some((event) => event.type === 'cleared')) closeCall = true; runEvents.push(...events);
+    const scoreBefore = session.state.score; const pendingScoreFrom = shownScore; const events = action.type === 'place' ? dispatchImmediately(() => renderLoop.endNow(), () => session.dispatch(action)) : session.dispatch(action); const scoreDelta = session.state.score - scoreBefore; if (events.some((event) => event.type === 'cleared' || event.type === 'popped' || event.type === 'allClear' || event.type === 'gameOver')) live.textContent = `${S.score} ${formatNumber(session.state.score)}${adventureResultLabel(session.state) ? ` · ${adventureResultLabel(session.state)}` : session.state.status === 'over' ? ` · ${S.noRoom}` : ''}`; if (action.type === 'place' && tutorialActive && events.some((event) => event.type === 'placed')) advanceTutorial(); if (action.type === 'place' && filledBeforeResolve >= 52 && events.some((event) => event.type === 'cleared')) closeCall = true; runEvents.push(...events);
     updateCanvasAria(); const missionProgress = addMissionProgress(save, session.state, events); save = missionProgress.save; for (const mission of missionProgress.done) toast.show(S.missionDoneToast(S.missionText(mission.id)), 'gold');
     if (events.some((event) => event.type === 'boosterUsed')) vibrate('booster', save.settings.haptics);
     boosterBar.update(session.state, layout);
@@ -351,7 +284,7 @@ export async function bootApp(): Promise<void> {
     paused = false; setAudioPaused(false); ui.hide(); persist(false);
     if (session.state.status === 'over') { if (gameOverAt < 0) gameOverAt = renderElapsed; if (session.state.adventure) finishAdventure(); else finishRun(); }
   }
-  function skipTutorial(): void { if (!tutorialActive) return; tutorialActive = false; tutorialBubble.element.remove(); save = markTutorialSkipped(save); save.inProgress = null; start('classic'); persist(true); }
+  function skipTutorial(): void { if (!tutorialActive) return; tutorialActive = false; tutorialBubble.element.remove(); save = dbg?.markTutorialSkipped(save) ?? { ...save, tutorialDone: true, ui: { ...save.ui, seenTips: save.ui.seenTips.filter((tip) => tip !== 'tutorialStep4Pending') } }; save.inProgress = null; start('classic'); persist(true); }
   function updateTutorial(elapsed: number): void {
     if (!tutorialBubble.element.isConnected) return;
     if (!tutorialActive) { if (tutorialBubbleText === S.tutorialEnd && tutorialBubbleUntil >= 0 && elapsed >= tutorialBubbleUntil) { tutorialBubbleText = ''; tutorialBubble.setText(''); tutorialBubble.element.remove(); } return; }
@@ -529,7 +462,7 @@ export async function bootApp(): Promise<void> {
   }
   function updateCanvasAria(): void {
     const adventure = session.state.adventure;
-    if (adventure) { const goals = adventure.goals.map((goal) => S.goalAria(S.adventureGoalText(goal.kind, goal.target, goal.flavour ? S.flavourName(goal.flavour).toLowerCase() : undefined), goal.progress, goal.target)).join('. '); gameCanvas.setAttribute('aria-label', `${S.logo}. ${S.levelText(adventure.level)}. ${new Intl.NumberFormat('en-US').format(adventure.movesLeft)} ${S.movesLeft}. ${goals}`); return; }
+    if (adventure) { const goals = adventure.goals.map((goal) => S.goalAria(S.adventureGoalText(goal.kind, goal.target, goal.flavour ? S.flavourName(goal.flavour).toLowerCase() : undefined), goal.progress, goal.target)).join('. '); gameCanvas.setAttribute('aria-label', `${S.logo}. ${S.levelText(adventure.level)}. ${formatNumber(adventure.movesLeft)} ${S.movesLeft}. ${goals}`); return; }
     const goals = session.state.goals;
     if (!goals) { gameCanvas.setAttribute('aria-label', `${S.logo}. ${S.howToControls}`); return; }
     const target = nextTarget(session.state.score, goals.floor, goals.best);
@@ -599,13 +532,3 @@ function rescueClearWithinThree(events: readonly GameEvent[]): boolean {
   return false;
 }
 function bestFor(save: SaveV2, mode: ModeId): number { return mode === 'expert' ? save.best.expert : mode === 'daily' ? save.daily.best : mode === 'zen' ? 0 : save.best.classic; }
-const debugFrameBuckets = new Uint16Array(8); let debugFrameCursor = 0; let debugFrameCount = 0; let debugFrameSum = 0;
-function drawDebug(context: CanvasRenderingContext2D, layout: Layout, dpr: number, dt: number, surface: ReturnType<typeof createCanvasSurface>, effectMs: number, audioLine: string, adventureLine = ''): void {
-  const buckets = debugFrameBuckets; const bin = Math.min(buckets.length - 1, Math.floor(dt / 2)); if (debugFrameCount === 120) { buckets[debugFrameCursor] = Math.max(0, buckets[debugFrameCursor]! - 1); debugFrameSum -= debugFrameLast[debugFrameCursor]!; } else debugFrameCount += 1;
-  debugFrameLast[debugFrameCursor] = dt; buckets[bin] = buckets[bin]! + 1; debugFrameSum += dt; debugFrameCursor = (debugFrameCursor + 1) % 120;
-  let accumulated = 0; let p95 = 16; for (let i = 0; i < buckets.length; i += 1) { accumulated += buckets[i]!; if (accumulated >= debugFrameCount * 0.95) { p95 = i * 2 + 1; break; } } const average = debugFrameSum / Math.max(1, debugFrameCount);
-  // spec-note: `slow=1` feeds synthetic slow frames into the same sampler for repeatable adaptive-DPR QA.
-  const forced = new URLSearchParams(window.location.search).get('slow') === '1'; if (forced) for (let i = 0; i < 120; i += 1) surface.reportFrame(25);
-  context.save(); context.fillStyle = PALETTE.light.shadowDeep; context.fillRect(8, 8, 520, adventureLine ? 174 : 146); context.fillStyle = PALETTE.ui.textPrimary; context.font = '700 12px Nunito, sans-serif'; context.fillText(`frame ${dt.toFixed(1)} ms · avg ${average.toFixed(1)} · p95 ${p95.toFixed(1)}`, 16, 28); context.fillText(`dpr ${dpr.toFixed(2)} · ${layout.width}×${layout.height}`, 16, 47); context.fillText(`effects ${effectMs.toFixed(2)} ms`, 16, 66); context.fillText(`120f ${debugFrameCount} · ${forced ? 'slow test' : 'live'}`, 16, 85); context.fillText(audioLine, 16, 104, 504); if (adventureLine) context.fillText(adventureLine, 16, 123, 504); let peak = 1; for (let i = 0; i < buckets.length; i += 1) peak = Math.max(peak, buckets[i]!); context.fillStyle = PALETTE.ui.gold; for (let i = 0; i < buckets.length; i += 1) { const height = 18 * buckets[i]! / peak; context.fillRect(16 + i * 26, (adventureLine ? 170 : 150) - height, 18, height); } context.restore();
-}
-const debugFrameLast = new Float32Array(120);

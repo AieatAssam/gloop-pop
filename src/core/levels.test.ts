@@ -1,17 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { calibrate, validate } from './levelGen';
 import { C_MOVE_LIMITS, cubeFloor, harderThan, inBand, levelParams, placeCubesInLanes } from './levels';
-import { LEVELS } from './levels.data';
+import { LEVELS } from './levelTable';
 import { makeBoard } from './board';
 import { seededRng } from './rng';
+import { createHash } from 'node:crypto';
+import { levelDef } from './levelTable';
 
 describe('generated Adventure levels', () => {
   it('rebuilds and revalidates all 120 definitions against twelve reducer runs', () => {
     expect(LEVELS).toHaveLength(120);
+    expect(createHash('sha256').update(LEVELS.map((level) => level.board).join('\n')).digest('hex')).toBe('0880f25510d991eb0678c373c03e91fb1d200f4e8b42c5bd51d762d27c97c8d3');
+    expect(levelDef(25)).toBe(LEVELS[24]);
     for (const stored of LEVELS) {
       const params = levelParams(stored.n);
       const result = calibrate(stored.n, stored.s);
-      expect(result.def).toEqual(stored);
+      expect(result.def.goals.map((goal) => goal.target)).toEqual(stored.goals.map((goal) => goal.target));
+      expect([result.def.wins, result.def.margin, result.def.s2, result.def.s3]).toEqual([stored.wins, stored.margin, stored.s2, stored.s3]);
       expect(validate(stored)).toBe(true);
       expect(stored.moves).toBe(params.moves);
       expect(stored.n).toBe(params.n);

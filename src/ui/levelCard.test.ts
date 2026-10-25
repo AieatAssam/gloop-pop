@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import { LEVELS } from '../core/levels.data';
+import { LEVELS } from '../core/levelTable';
 import { createLevelCard } from './levelCard';
 import { S } from './strings';
 import { defaultSave } from '../meta/saveSchema';

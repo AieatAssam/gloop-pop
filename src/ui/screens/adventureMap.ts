@@ -3,8 +3,9 @@ import type { SaveV2 } from '../../meta/saveSchema';
 import { levelParams } from '../../core/levels';
 import { createMiniGloop } from '../../render/miniGloop';
 import { mapGeometry, type MapGeometry } from './mapGeometry';
-import { S } from '../strings';
+import { S, formatNumber } from '../strings';
 import { readSafeAreaInsets } from '../safeArea';
+import { el } from '../dom';
 
 const FLAVOURS = [1, 3, 4, 5, 6, 7] as const;
 export function createAdventureMap(save: SaveV2, actions: { back(): void; openLevel(level: number): void }): HTMLElement {
@@ -27,7 +28,7 @@ export function createAdventureMap(save: SaveV2, actions: { back(): void; openLe
     const params = levelParams(level); const wrap = document.createElement('div'); wrap.className = 'adventure-node-wrap';
     wrap.style.left = `${nodeGeo.cx - nodeGeo.box.w / 2}px`; wrap.style.top = `${nodeGeo.box.y}px`; wrap.style.width = `${nodeGeo.box.w}px`; wrap.style.height = `${nodeGeo.box.h}px`;
     const node = document.createElement('button'); node.type = 'button'; node.className = `adventure-node${won ? ' is-won' : ''}${!unlocked ? ' is-locked' : ''}${level === save.adventure.frontier && !won ? ' is-next' : ''}${params.band === 'hard' ? ' is-hard' : ''}`;
-    node.style.width = `${nodeGeo.r * 2}px`; node.style.height = `${nodeGeo.r * 2}px`; node.textContent = new Intl.NumberFormat('en-US').format(level); node.disabled = !unlocked;
+    node.style.width = `${nodeGeo.r * 2}px`; node.style.height = `${nodeGeo.r * 2}px`; node.textContent = formatNumber(level); node.disabled = !unlocked;
     node.setAttribute('aria-label', S.adventureNodeAria(level, state?.stars ?? 0, params.band === 'hard', level === save.adventure.frontier && !won, !unlocked));
     if (unlocked) node.addEventListener('click', () => actions.openLevel(level));
     if (level === save.adventure.frontier && !won) {
@@ -63,8 +64,8 @@ function chapterCard(save: SaveV2, chapter: number, pos: MapGeometry['cards'][nu
   const starReward = document.createElement('small'); starReward.textContent = `${S.chapterStarsReward}${save.adventure.chaptersAllStars.includes(chapter) ? ' ✓' : ''}`;
   copy.append(heading, progress, rewards, starReward); card.append(art, copy); return card;
 }
-function chip(text: string): HTMLElement { const value = document.createElement('span'); value.className = 'adventure-chip'; value.textContent = text; return value; }
-function button(text: string, cls: string, action: () => void): HTMLButtonElement { const item = document.createElement('button'); item.type = 'button'; item.textContent = text; item.className = cls; item.addEventListener('click', action); return item; }
+function chip(text: string): HTMLElement { return el('span', 'adventure-chip', text); }
+function button(text: string, cls: string, action: () => void): HTMLButtonElement { const item = el('button', cls, text); item.addEventListener('click', action); return item; }
 function mapPath(frontier: number, geometry: MapGeometry): SVGSVGElement {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.classList.add('adventure-map-path'); svg.setAttribute('viewBox', `0 0 ${geometry.colW} ${geometry.contentHeight}`); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('aria-hidden', 'true');
   const points = geometry.nodes.map(({ cx, cy }) => ({ x: cx, y: cy }));
