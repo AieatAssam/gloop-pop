@@ -16,6 +16,7 @@ export function recordLevelResult(save: SaveV2, result: LevelResult): AdventureR
   let newStars = 0;
   let chapterDone = false; let chapterAllStars = false;
   if (result.won) {
+    const frontierWin = result.level === adventure.frontier;
     firstWin = level.wins === 0;
     newStars = Math.max(0, result.stars - level.stars);
     xp = firstWin ? 40 : 0;
@@ -26,8 +27,13 @@ export function recordLevelResult(save: SaveV2, result: LevelResult): AdventureR
     level.wins += 1;
     level.lossRun = 0;
     level.stars = Math.max(level.stars, result.stars) as 0 | 1 | 2 | 3;
+    if (frontierWin) {
+      adventure.winStreak += 1;
+      adventure.bestWinStreak = Math.max(adventure.bestWinStreak, adventure.winStreak);
+    }
   } else {
     xp = 5; coins = 2; level.losses += 1; level.lossRun += 1;
+    if (result.level === adventure.frontier) adventure.winStreak = 0;
   }
   adventure.levels[key] = level;
   if (firstWin) { adventure.frontier = 1; while (adventure.frontier <= 120 && (adventure.levels[String(adventure.frontier)]?.wins ?? 0) > 0) adventure.frontier += 1; }
@@ -44,6 +50,10 @@ export function recordLevelResult(save: SaveV2, result: LevelResult): AdventureR
   if (result.won) progressed.stats.adventureWins += 1; else progressed.stats.adventureLosses += 1;
   progressed.stats.runs.adventure = (progressed.stats.runs.adventure ?? 0) + 1;
   return { save: progressed, xp, coins, firstWin, newStars, chapterDone, chapterAllStars, levels: progression.levels, unlocked: progression.unlocked };
+}
+
+export function assistAvailable(save: SaveV2, level: number): boolean {
+  return (save.adventure.levels[String(level)]?.lossRun ?? 0) >= 3;
 }
 
 export function unlockAdventure(save: SaveV2): SaveV2 {

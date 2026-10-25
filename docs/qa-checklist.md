@@ -75,3 +75,43 @@ Automated audio tests and the production build are checked by `npm run check`. T
 - [ ] needs-ear-check — SG §13.13.8: pad voicing and twinkle density.
 - [ ] needs-ear-check — SG §13.13.9: game-over slow-down feels settled rather than sad.
 - [ ] needs-ear-check — SG §13.13.10: coin, deal and UI sounds remain clear at low phone volume.
+
+## Goals and Adventure (M12.7)
+
+Automated checks are run with `npm run check` and `npm run levels -- --verify`. Items requiring the browser, device input or human play remain **lead to verify**; agents do not open browsers or play chapters.
+
+- [x] Booster prices are 150 / 100 / 200 coins; stock caps at 5; unaffordable purchase leaves the save unchanged; start selection consumes +3 Moves and adds its bonus; unused Shuffle and Pop return to stock; free Shuffle does not use stock. Evidence: `src/meta/boosters.test.ts`.
+- [x] Frontier win streak grants 0 / +1 / +2 / +2 moves and a free Shuffle at 3+, frontier loss resets it, replays do not change it, best streak stays, loss run offers assist at 3 and resets on win. Evidence: `src/meta/adventureProgress.test.ts`.
+- [x] Achievements #42–#49 have synthetic trigger coverage and grants do not repeat. Evidence: `src/meta/achievements.test.ts`.
+- [x] Lose panels contain no price, booster, coin button or buy action; assist appears only after three losses. Evidence: `src/ui/levelResultPanel.test.ts` (lead to verify visually).
+- [x] Debug fixtures accept streak, assist losses, coin and booster inventory, armed Shuffle / Pop, and loss count parameters; the Adventure debug overlay reports level, seed, K, wins and goal progress.
+- [x] New visible labels and announcements use `src/ui/strings.ts`; icons and debug-only measurements are the only new literal UI text outside it. `check-no-hex` passes.
+- [ ] lead to verify — each M12.6 debug demo renders as specified: `?debug=1&demo=level-card&level=24&streak=3&coins=120&boosters=1,0,5`; `?debug=1&demo=level-card&level=25&losses=3`; `?debug=1&demo=adventure-play&level=24&armed=shuffle,pop`; `?debug=1&demo=adventure-lose&losses=3`.
+- [ ] lead to verify — no input delay during target crossings, goal done, Shuffle / Pop effects or panels; drag during each effect and confirm input remains available. Shuffle cancels a drag only on its tap.
+- [ ] lead to verify — Space, Enter and R restart a loss; the map scrolls to the frontier; Android/browser back from the start card, HUD, win panel and lose panel returns to the previous screen.
+- [ ] lead to verify — reduced motion across all SG §20.9 rows: target, mini goal, Adventure goal, moves countdown, cube crack/removal, Shuffle/Pop, win stars, lose panel, mission claim, map unlock, mission toast.
+- [ ] lead to verify — ethics: no lose-panel prices, nothing expires, no random rewards, and all 120 levels remain winnable without boosters (automated level validation also checked by `npm run levels -- --verify`).
+- [ ] lead to verify — play Chapters 1–2 on a phone and record whether hard levels feel short and fair in `docs/balance-log.md`. Entry URLs: `/gloop-pop/?debug=1&demo=level-card&level=1` (play through Level 20, then Chapter 2) and `/gloop-pop/?debug=1&demo=level-card&level=21` (start Chapter 2 directly). Expected: hard levels have 14–18 moves, are beatable, and the following level is easy; record any clearly unfair level by number before adjusting parameters and regenerating.
+- [ ] lead to verify — screenshot each URL below at 412 × 915 and 1280 × 800; confirm gloop and cube art is rounded, glossy and non-placeholder, the start card fits/scrolls with Play pinned, and the lose panel has no offers.
+
+Screenshot URLs and expected states (each at **412 × 915** and **1280 × 800**, all **lead to verify**):
+
+| Exact debug URL | Expected state |
+|---|---|
+| `/gloop-pop/?debug=1&demo=target` | Classic target and mini-goal pills show ordinary progress. |
+| `/gloop-pop/?debug=1&demo=target-hit` | Target pill shows the just-crossed target and coin reward. |
+| `/gloop-pop/?debug=1&demo=mini-done` | Mini-goal pill shows completed state and reward. |
+| `/gloop-pop/?debug=1&demo=missions` | Home card has mixed mission progress and one claimed row. |
+| `/gloop-pop/?debug=1&demo=missions-done` | All mission rows and set reward are complete. |
+| `/gloop-pop/?debug=1&demo=cubes` | Showcase board shows sugar and cracked hard cubes. |
+| `/gloop-pop/?debug=1&demo=adventure-map` | Map around frontier 23, completed Chapter 1 and a paused Chapter 2 level. |
+| `/gloop-pop/?debug=1&demo=adventure-map-end` | All 120 nodes and all chapter rewards are complete. |
+| `/gloop-pop/?debug=1&demo=level-card&level=21` | Chapter 2 Level 21 card shows the cube goal and its tip. |
+| `/gloop-pop/?debug=1&demo=level-card&level=24&streak=3&coins=120&boosters=1,0,5` | Free Shuffle is selected; +3 Moves shows a shortfall; Pop shows Max 5. The debug tuple is Shuffle, +3 Moves, Pop. |
+| `/gloop-pop/?debug=1&demo=level-card&level=25&losses=3` | Assist toggle and its star caption appear. |
+| `/gloop-pop/?debug=1&demo=adventure-play&level=87` | Adventure HUD shows Level 87, moves, goals and debug line. |
+| `/gloop-pop/?debug=1&demo=adventure-win&stars=1` | Level win panel shows one earned star. |
+| `/gloop-pop/?debug=1&demo=adventure-win&stars=2` | Level win panel shows two earned stars. |
+| `/gloop-pop/?debug=1&demo=adventure-win&stars=3` | Level win panel shows three earned stars and confetti. |
+| `/gloop-pop/?debug=1&demo=adventure-lose` | Lose panel shows unmet-goal facts and no offers. |
+| `/gloop-pop/?debug=1&demo=adventure-lose&losses=3` | Lose panel shows the 5-extra-moves retry and no offers to buy. |

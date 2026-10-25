@@ -117,7 +117,7 @@ function useBooster(state: GameState, id: 'shuffle' | 'pop'): { state: GameState
   const next = cloneState(state);
   const nextAdventure = next.adventure!;
   if (id === 'shuffle') {
-    const dealt = dealTray(next.board, next.rng, adventure.stage, dealOptions(adventure.stage, adventure.flavours, adventure.f2));
+    const dealt = dealTray(next.board, next.rng, adventure.stage, dealOptions(adventure.stage, adventure.flavours, 1));
     next.tray = dealt.tray;
     nextAdventure.boosters.shuffle = 'used';
     return { state: next, events: [{ type: 'dealt', tray: dealt.tray }, { type: 'boosterUsed', id }] };
@@ -126,7 +126,7 @@ function useBooster(state: GameState, id: 'shuffle' | 'pop'): { state: GameState
   if (!largest) return { state, events: [] };
   for (const cell of largest.cells) next.board[cell] = 0;
   nextAdventure.boosters.pop = 'used';
-  return { state: next, events: [{ type: 'boosterUsed', id, poppedCells: [...largest.cells] }] };
+  return { state: next, events: [{ type: 'rescued', poppedCells: [...largest.cells] }, { type: 'boosterUsed', id, poppedCells: [...largest.cells] }] };
 }
 
 function dealOptions(stage: number, flavourCount: number, f2: number) {

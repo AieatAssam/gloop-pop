@@ -5,9 +5,10 @@ import type { GameState } from '../core/types';
 import type { BoardView, DragView } from '../render/boardView';
 import type { Layout } from '../render/layout';
 
-export function attachKeyboard(view: BoardView, layout: () => Layout, state: () => GameState, place: (slot: number, row: number, col: number) => void, cancel: () => void, pause: () => void, onTargetChange?: () => void): { drag: () => DragView | undefined } {
+export function attachKeyboard(view: BoardView, layout: () => Layout, state: () => GameState, place: (slot: number, row: number, col: number) => void, cancel: () => void, pause: () => void, onTargetChange?: () => void, onBooster?: (id: 'shuffle' | 'pop') => void): { drag: () => DragView | undefined } {
   let slot = -1; let row = 0; let col = 0; let x = 0; let y = 0;
   const onKey = (event: KeyboardEvent): void => {
+    if (state().mode === 'adventure' && (event.key === '4' || event.key === '5')) { event.preventDefault(); onBooster?.(event.key === '4' ? 'shuffle' : 'pop'); return; }
     if (event.key === 'Escape') { cancel(); slot = -1; pause(); return; }
     if (event.key === '1' || event.key === '2' || event.key === '3') { slot = Number(event.key) - 1; findCenter(); event.preventDefault(); return; }
     if (slot < 0) return;

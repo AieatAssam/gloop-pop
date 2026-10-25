@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSave } from './saveSchema';
-import { recordLevelResult, unlockAdventure } from './adventureProgress';
+import { assistAvailable, recordLevelResult, unlockAdventure } from './adventureProgress';
 
 describe('Adventure progress', () => {
   it('pays first wins, new stars, replays and losses from the specified table', () => {
@@ -36,5 +36,18 @@ describe('Adventure progress', () => {
     expect([replay.chapterDone, replay.chapterAllStars, replay.xp, replay.coins]).toEqual([false, false, 10, 5]);
     const outOfOrder = recordLevelResult(defaultSave(), { level: 3, won: true, stars: 1 });
     expect(outOfOrder.save.adventure.frontier).toBe(1);
+  });
+  it('tracks frontier-only win streaks, retains the best, and offers assist after three losses', () => {
+    let save = defaultSave();
+    for (let level = 1; level <= 3; level += 1) save = recordLevelResult(save, { level, won: true, stars: 1 }).save;
+    expect([save.adventure.winStreak, save.adventure.bestWinStreak]).toEqual([3, 3]);
+    const replayLoss = recordLevelResult(save, { level: 1, won: false, stars: 0 }).save;
+    expect(replayLoss.adventure.winStreak).toBe(3);
+    for (let loss = 1; loss <= 3; loss += 1) save = recordLevelResult(save, { level: 4, won: false, stars: 0 }).save;
+    expect([save.adventure.winStreak, save.adventure.bestWinStreak, assistAvailable(save, 4)]).toEqual([0, 3, true]);
+    save = recordLevelResult(save, { level: 4, won: true, stars: 1 }).save;
+    expect([save.adventure.winStreak, save.adventure.bestWinStreak, assistAvailable(save, 4)]).toEqual([1, 3, false]);
+    const replayWin = recordLevelResult(save, { level: 1, won: true, stars: 2 }).save;
+    expect(replayWin.adventure.winStreak).toBe(1);
   });
 });

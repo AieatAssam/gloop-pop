@@ -19,4 +19,13 @@ describe('achievements',()=>{
   const first=grantAchievements(save,facts);expect(first.unlocked.length).toBeGreaterThan(0);expect(first.save.profile.coins).toBe(first.unlocked.reduce((n,a)=>n+a.coins,0));
   const again=grantAchievements(first.save,facts);expect(again.unlocked).toHaveLength(0);
  });
+ it('reports Adventure counter progress against the design thresholds',()=>{
+  const save=defaultSave();save.adventure.frontier=8;save.adventure.bestWinStreak=3;save.missions.finished=7;
+  for(let n=1;n<=7;n+=1)save.adventure.levels[String(n)]={stars:3,wins:1,losses:0,lossRun:0,bestScore:0};
+  expect(achievementProgress('adv_20',save)).toMatchObject({current:7,target:20,met:false});
+  expect(achievementProgress('three_stars10',save)).toMatchObject({current:7,target:10,met:false});
+  expect(achievementProgress('all_stars',save)).toMatchObject({current:21,target:360,met:false});
+  expect(achievementProgress('win_streak5',save)).toMatchObject({current:3,target:5,met:false});
+  expect(achievementProgress('missions10',save)).toMatchObject({current:7,target:10,met:false});
+ });
 });

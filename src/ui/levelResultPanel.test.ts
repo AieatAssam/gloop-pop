@@ -21,4 +21,11 @@ describe('Adventure result panel', () => {
     expect(panel.textContent).toContain('You needed 3 more lines.');
     panel.querySelector<HTMLButtonElement>('button')!.click(); expect(retry).toHaveBeenCalledTimes(1);
   });
+  it('offers the assist retry only after three recorded losses', () => {
+    const state = newAdventureGame(LEVELS[0]!, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state;
+    state.adventure!.result = { won: false, reason: 'moves', movesLeft: 0, stars: 0 }; state.status = 'over';
+    const assist = vi.fn(); const panel = createLevelResultPanel(state, { xp: 5, coins: 2 }, { next: vi.fn(), replay: vi.fn(), assistAgain: assist, map: vi.fn() }, [], { winStreak: 0, streakReset: false, assistAvailable: true });
+    const button = [...panel.querySelectorAll('button')].find((item) => item.textContent === 'Try again with 5 extra moves');
+    expect(button).toBeDefined(); button?.click(); expect(assist).toHaveBeenCalledTimes(1);
+  });
 });

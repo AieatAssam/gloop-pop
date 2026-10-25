@@ -3,6 +3,7 @@ import { newAdventureGame, stepAdventure } from './adventure';
 import { levelParams, type LevelDef } from './levels';
 import type { GameState } from './types';
 import { PIECES } from './pieces';
+import { canPlaceAll } from './solver';
 
 function definition(goals: LevelDef['goals']): LevelDef {
   const params = levelParams(1);
@@ -50,7 +51,7 @@ describe('Adventure reducer', () => {
   });
 
   it.each([
-    [12, 0, 3], [10, 0, 3], [8, 0, 2], [12, 3, 3], [9, 3, 2],
+    [12, 0, 3], [10, 0, 3], [8, 0, 2], [12, 3, 3], [9, 3, 2], [12, 5, 2],
   ])('awards stars from effective moves left (%i left, %i bonus)', (movesLeft, bonusMoves, expectedStars) => {
     const state = stateWithRowGoal();
     state.adventure!.movesLeft = movesLeft;
@@ -66,6 +67,7 @@ describe('Adventure reducer', () => {
     expect(shuffled.state.moves).toBe(state.moves);
     expect(shuffled.state.adventure?.boosters.shuffle).toBe('used');
     expect(shuffled.events.some((event) => event.type === 'dealt')).toBe(true);
+    expect(canPlaceAll(shuffled.state.board, shuffled.state.tray.filter((piece) => piece !== null))).toBe('yes');
     expect(stepAdventure(shuffled.state, { type: 'booster', id: 'shuffle' }).events).toEqual([]);
   });
 
@@ -82,7 +84,7 @@ describe('Adventure reducer', () => {
     expect(popped.state.combo).toBe(3);
     expect(popped.state.score).toBe(50);
     expect(popped.state.adventure?.goals[0]?.progress).toBe(0);
-    expect(popped.events).toEqual([{ type: 'boosterUsed', id: 'pop', poppedCells: [0, 1, 2, 3, 4, 5, 6, 7] }]);
+    expect(popped.events).toEqual([{ type: 'rescued', poppedCells: [0, 1, 2, 3, 4, 5, 6, 7] }, { type: 'boosterUsed', id: 'pop', poppedCells: [0, 1, 2, 3, 4, 5, 6, 7] }]);
   });
 
   it('counts a cleared flavour cell once when its gloop also pops', () => {

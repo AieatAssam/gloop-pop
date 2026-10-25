@@ -42,3 +42,20 @@ There are no before/after gameplay changes: the existing design §8 values still
 Seed indices that needed more than one try (`level:seedIndex`): 1:16, 3:8, 11:7, 26:1, 35:4, 41:2, 47:1, 50:13, 51:1, 57:26, 65:7, 66:3, 67:3, 71:10, 73:23, 74:1, 79:9, 81:40, 83:42, 85:2, 86:25, 87:19, 89:2, 90:1, 92:16, 95:4, 96:2, 98:4, 99:1, 101:6, 103:7, 104:2, 106:5, 109:61, 110:5, 112:33, 114:5, 116:9, 118:8, 120:57.
 
 The Level 1, seed 0 diagnostic showed all 12 runs reach 4 lines within 20 moves. The failed scaffolding used a fixed target of 7; calibration applies the §24.6 Level 1 cap of 4. The threshold correction needed no parameter change.
+
+## 2026-10-25 · M12.7 economy and human balance check
+
+The M12.4 validation table and seed indices above are the machine balance result. `npm run levels -- --verify` is the reproducible check; the director's Chapter 1–2 phone play remains **lead to verify** and should record whether each hard level feels short and fair before making any parameter change.
+
+Economy calculation from design §24.10 and §24.7:
+
+| Activity in one day | Formula | Coins |
+|---|---:|---:|
+| 5 Classic runs with target/mini average | 5 × (55 + 30) | 425 |
+| Claim all 3 missions | design §24.3 set | 210 |
+| Win 5 new Adventure levels at 2 stars | 5 × 50 | 250 |
+| **Total** | **425 + 210 + 250** | **885** |
+
+The 5-stock booster cap costs 5 × (150 + 100 + 200) = **2,250 coins**, or **2.54 days** at 885 coins/day. The full 10,000-coin shop takes **11.30 days** at that mixed activity rate. The separate design estimate of 120–150 runs at 55 coins/run implies 6,600–8,250 coins, short of the stated 10,000-coin shop total; 10,000 ÷ 55 is about **182 Classic runs**. No balance values were changed.
+
+Chapter 1–2 human result: **lead to verify**. Record hard-level shortness/fairness here after phone play; do not hand-edit generated level data. Any clearly unfair level must be corrected by a level parameter change and regeneration.
