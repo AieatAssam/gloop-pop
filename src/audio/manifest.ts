@@ -10,7 +10,7 @@ export interface AudioManifest {
 }
 
 export const AUDIO_MANIFEST: AudioManifest = {
-  files: { sfx: { ogg: import.meta.env.BASE_URL + 'audio/sfx.41138127.ogg', mp3: import.meta.env.BASE_URL + 'audio/sfx.2f841634.mp3' }, music: { ogg: import.meta.env.BASE_URL + 'audio/music.001b26f9.ogg', mp3: import.meta.env.BASE_URL + 'audio/music.39296b50.mp3' } },
+  files: { sfx: { ogg: import.meta.env.BASE_URL + 'audio/sfx.41138127.ogg', mp3: import.meta.env.BASE_URL + 'audio/sfx.2f841634.mp3' }, music: { ogg: import.meta.env.BASE_URL + 'audio/music.0b61f0f6.ogg', mp3: import.meta.env.BASE_URL + 'audio/music.ce54297c.mp3' } },
   markerAt: 0.100,
   segments: {
     "pop1": {
@@ -127,6 +127,6 @@ export const AUDIO_MANIFEST: AudioManifest = {
       "dur": 0.35
     }
   },
-  music: { loopStart: 0.25, loopEnd: 128.207369615, bpm: 120.04, beatsPerBar: 4, downbeat: 0 },
-  durations: {"sfx":{"ogg":8.111875,"mp3":8.150204},"music":{"ogg":128.463917,"mp3":128.522449}},
+  music: { loopStart: 0.25, loopEnd: 128.086916100, bpm: 120.04, beatsPerBar: 4, downbeat: 0 },
+  durations: {"sfx":{"ogg":8.111875,"mp3":8.150204},"music":{"ogg":128.343479,"mp3":128.391837}},
 };

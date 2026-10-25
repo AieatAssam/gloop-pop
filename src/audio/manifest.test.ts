@@ -25,8 +25,10 @@ describe('generated audio manifest', () => {
     expect(AUDIO_MANIFEST.markerAt).toBe(0.1);
   });
 
-  it('keeps the loop length at 256 beats and cites known credits', () => {
-    expect(AUDIO_MANIFEST.music.loopEnd - AUDIO_MANIFEST.music.loopStart).toBeCloseTo(256 * 60 / 120.04, 3);
+  it('keeps the baked loop length at 2,818,804 samples and cites known credits', () => {
+    expect((AUDIO_MANIFEST.music.loopEnd - AUDIO_MANIFEST.music.loopStart) * 22050).toBeCloseTo(2_818_804, 0);
+    // spec-note: the milestone's stated decimal is a 90 ns arithmetic typo; 0.25 + 2,818,804 / 22,050 rounds to 128.086916100.
+    expect(AUDIO_MANIFEST.music.loopEnd).toBeCloseTo(128.086916100, 9);
     expect(AUDIO_MANIFEST.music.loopEnd).toBeLessThanOrEqual(AUDIO_MANIFEST.durations.music.ogg);
     expect(AUDIO_MANIFEST.music.loopEnd).toBeLessThanOrEqual(AUDIO_MANIFEST.durations.music.mp3);
     expect(sourceManifest.music.every((source) => CREDITS.some((credit) => credit.id === source))).toBe(true);

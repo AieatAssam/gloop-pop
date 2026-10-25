@@ -48,7 +48,7 @@ export const sfx = {
     const start = Math.min(10, Math.max(0, Math.floor(params.combo) - 1) + (params.lineIndex ?? 0)); const at = scheduleAt() + (params.delayMs ?? 0) / 1000;
     for (let ping = 0; ping < 4; ping += 1) tone({ frequency: PENTATONIC[Math.min(10, start + ping)]!, duration: 0.04, peak: 10 ** (-22 / 20), at: at + ping * 0.03 });
   },
-  gloopPop(params: { index?: number; base?: number; at?: number } = {}): void {
+  gloopPop(params: { index?: number; base?: number; at?: number; gainDb?: number } = {}): void {
     const graph = getAudioGraph(); if (!graph) return;
     const index = params.index ?? popIndex;
     popIndex = Math.max(popIndex, index + 1);
@@ -56,12 +56,12 @@ export const sfx = {
     if (!popVoiceDue(lastPopAt, now)) return;
     lastPopAt = now;
     const frequency = 380 * 2 ** (((params.base ?? 0) + Math.min(0.5 * index, 10)) / 12) * 2 ** ((random() * 20 - 10) / 1200);
-    tone({ frequency, endFrequency: frequency * 1.6, duration: 0.07, peak: 0.2, attack: 0.002, at: params.at, priority: 'pop', filter: { type: 'bandpass', frequency, q: 4 } });
+    tone({ frequency, endFrequency: frequency * 1.6, duration: 0.07, peak: 0.2 * 10 ** (((params.gainDb ?? -12) + 12) / 20), attack: 0.002, at: params.at, priority: 'pop', filter: { type: 'bandpass', frequency, q: 4 } });
   },
   bigPop(params: { combo: number }): void { const at = scheduleAt(); [1, 1.5].forEach((ratio, i) => tone({ frequency: noteFor(params.combo) * ratio, duration: 0.09, peak: 0.18, wave: 'square', at: at + i * 0.09, filter: { type: 'lowpass', frequency: 2200 } })); },
   hugePop(params: { combo: number }): void { this.popArp(params.combo, [1, 1.25, 1.5]); },
-  megaPop(params: { combo: number }): void { this.popArp(params.combo, [1, 1.25, 1.5, 2, 2.5]); },
-  popArp(combo: number, ratios: number[]): void { const at = scheduleAt(); ratios.forEach((ratio, i) => tone({ frequency: noteFor(combo) * ratio, duration: 0.07, peak: 0.2, wave: 'square', at: at + i * 0.07, filter: { type: 'lowpass', frequency: 2600 } })); tone({ frequency: 90, endFrequency: 40, duration: 0.22, peak: 0.1, at }); },
+  megaPop(params: { combo: number }): void { this.popArp(params.combo, [1, 1.25, 1.5, 2, 2.5], 10 ** (-3 / 20)); },
+  popArp(combo: number, ratios: number[], gain = 1): void { const at = scheduleAt(); ratios.forEach((ratio, i) => tone({ frequency: noteFor(combo) * ratio, duration: 0.07, peak: 0.2 * gain, wave: 'square', at: at + i * 0.07, filter: { type: 'lowpass', frequency: 2600 } })); tone({ frequency: 90, endFrequency: 40, duration: 0.22, peak: 0.1 * gain, at }); },
   allClear(): void { const at = scheduleAt(); noise({ duration: 0.4, peak: 0.12, attack: 0.38, filterType: 'bandpass', frequency: 2000, endFrequency: 8000, at }); [523, 659, 784, 1047, 1319, 1568].forEach((frequency, i) => { const when = at + 0.4 + i * 0.06; tone({ frequency, duration: 0.22, peak: 0.24, wave: 'triangle', at: when }); tone({ frequency: frequency * 2, duration: 0.22, peak: 0.1, at: when }); }); },
   comboLost(): void { tone({ frequency: 440, endFrequency: 330, duration: 0.16, peak: 0.08 }); },
   stageUp(): void { tone({ frequency: 784, duration: 0.4, peak: 0.14 }); tone({ frequency: 1175, duration: 0.4, peak: 0.14 }); },

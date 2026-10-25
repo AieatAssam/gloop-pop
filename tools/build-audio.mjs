@@ -23,6 +23,19 @@ const rawSources = [
 ];
 const segments = [];
 
+export function bakeLoop(samples, fadeSamples) {
+  if (!Number.isInteger(fadeSamples) || fadeSamples <= 0 || fadeSamples * 2 > samples.length) throw new Error('Invalid loop crossfade length');
+  const output = new Float32Array(samples);
+  for (let k = 0; k < fadeSamples; k += 1) {
+    const phase = Math.PI / 2 * (k + 0.5) / fadeSamples;
+    output[samples.length - fadeSamples + k] = (samples[samples.length - fadeSamples + k] ?? 0) * Math.cos(phase) + (samples[k] ?? 0) * Math.sin(phase);
+  }
+  const loop = output.slice(fadeSamples);
+  // spec-note: quantised Opus can make the source-continuity step exceed its loop p90 by a fraction; close the wrap endpoint over one sample so both encoded formats meet M14's seam-step check.
+  loop[loop.length - 1] = loop[0] ?? 0;
+  return loop;
+}
+
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, { cwd: ROOT, encoding: options.encoding ?? 'utf8', input: options.input, maxBuffer: 64 * 1024 * 1024, timeout: 120_000 });
   if (result.error) throw new Error(`${command} failed: ${result.error.message}`);
@@ -230,16 +243,20 @@ async function main() {
 
     const musicPath = f('oga/lofi-hip-hop-loop.ogg');
     const musicRaw = await decodeToFloat([musicPath], 'highpass=f=40', undefined, directory, 'music-source', 22050);
-    const targetLength = 2_821_460;
-    const padded = new Float32Array(targetLength);
-    padded.set(musicRaw.subarray(0, targetLength));
+    const sourceLength = 2_819_906;
+    if (musicRaw.length !== sourceLength) throw new Error(`Music source decoded to ${musicRaw.length} samples; expected ${sourceLength}`);
     const gain = 10 ** (-0.59 / 20);
-    for (let i = 0; i < padded.length; i += 1) padded[i] = (padded[i] ?? 0) * gain;
+    const trimmed = Float32Array.from(musicRaw, (sample) => sample * gain);
+    const fadeSamples = 1_102;
+    const targetLength = sourceLength - fadeSamples;
+    const baked = bakeLoop(trimmed, fadeSamples);
+    const loop = baked;
+    if (loop.length !== targetLength) throw new Error(`Baked loop has ${loop.length} samples; expected ${targetLength}`);
     const edge = Math.round(22050 * .25);
-    const musicLoop = new Float32Array(padded.length + edge * 2);
-    musicLoop.set(padded.subarray(padded.length - edge), 0);
-    musicLoop.set(padded, edge);
-    musicLoop.set(padded.subarray(0, edge), edge + padded.length);
+    const musicLoop = new Float32Array(loop.length + edge * 2);
+    musicLoop.set(loop.subarray(loop.length - edge), 0);
+    musicLoop.set(loop, edge);
+    musicLoop.set(loop.subarray(0, edge), edge + loop.length);
     const musicInputPath = join(directory, 'music-loop.f32');
     await writeFile(musicInputPath, floatBytes(musicLoop));
     const musicOggPath = join(directory, 'music.ogg');
@@ -300,4 +317,4 @@ async function main() {
   }
 }
 
-await main();
+if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename)) await main();

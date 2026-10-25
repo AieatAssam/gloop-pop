@@ -34,19 +34,19 @@ export const sfx = {
     if (playSegment('place1', { group: 'place', variants: 5, priority: 'place', rate, rateVariation: 0.04, gain: 10 ** (-8 / 20), gainDbVariation: 1.5 })) return;
     fallbackSfx.place(params);
   },
-  gooPop(params: { gainDb?: number; rate?: number; delay?: number; sub?: boolean } = {}): void {
+  gooPop(params: { gainDb?: number; subGainDb?: number; rate?: number; delay?: number; sub?: boolean } = {}): void {
     const at = scheduleAt() + (params.delay ?? 0);
-    if (params.sub) playSegment('sub', { at, group: 'pop', priority: 'pop', gain: 10 ** (-10 / 20) });
+    if (params.sub && !playSegment('sub', { at, group: 'pop', priority: 'pop', gain: 10 ** ((params.subGainDb ?? -10) / 20) })) tone({ frequency: 70, endFrequency: 45, duration: 0.22, peak: 10 ** ((params.subGainDb ?? -10) / 20), at, priority: 'pop' });
     if (playSegment('goo', { at, group: 'pop', priority: 'pop', gain: 10 ** ((params.gainDb ?? -12) / 20), rate: params.rate ?? 1, rateVariation: 0.03 })) return;
-    fallbackSfx.gloopPop();
+    fallbackSfx.gloopPop({ at, gainDb: params.gainDb });
   },
-  gloopPop(params: { index?: number; base?: number; at?: number } = {}): void {
+  gloopPop(params: { index?: number; base?: number; at?: number; gainDb?: number } = {}): void {
     const index = params.index ?? 0; const base = params.base ?? 0;
     const rate = 2 ** ((base + Math.min(0.5 * index, 10)) / 12);
     const now = getAudioGraph()?.context.currentTime;
     if (now !== undefined) { if (!popVoiceDue(lastPopVoiceAt, now)) return; lastPopVoiceAt = now; }
     const at = params.at ?? scheduleAt();
-    if (playSegment('pop1', { at, group: 'pop', variants: 6, priority: 'pop', gain: 10 ** (-12 / 20), rate, rateVariation: 0.03, gainDbVariation: 1.5 })) return;
+    if (playSegment('pop1', { at, group: 'pop', variants: 6, priority: 'pop', gain: 10 ** ((params.gainDb ?? -12) / 20), rate, rateVariation: 0.03, gainDbVariation: 1.5 })) return;
     fallbackSfx.gloopPop({ index, base, at });
   },
   zenShake(): void {
@@ -88,10 +88,10 @@ export const sfx = {
   levelBest(): void { if (!playSegment('best', { group: 'stinger', priority: 'stinger', gain: 10 ** (-10 / 20) })) fallbackSfx.newBest(); },
   megaStinger(params: { combo: number }): void {
     const start = Math.min(Math.max(Math.floor(params.combo) - 1, 0), 5); const at = scheduleAt();
-    for (let i = 0; i < 6; i += 1) playCandyBar(Math.min(10, start + i), at + i * 0.045, 1, -10, -14, 'stinger');
-    tone({ frequency: PENTATONIC[Math.min(10, start + 5)]!, duration: 0.6, peak: 10 ** (-10 / 20), at: at + 0.225, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
-    tone({ frequency: PENTATONIC[Math.min(10, start + 5)]!, duration: 0.6, peak: 10 ** (-16 / 20), at: at + 0.27, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
-    tone({ frequency: PENTATONIC[Math.min(10, start + 3)]!, duration: 0.6, peak: 10 ** (-16 / 20), at: at + 0.27, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
+    for (let i = 0; i < 6; i += 1) playCandyBar(Math.min(10, start + i), at + i * 0.045, 1, -13, -17, 'stinger');
+    tone({ frequency: PENTATONIC[Math.min(10, start + 5)]!, duration: 0.6, peak: 10 ** (-13 / 20), at: at + 0.225, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
+    tone({ frequency: PENTATONIC[Math.min(10, start + 5)]!, duration: 0.6, peak: 10 ** (-19 / 20), at: at + 0.27, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
+    tone({ frequency: PENTATONIC[Math.min(10, start + 3)]!, duration: 0.6, peak: 10 ** (-19 / 20), at: at + 0.27, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
   },
   allClearStinger(): void {
     const at = scheduleAt(); for (let rung = 0; rung <= 10; rung += 1) playCandyBar(rung, at + rung * 0.03, 1, -10, -14, 'stinger');

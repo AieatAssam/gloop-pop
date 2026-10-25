@@ -48,7 +48,7 @@ describe('sampled music transport', () => {
     expect(fixtures.sources[0]?.loopStart).toBe(0.25);
     expect(fixtures.sources[0]?.loopEnd).toBeGreaterThan(fixtures.sources[0]?.loopStart ?? 0);
     const length = (fixtures.sources[0]?.loopEnd ?? 0) - (fixtures.sources[0]?.loopStart ?? 0);
-    expect(length).toBeCloseTo(256 * 60 / 120.04, 3);
+    expect(length * 22050).toBeCloseTo(2_818_804, 0);
     fixtures.context!.currentTime = 3 * length - 3.9; music.update(playState);
     expect(fixtures.sources[0]?.stop).toHaveBeenCalled();
     const fadeCalls = fixtures.bedGainRamp.mock.calls;

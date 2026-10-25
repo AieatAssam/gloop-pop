@@ -30,5 +30,14 @@ describe('audio credits', () => {
     }
     expect(markdown).not.toContain('Draft');
     expect(markdown).toContain('"Changes" lines match');
+    expect(CREDITS[0]?.changes).toEqual([
+      'High-pass filter at 40 Hz.',
+      'Gain −0.59 dB.',
+      'The last 50 ms is crossfaded into the first 50 ms (equal power), so the loop is 127.837 s with no gap.',
+      'The last 250 ms is copied to the start and the first 250 ms to the end, for seamless looping.',
+      'Encoded as Opus 40 kbps (48 kHz) and as MP3 48 kbps (22.05 kHz), mono.',
+    ]);
+    for (const change of CREDITS[0]?.changes ?? []) expect(markdown).toContain(`  - ${change}`);
+    expect(markdown).not.toContain('Padded at the end with 1,554 samples');
   });
 });

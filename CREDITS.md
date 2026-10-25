@@ -14,8 +14,8 @@ Processed sound effects are mono and resampled to 48 kHz for editing. The music 
 - **Licence:** CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/ (no attribution required; credited anyway)
 - **Changes:**
   - High-pass filter at 40 Hz.
-  - Padded at the end with 1,554 samples of silence (70.5 ms), so the loop is 127.957 s.
   - Gain −0.59 dB.
+  - The last 50 ms is crossfaded into the first 50 ms (equal power), so the loop is 127.837 s with no gap.
   - The last 250 ms is copied to the start and the first 250 ms to the end, for seamless looping.
   - Encoded as Opus 40 kbps (48 kHz) and as MP3 48 kbps (22.05 kHz), mono.
 

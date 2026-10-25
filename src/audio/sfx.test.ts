@@ -1,12 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const fixture = vi.hoisted(() => ({ playSegment: vi.fn((id: string, options?: { at?: number; variants?: number; group?: string }) => { void id; void options; return true; }) }));
+const fixture = vi.hoisted(() => ({
+  playSegment: vi.fn((id: string, options?: { at?: number; variants?: number; group?: string; gain?: number }) => { void id; void options; return true; }),
+  playCandyBar: vi.fn((rung: number, at: number, rate: number, body: number, tink: number, priority?: string) => { void rung; void at; void rate; void body; void tink; void priority; }),
+  tone: vi.fn((options: { peak: number }) => { void options; }),
+}));
 vi.mock('./loader', () => ({ playSegment: fixture.playSegment, getSegmentBuffer: () => null }));
+vi.mock('./ladder', () => ({ playCandyBar: fixture.playCandyBar, rungFor: () => 0, rungRate: () => 1, voicedLineCount: (n: number) => n }));
+vi.mock('./synth', () => ({ tone: fixture.tone, noise: vi.fn() }));
 
 import { noteFor, popVoiceDue, sfx } from './sfx';
 
 afterEach(() => {
   fixture.playSegment.mockClear();
+  fixture.playCandyBar.mockClear(); fixture.tone.mockClear();
   vi.resetModules();
 });
 
@@ -44,5 +51,23 @@ describe('sample event mapping', () => {
       ['deal1', 0.065, 3, 'deal'],
       ['deal1', 0.125, 3, 'deal'],
     ]);
+  });
+
+  it('uses the Mega Pop mix gains while preserving Huge Pop levels', () => {
+    sfx.gooPop({ gainDb: -10, sub: true, subGainDb: -14 });
+    expect(fixture.playSegment).toHaveBeenNthCalledWith(1, 'sub', expect.objectContaining({ gain: 10 ** (-14 / 20) }));
+    expect(fixture.playSegment).toHaveBeenNthCalledWith(2, 'goo', expect.objectContaining({ gain: 10 ** (-10 / 20) }));
+    sfx.gloopPop({ gainDb: -14 });
+    expect(fixture.playSegment).toHaveBeenNthCalledWith(3, 'pop1', expect.objectContaining({ gain: 10 ** (-14 / 20) }));
+    sfx.gooPop({ gainDb: -9 }); sfx.gloopPop({ gainDb: -12 });
+    expect(fixture.playSegment).toHaveBeenNthCalledWith(4, 'goo', expect.objectContaining({ gain: 10 ** (-9 / 20) }));
+    expect(fixture.playSegment).toHaveBeenNthCalledWith(5, 'pop1', expect.objectContaining({ gain: 10 ** (-12 / 20) }));
+  });
+
+  it('sets the Mega stinger bodies, held note and bloom to the M14 levels', () => {
+    sfx.megaStinger({ combo: 1 });
+    expect(fixture.playCandyBar).toHaveBeenCalledTimes(6);
+    for (const call of fixture.playCandyBar.mock.calls) expect(call.slice(3, 5)).toEqual([-13, -17]);
+    expect(fixture.tone.mock.calls.map(([options]) => options.peak)).toEqual([10 ** (-13 / 20), 10 ** (-19 / 20), 10 ** (-19 / 20)]);
   });
 });
