@@ -139,7 +139,7 @@ export function bootApp(): void {
       if (paused) { ctx.fillStyle = PALETTE.ui.scrim; ctx.fillRect(0, 0, layout.width, layout.height); }
       shownScore = drawHud(ctx, layout, session.state, session.best, elapsedMs, shownScore, comboLostAt, activeChallenge?.score, candyFlameUntil, candyFlameFlavour, reduced, scoreAnimFrom, scoreAnimStart, scoreAnimDuration, newBestAt, flameBreakAt, comboPulseAt, scoreSparkleAt);
       if (tutorialActive && tutorialStep < 4 && !tutorialTouched) { const target = tutorialStep === 1 ? { row: 6, col: 6, width: 2 } : tutorialStep === 2 ? { row: 6, col: 3, width: 1 } : { row: 4, col: 6, width: 2 }; const cells = tutorialStep === 2 ? [[0, 0], [1, 0]] as const : [[0, 0], [0, 1]] as const; const hand = tutorialHandPoints(layout.board, layout.tray, layout.cellSize, target.row, target.col, target.width); drawGhostHand(ctx, elapsedMs, hand.from, hand.to, layout.cellSize, cells); }
-      if (debug) drawDebug(ctx, layout, surface.dpr, dtMs, surface);
+      if (debug && query.get('overlay') !== '0') drawDebug(ctx, layout, surface.dpr, dtMs, surface);
     }
     updateTutorial(elapsedMs);
     updateOverlay();
