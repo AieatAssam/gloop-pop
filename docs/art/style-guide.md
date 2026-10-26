@@ -942,25 +942,28 @@ Notes:
   - **M14 Mega loudness.** Lead's capture of the master output, `?debug=1&demo=feel&scene=mega`, 5 s from onset: **−13.2 LUFS-I, peak −1.2 dBFS**, against a line clear −18.6, a combo move −18.0 and the bed −22.5. A Mega 4.8 dB over a combo is too loud (it is the moment people play with sound on, and the limiter was clearly working: −6 dB threshold, peak −1.2). Target: **−16 LUFS-I ± 1, peak ≤ −3 dBFS**, still ≥ 1.5 dB above a combo move so it stays the top moment. Every Mega-only layer drops 3–4 dB (goo −4, sub −4, stinger −3, Mega pop cells −2), so the sum drops about 3–3.5 dB before the limiter. The duck stays −8 dB: the bed under a Mega is already about −30 LUFS, and a deeper duck would read as the music cutting out. All Clear and New best are unchanged (not measured as too loud).
   - **Final Mega and All Clear gain table** (M15; dB relative to SFX bus; times from stinger start). This table supersedes the dB and timing figures in the Mega and All Clear bullets of this section. Code keeps every row in one exported table.
 
-    | Layer | M14 | M15 |
-    |---|---|---|
-    | Mega goo / sub | −10 / −14 | −10 / −14 (unchanged) |
-    | Mega pop cells | −14 | −14 (unchanged) |
-    | Mega line clear body / tink | −12 / −16 | −12 / −16 (unchanged) |
-    | Mega fizz | −26 | −26 (unchanged) |
-    | Mega combo harmony | −22 | −22 (unchanged) |
-    | Mega sparkle | −22 | −22 (unchanged) |
-    | Mega stinger bodies / tinks (6 notes, 45 ms apart) | −11 / −15 | **−9 / −13** |
-    | Mega held note | −11 at +225 ms | **−7 at +270 ms** |
-    | Mega bloom (2 notes) | −17 at +270 ms | **−14 at +315 ms** |
-    | All Clear bodies / tinks (11 notes, 30 ms apart) | −10 / −14 | −10 / −14 (unchanged) |
-    | All Clear bloom (rungs 5, 7, 8) | −14 each, all at +330 ms | **−7 each, rolled: +330 / +390 / +450 ms** |
+    | Layer | M14 | M15 | M15 round 2 |
+    |---|---|---|---|
+    | Mega goo / sub | −10 / −14 | −10 / −14 (unchanged) | unchanged |
+    | Mega pop cells | −14 | −14 (unchanged) | unchanged |
+    | Mega line clear body / tink | −12 / −16 | −12 / −16 (unchanged) | unchanged |
+    | Mega fizz | −26 | −26 (unchanged) | unchanged |
+    | Mega combo harmony | −22 | −22 (unchanged) | unchanged |
+    | Mega sparkle | −22 | −22 (unchanged) | unchanged |
+    | Mega stinger bodies / tinks (6 notes, 45 ms apart) | −11 / −15 | **−9 / −13** | unchanged |
+    | Mega held note | −11 at +225 ms | **−7 at +270 ms** | unchanged |
+    | Mega bloom (2 notes) | −17 at +270 ms | **−14 at +315 ms** | unchanged (the second note now sounds, see below) |
+    | All Clear bodies / tinks (11 notes, 30 ms apart) | −10 / −14 | −10 / −14 (unchanged) | unchanged (rungs 6–10 now sound) |
+    | All Clear bloom (rungs 5, 7, 8) | −14 each, all at +330 ms | **−7 each, rolled: +330 / +390 / +450 ms** | **−10 each**, timing unchanged |
+    | Stinger voice accounting (24-voice cap) | a voice counts from the moment it is scheduled | same | **a voice counts only over its scheduled [start, stop)** |
 
     The Mega line and combo rows apply only when the move plan's largest pop is Mega, including their synth fallbacks. Normal line clears, Big/Huge moves and New best keep their gains.
+    - **Why the voice accounting changes (round 2).** Every stinger claims all its voices in one call at its start, and each claim counts at once against the 24-voice cap, even for notes that start up to 450 ms later. Stinger voices are never stolen, so once 24 stinger voices exist every later claim fails silently. The All Clear's bars 0–5 use 4 voices each (body, ×4, ×10 partial, tink) = 24, so **bars 6–10 and all three bloom tones never played** in M14 or M15. The debug trace logs a call before its claim, so they still showed up in the trace. In plain Mega (start rung 5) the 24th voice is the first bloom note, so the second bloom note never played. With a voice counted only while it is scheduled to sound, the All Clear needs at most 17 stinger voices at once (bar 6 and the first bloom note) and the Mega at most 14. Nothing else changes: the cap stays 24 and stinger voices are still never stolen.
+    - **Why the All Clear bloom drops to −10.** At −7 the three rolled tones would have been the loudest thing in the move once they actually play (worst-case sum about 0.82 of full scale on the SFX bus), so they would have hit the limiter. At −10 their worst-case sum is about −4.7 dB, which stays under the ladder's own stacked peak.
     - **Why the held note moves.** At +225 ms the held note started on the same frame, at the same pitch and phase, as the last stinger note, so the two sines added in phase (+6 dB) and made the loudest peak of the Mega move. One step later (+270 ms) that note has decayed by about 10 dB, so the held note can go up 4 dB and the peak still drops. The bloom keeps its 45 ms gap after the held note.
     - **Why the All Clear bloom is rolled.** Three tones that start together stack their peaks. 60 ms apart, the bloom carries the extra loudness over its 900 ms tail with a +0.5 dB peak rise.
     - **Pop-burst layers stay put.** They share 0.67–0.95 s with the goal-crossing coin (−6) and the pops. A gain change there raises the peak about as fast as the loudness.
-    - **Targets (M15):** Mega **−16 LUFS-I ± 1** (5 s from onset, master capture), **true peak ≤ −1 dBFS**, limiter (−6 dB threshold) idle or ≤ 0.5 dB gain reduction on single transients, no pumping. Mega above a combo move; All Clear Mega at or above a plain Mega. Measurements and forecast: `docs/balance-log.md` "M15 Mega loudness".
+    - **Targets (M15):** Mega **−16 LUFS-I ± 1** (5 s from onset, master capture), **true peak ≤ −1 dBFS**, limiter (−6 dB threshold) idle or ≤ 0.5 dB gain reduction on single transients, no pumping. Mega above a combo move; All Clear Mega at or above a plain Mega (round 2: at least 0.3 LU above). Measurements and forecast: `docs/balance-log.md` "M15 Mega loudness".
   - **All Clear stinger:** the full ladder, rungs 0 → 10, 30 ms apart (body −10 + tink −14), then at +330 ms a C-major bloom, rungs 5, 7, 8 (C6, E6, G6), body −14 each, 900 ms decay, 5 Hz tremolo ±15 %.
   - **New best:** the `best` sample (687 ms).
 - **Ducking** (A12, A16), only for the stinger that plays (never on ordinary moves, lines, Big or Huge):

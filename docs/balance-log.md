@@ -333,3 +333,59 @@ Mega is now about 3.8 LU above a combo move, and All Clear Mega is about 0.3 LU 
 - The existing Mega impact assertions stay: goo −10, sub −14, pop −14, line `[-12, -16]`, fizz `0.063 * 10 ** (-2 / 20)` in the fallback path, combo harmony and sparkle −22. They now read from `MEGA_MIX_DB`. Normal line clears stay `[-10, -14]` and Huge stays goo −9 and pop −12.
 
 **Acceptance re-capture (lead):** two runs each of `?debug=1&overlay=0&demo=feel&scene=mega-plain` and `scene=mega`, plus one `scene=combo`, using `ffmpeg -af ebur128=peak=true` over 5 s from onset. Pass: mega-plain −17 to −15 LUFS-I, every TP ≤ −1 dBFS, All Clear Mega ≥ mega-plain, combo unchanged. If any run's TP reads above −2.0 dBFS, the limiter is doing more than catching single transients. In that case drop the All Clear bloom to −8, then the Mega held note to −8, one step at a time, and re-capture.
+
+### M15 round 2 (All Clear below Mega)
+
+**Lead captures on HEAD (b6cf8ad, M15 table implemented), two runs each:**
+
+| Scene | LUFS-I | True peak | Forecast was |
+|---|---:|---:|---:|
+| `scene=mega-plain` | −17.0 / −16.9 | −3.9 / −4.0 dBFS | −16.5 / −3.6 |
+| `scene=mega` (All Clear Mega) | −17.9 / −18.2 | −3.3 / −3.4 dBFS | −16.2 / −2.7 |
+| `scene=combo` | −20.5 | −4.4 dBFS | unchanged |
+| line clear | −21.9 | −4.4 dBFS | unchanged |
+
+Plain Mega is in range. All Clear Mega is about 1.1 LU below it. It should be at least 0.3 LU above.
+
+**Why the model missed: the All Clear bloom never plays.** `allClearStinger()` calls `playCandyBar` for rungs 0–10 and then `tone` ×3 in one go at the climax frame. Each oscillator or tink source calls `claimVoice` when it is scheduled, and the voice stays in the list until its `ended` event. So a note scheduled for +450 ms already counts against the 24-voice cap at +0 ms. Stinger voices are never stolen. A bar with a fundamental under 1.2 kHz (rungs 0–6) claims 4 voices: body, ×4 partial, ×10 partial and tink. Bars 0–5 make exactly 24. **Every later claim (bars 6–10, all three bloom tones and their LFOs) returns false and is never started.** `traceAudioCall` runs before the claim, so the lead's M14 trace still listed 11 rungs and 3 bloom tones. What you actually hear is rungs 0–5 over 150 ms. That is also why M15's −14 → −7 bloom change moved the All Clear by only about +0.3 LU (run spread).
+
+Plain Mega starts at rung 5 (combo 11 → `s = 5`): bars 5–6 take 4 voices each, bars 7–10 take 3, so the bars take 20, the held note takes 2 and the first bloom note takes 2. **The second bloom note (top rung − 2) is dropped.** That accounts for about 0.1 LU of the 0.45 LU Mega over-forecast.
+
+**Decision (round 2):**
+
+| Layer | M15 | Round 2 |
+|---|---|---|
+| Stinger voice accounting | counts from scheduling until `ended` | counts only over its scheduled [start, stop): a claim checks the voices whose [start, stop) overlaps the new voice's [start, stop) |
+| All Clear bloom ×3 (rungs 5, 7, 8) | −7, at +330 / +390 / +450 ms | **−10**, timing unchanged |
+| All Clear bodies / tinks | −10 / −14 | unchanged (rungs 6–10 now sound) |
+| Every Mega row | as M15 | unchanged |
+
+With overlap counting, the most stinger voices the All Clear needs at once is 17 (bar 6 and the first bloom note). Tinks last 85–142 ms after rate folding, and fundamentals last 270 ms. Plain Mega needs at most 14. Each has at least 7 voices of headroom under the cap. The cap stays 24, and stinger voices are still never stolen.
+
+**Rejected: a dB-only fix on the current engine.** Only bars 0–5 sound, so the All Clear would need about +5.4 dB on those bars. Six bars 30 ms apart stack to about 1.8× one bar's amplitude, so that would put the ladder peak above 0 dBFS before the limiter.
+
+**Rejected: the optional +0.5 dB on Mega-only layers.** Plain Mega gains about +0.1 LU when its second bloom note sounds. A further +0.5 dB on the stinger bars, held note and bloom would add about +0.25 LU. That would cut the All Clear's lead to about 0.25 LU, below the 0.3 LU required and inside the run-to-run spread. I'll revisit it after this capture.
+
+**Forecast (energy model recalibrated to these captures; ±0.5 LU):**
+
+| Scene | LUFS-I | True peak | Limiter |
+|---|---:|---:|---|
+| `mega-plain` | −16.85 | ≈ −3.9 dBFS (pop/coin cluster) | idle |
+| `mega` (All Clear Mega) | **−16.35** (+1.7 LU: bars 6–10 ≈ +0.6, bloom ≈ +1.1) | ≈ −3.2 dBFS (ladder stack, now 330 ms long); bloom ≈ −5.5 | idle (compressor input ≈ −6.6 dBFS, under the −6 threshold) |
+| combo / line | −20.5 / −21.9 | unchanged | unchanged |
+
+All Clear leads plain Mega by about 0.5 LU. Both sit within −16 ± 1.
+
+**Required tests (implementation task).**
+- `MEGA_MIX_DB.allClearBloom` = −10. Update the `toEqual` and the bloom peak assertions to `10 ** (-10 / 20)`.
+- Engine test: start from an empty voice list with the `tink` segment decoded. After `allClearStinger()`, every source has started: 11 bodies, 11 ×4, 7 ×10, 11 tinks, and 3 tones with 3 LFOs. After `megaStinger({ combo: 12 })`, both bloom tones have started.
+- A cap test with 24 voices that overlap in time still refuses a 25th stinger voice.
+- The debug trace marks a call whose claim failed (e.g. `dropped`), so a trace can no longer list a note that never played.
+
+**Acceptance re-capture (lead).** Same method as above. Pass: All Clear Mega ≥ plain Mega + 0.3 LU, both −17 to −15, every TP ≤ −1 dBFS.
+
+**Step-down rule.** Apply one step at a time and re-capture after each:
+- If any run's TP reads above −2.0 dBFS, drop the All Clear bloom to −11.
+- If the TP is still above −2.0 dBFS, drop the All Clear bodies / tinks to −11 / −15. The ladder stack is the All Clear's peak.
+- If a plain Mega TP reads above −2.0 dBFS, drop the Mega held note to −8.
+- If All Clear Mega is less than 0.3 LU above plain Mega and its TP is ≤ −2.5 dBFS, raise the All Clear bloom by 1 dB, up to −8.
