@@ -940,21 +940,27 @@ Notes:
 - **Stinger timing rides the slow-mo:** it starts on the same frame as the slow-mo request (Mega: face burst; All Clear: last burst; New best: F). Its musical length is ≈ 40 + 300 + 200 = 540 ms (the slow-mo ramp in, hold and ramp out), plus a tail.
   - **Mega Pop stinger:** a run of 6 ladder notes, rungs `s … s + 5` with `s = min(r0, 5)`, 45 ms apart (body **−13** + tink **−17**; M14, was −10/−14). The last note is held: body **−13** (was −10), decay 600 ms with a 5 Hz, ±15 % tremolo. At +270 ms a bloom: body notes at the top rung and the rung 2 below, **−19** each (was −16), 600 ms decay. Total about 870 ms.
   - **M14 Mega loudness.** Lead's capture of the master output, `?debug=1&demo=feel&scene=mega`, 5 s from onset: **−13.2 LUFS-I, peak −1.2 dBFS**, against a line clear −18.6, a combo move −18.0 and the bed −22.5. A Mega 4.8 dB over a combo is too loud (it is the moment people play with sound on, and the limiter was clearly working: −6 dB threshold, peak −1.2). Target: **−16 LUFS-I ± 1, peak ≤ −3 dBFS**, still ≥ 1.5 dB above a combo move so it stays the top moment. Every Mega-only layer drops 3–4 dB (goo −4, sub −4, stinger −3, Mega pop cells −2), so the sum drops about 3–3.5 dB before the limiter. The duck stays −8 dB: the bed under a Mega is already about −30 LUFS, and a deeper duck would read as the music cutting out. All Clear and New best are unchanged (not measured as too loud).
-  - **Final Mega gain table** (dB relative to SFX bus; Mega moves only):
+  - **Final Mega and All Clear gain table** (M15; dB relative to SFX bus; times from stinger start). This table supersedes the dB and timing figures in the Mega and All Clear bullets of this section. Code keeps every row in one exported table.
 
-    | Layer (Mega moves only) | Gain |
-    |---|---|
-    | goo / sub | −10 / −14 |
-    | pop cells | −14 |
-    | stinger bodies / tinks | −11 / −15 |
-    | held note | −11 |
-    | bloom | −17 |
-    | line clear body / tink | −12 / −16 |
-    | fizz | −26 |
-    | combo harmony | −22 |
-    | sparkle | −22 |
+    | Layer | M14 | M15 |
+    |---|---|---|
+    | Mega goo / sub | −10 / −14 | −10 / −14 (unchanged) |
+    | Mega pop cells | −14 | −14 (unchanged) |
+    | Mega line clear body / tink | −12 / −16 | −12 / −16 (unchanged) |
+    | Mega fizz | −26 | −26 (unchanged) |
+    | Mega combo harmony | −22 | −22 (unchanged) |
+    | Mega sparkle | −22 | −22 (unchanged) |
+    | Mega stinger bodies / tinks (6 notes, 45 ms apart) | −11 / −15 | **−9 / −13** |
+    | Mega held note | −11 at +225 ms | **−7 at +270 ms** |
+    | Mega bloom (2 notes) | −17 at +270 ms | **−14 at +315 ms** |
+    | All Clear bodies / tinks (11 notes, 30 ms apart) | −10 / −14 | −10 / −14 (unchanged) |
+    | All Clear bloom (rungs 5, 7, 8) | −14 each, all at +330 ms | **−7 each, rolled: +330 / +390 / +450 ms** |
 
-    The line and combo adjustments apply only when the move plan's largest pop is Mega, including their synth fallbacks. Normal line clears, Big/Huge moves, All Clear and New best remain at their existing gains. Target remains **−16 LUFS-I ± 1, peak ≤ −3 dBFS, and at least 1.5 dB above a combo move**.
+    The Mega line and combo rows apply only when the move plan's largest pop is Mega, including their synth fallbacks. Normal line clears, Big/Huge moves and New best keep their gains.
+    - **Why the held note moves.** At +225 ms the held note started on the same frame, at the same pitch and phase, as the last stinger note, so the two sines added in phase (+6 dB) and made the loudest peak of the Mega move. One step later (+270 ms) that note has decayed by about 10 dB, so the held note can go up 4 dB and the peak still drops. The bloom keeps its 45 ms gap after the held note.
+    - **Why the All Clear bloom is rolled.** Three tones that start together stack their peaks. 60 ms apart, the bloom carries the extra loudness over its 900 ms tail with a +0.5 dB peak rise.
+    - **Pop-burst layers stay put.** They share 0.67–0.95 s with the goal-crossing coin (−6) and the pops. A gain change there raises the peak about as fast as the loudness.
+    - **Targets (M15):** Mega **−16 LUFS-I ± 1** (5 s from onset, master capture), **true peak ≤ −1 dBFS**, limiter (−6 dB threshold) idle or ≤ 0.5 dB gain reduction on single transients, no pumping. Mega above a combo move; All Clear Mega at or above a plain Mega. Measurements and forecast: `docs/balance-log.md` "M15 Mega loudness".
   - **All Clear stinger:** the full ladder, rungs 0 → 10, 30 ms apart (body −10 + tink −14), then at +330 ms a C-major bloom, rungs 5, 7, 8 (C6, E6, G6), body −14 each, 900 ms decay, 5 Hz tremolo ±15 %.
   - **New best:** the `best` sample (687 ms).
 - **Ducking** (A12, A16), only for the stinger that plays (never on ordinary moves, lines, Big or Huge):

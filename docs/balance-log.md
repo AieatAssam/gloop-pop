@@ -286,3 +286,50 @@ C target histogram: **3 ×4, 4 ×19, 5 ×16, 6 ×3, 7 ×1, 8 ×1**. All validati
 ## M14 Mega loudness
 
 The 3b capture used to size the extra Mega-only cuts was taken before 3c and included the 14 stacked achievement chimes. Its master capture measured −13.4 LUFS-I, peak −0.7 dBFS; the loudest 100 ms impact windows were unchanged. Those numbers were superseded by the director's revised Mega gain table in style guide §13.6. The 3b trims were fighting the achievement stack rather than the Mega layers.
+
+## M15 Mega loudness
+
+Director decision, 2026-10-26. Owner brief: "fix volume if you can do so safely". Target: Mega −16 LUFS-I ± 1 (5 s from onset, master capture), true peak ≤ −1 dBFS, no clipping, no limiter pumping, Mega above combo, All Clear Mega at or above Mega. The table is in style guide §13.6.
+
+**Lead captures on the M15.1 build (before):**
+
+| Scene | LUFS-I | True peak |
+|---|---:|---:|
+| `scene=mega-plain` (run 1 / run 2) | −17.7 / −17.5 | −2.8 / −2.4 dBFS |
+| `scene=mega` (All Clear Mega) | −18.4 | −3.2 dBFS |
+| `scene=combo` | −20.3 | −4.7 dBFS |
+| line clear | −22.2 | −4.0 dBFS |
+
+**What the limiter is doing now.** Master trim 0.674 (−3.43 dB) feeds a DynamicsCompressor at −6 dB threshold, knee 0, ratio 20, attack 2 ms, release 150 ms, with +3.42 dB automatic makeup. Below threshold the chain is unity. The output ceiling for a held signal is −6 + 3.42 = **−2.58 dBFS**. The plain Mega peaks of −2.8 and −2.4 sit on that ceiling, so the loudest Mega transient already reaches the threshold. Any layer that adds to that peak would go straight into gain reduction. A plain gain boost on every Mega layer is not safe.
+
+**Where the peak is.** I rebuilt the trace in an offline model: synth layers with their exact envelopes, samples as decays with the manifest lengths, BS.1770 K-weighting and gating, and the limiter above with 6 ms lookahead. One global offset calibrates it to −17.6. The loudest 100 ms window is 1.2–1.3 s. There the held note (+225 ms) starts on the same frame, pitch and phase as the sixth stinger note (rung `s + 5`), so the two sines add in phase. The pop burst and the goal coin (0.85 s) come second, about 1.5 dB lower. The All Clear peak is its three bloom tones, which all start at +330 ms.
+
+**Decision (Mega-only and All Clear stinger layers; nothing else changes):**
+
+| Layer | Old | New |
+|---|---|---|
+| Mega stinger bodies / tinks | −11 / −15 | −9 / −13 |
+| Mega held note | −11 at +225 ms | −7 at +270 ms |
+| Mega bloom ×2 | −17 at +270 ms | −14 at +315 ms |
+| All Clear bloom ×3 | −14, all at +330 ms | −7, at +330 / +390 / +450 ms |
+| Mega goo, sub, pop cells, line, fizz, combo harmony, sparkle; All Clear bodies / tinks | as M14 | unchanged |
+
+Moving the held note one 45 ms step later removes the in-phase stack. That alone costs 0.9 LU and lowers the peak by 2.3 dB. The freed headroom pays for the +2 dB stinger notes and the +4 dB held note. The bloom gets +3 dB, not +4, so a plain Mega cannot pass an All Clear Mega. The pop-burst layers stay put because they overlap the goal coin and place cluster, where peak rises as fast as loudness.
+
+**Forecast (model delta applied to the lead's captures; ±0.5 LU model spread):**
+
+| Scene | LUFS-I | True peak | Limiter gain reduction |
+|---|---:|---:|---|
+| `mega-plain` | −16.5 (−16.2 with no music, −16.8 with the bed) | ≈ −3.6 dBFS | 0 dB (input peak ≈ −7 dBFS) |
+| `mega` (All Clear Mega) | −16.2 | ≈ −2.7 dBFS | ≤ 0.3 dB on one transient, no pumping |
+| combo / line | −20.3 / −22.2 | unchanged | unchanged |
+
+Mega is now about 3.8 LU above a combo move, and All Clear Mega is about 0.3 LU above plain Mega. −16.0 is not forecast for plain Mega with the limiter idle. To get there I would have to raise the pop-burst layers, which share the coin peak, or let All Clear lead by less than the run-to-run spread. −16.5 is the safe maximum, inside the ± 1 window.
+
+**Required tests (implementation task).** Export one table from `src/audio/sfx.ts`, e.g. `export const MEGA_MIX_DB = { goo: -10, sub: -14, popCell: -14, lineBody: -12, lineTink: -16, fizz: -26, comboHarmony: -22, sparkle: -22, stingerBody: -9, stingerTink: -13, held: -7, heldAtMs: 270, bloom: -14, bloomAtMs: 315, allClearBody: -10, allClearTink: -14, allClearBloom: -7, allClearBloomAtMs: 330, allClearBloomRollMs: 60 } as const;`, and read every listed layer from it in `sfx.ts` and in `index.ts` (`onBurst` −14, `onPopFirst` −10 / −14). In `sfx.test.ts`:
+- `expect(MEGA_MIX_DB).toEqual({ …the 19 values above… })`. This is the single source, and any edit fails here.
+- `megaStinger({ combo: 1 })`: 6 `playCandyBar` calls with `[MEGA_MIX_DB.stingerBody, MEGA_MIX_DB.stingerTink]` (= `[-9, -13]`) at `0.005 + i * 0.045`. The tone peaks are `[10 ** (-7 / 20), 10 ** (-14 / 20), 10 ** (-14 / 20)]` and the tone `at` values are `[0.275, 0.32, 0.32]`. The held tone frequency equals the sixth bar's rung, and its `at` is 45 ms after that bar (not the same frame).
+- `allClearStinger()`: 11 `playCandyBar` calls with `[-10, -14]` at `0.005 + rung * 0.03`. The bloom tone peaks are `Array(3).fill(10 ** (-7 / 20))` at `[0.335, 0.395, 0.455]`, with rungs 5, 7, 8 in that order.
+- The existing Mega impact assertions stay: goo −10, sub −14, pop −14, line `[-12, -16]`, fizz `0.063 * 10 ** (-2 / 20)` in the fallback path, combo harmony and sparkle −22. They now read from `MEGA_MIX_DB`. Normal line clears stay `[-10, -14]` and Huge stays goo −9 and pop −12.
+
+**Acceptance re-capture (lead):** two runs each of `?debug=1&overlay=0&demo=feel&scene=mega-plain` and `scene=mega`, plus one `scene=combo`, using `ffmpeg -af ebur128=peak=true` over 5 s from onset. Pass: mega-plain −17 to −15 LUFS-I, every TP ≤ −1 dBFS, All Clear Mega ≥ mega-plain, combo unchanged. If any run's TP reads above −2.0 dBFS, the limiter is doing more than catching single transients. In that case drop the All Clear bloom to −8, then the Mega held note to −8, one step at a time, and re-capture.
