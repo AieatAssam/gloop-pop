@@ -946,13 +946,13 @@ Notes:
     |---|---|
     | goo / sub | −10 / −14 |
     | pop cells | −14 |
-    | stinger bodies / tinks | −13 / −17 |
-    | held note | −13 |
-    | bloom | −19 |
+    | stinger bodies / tinks | −11 / −15 |
+    | held note | −11 |
+    | bloom | −17 |
     | line clear body / tink | −12 / −16 |
     | fizz | −26 |
     | combo harmony | −22 |
-    | sparkle | −24 |
+    | sparkle | −22 |
 
     The line and combo adjustments apply only when the move plan's largest pop is Mega, including their synth fallbacks. Normal line clears, Big/Huge moves, All Clear and New best remain at their existing gains. Target remains **−16 LUFS-I ± 1, peak ≤ −3 dBFS, and at least 1.5 dB above a combo move**.
   - **All Clear stinger:** the full ladder, rungs 0 → 10, 30 ms apart (body −10 + tink −14), then at +330 ms a C-major bloom, rungs 5, 7, 8 (C6, E6, G6), body −14 each, 900 ms decay, 5 Hz tremolo ±15 %.

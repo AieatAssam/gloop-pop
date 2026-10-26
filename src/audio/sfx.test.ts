@@ -79,8 +79,8 @@ describe('sample event mapping', () => {
   it('sets the Mega stinger bodies, held note and bloom to the follow-up levels', () => {
     sfx.megaStinger({ combo: 1 });
     expect(fixture.playCandyBar).toHaveBeenCalledTimes(6);
-    for (const call of fixture.playCandyBar.mock.calls) expect(call.slice(3, 5)).toEqual([-13, -17]);
-    expect(fixture.tone.mock.calls.map(([options]) => options.peak)).toEqual([10 ** (-13 / 20), 10 ** (-19 / 20), 10 ** (-19 / 20)]);
+    for (const call of fixture.playCandyBar.mock.calls) expect(call.slice(3, 5)).toEqual([-11, -15]);
+    expect(fixture.tone.mock.calls.map(([options]) => options.peak)).toEqual([10 ** (-11 / 20), 10 ** (-17 / 20), 10 ** (-17 / 20)]);
   });
 
   it('trims Mega impact layers while leaving normal line clears unchanged', () => {
