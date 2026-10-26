@@ -1,8 +1,9 @@
 import type { GameState } from '../core/types';
 import { step } from '../core/game';
 import type { SaveV2 } from '../meta/saveSchema';
+import { ACHIEVEMENTS } from '../meta/achievements';
 
-export type FeelScene = 'combo' | 'mega';
+export type FeelScene = 'combo' | 'mega' | 'mega-plain';
 export type GoalScene = 'target' | 'target-hit' | 'mini-done';
 
 /** Shared save changes for the player's Skip action and the debug tutorial shortcut. */
@@ -21,6 +22,17 @@ export function debugSaveWritesDisabled(query: URLSearchParams, veteranDemo: boo
 export function debugTutorialState(save: SaveV2, query: URLSearchParams): SaveV2 {
   if (query.get('debug') !== '1' || query.get('tutorial') === '1' || save.inProgress !== null || save.tutorialDone) return save;
   return markTutorialSkipped(save);
+}
+
+/** Seed only the Mega Plain capture save so its move has no new progression rewards. */
+export function seedMegaPlainSave(save: SaveV2, query: URLSearchParams): SaveV2 {
+  if (query.get('debug') !== '1' || query.get('demo') !== 'feel' || query.get('scene') !== 'mega-plain') return save;
+  // spec-note: Seed every achievement and discovery plus level 50 only for this demo URL; debug demo saves are memory-only.
+  const next = structuredClone(save);
+  for (const achievement of ACHIEVEMENTS) next.achievements[achievement.id] = 1;
+  next.firsts = { line: true, double: true, bigPop: true, hugePop: true, megaPop: true, allClear: true, combo5: true, combo10: true };
+  next.profile.level = 50;
+  return next;
 }
 
 /** Deterministic M12 capture scenes built from the current in-memory run. */
@@ -54,6 +66,10 @@ export function createFeelScene(state: GameState, scene: FeelScene): GameState {
     for (const col of [3, 5, 6, 7]) next.board[4 * 8 + col] = 4;
     for (const col of [6, 7]) next.board[5 * 8 + col] = 4;
     next.tray = [{ defId: 2, flavour: 4 }, { defId: 0, flavour: 6 }, { defId: 0, flavour: 7 }];
+    if (scene === 'mega-plain') {
+      // spec-note: Keep the documented Mega capture drop unchanged while one isolated cell prevents an All Clear.
+      next.board[63] = 1;
+    }
   }
   return next;
 }

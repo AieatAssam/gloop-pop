@@ -848,3 +848,11 @@ Spec: design §24.5 (C row, M14 spec-note), §24.6 (cube lanes in step 1, "Move 
 - `/gloop-pop/?debug=1&demo=adventure-play&level=87`: cube icon in the C chip.
 - `/gloop-pop/?debug=1&demo=cubes`, `demo=mini-done`, `demo=target-hit`: no unlabeled pips, no "-1 ✓".
 - Audio: `?debug=1&demo=feel&scene=mega` LUFS capture (lead), and a 3-minute listen across one loop seam.
+
+## M15 Volume, budget, attribution
+
+### M15.1 Lead-specified updates
+- Add a `mega-plain` feel scene with the same Mega capture move as `mega`, but no All Clear or new achievement/level rewards.
+- Raise the soft total gzipped JavaScript target to 125 KB; keep the 150 KB hard limit and report total, player, entry and debug sizes.
+- Add the requested inspiration and non-affiliation copy to README, CREDITS, the in-game Credits screen and design §16.4.
+- **Done when:** scene and strings tests cover the changes and `timeout 300 npm run check` passes.

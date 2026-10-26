@@ -50,6 +50,7 @@ describe('player-facing strings', () => {
     ]);
     expect(S.volumeValue(70)).toBe('70%');
     expect(S.creditsIntro).toBe('Gloop Pop uses free sounds and music made by these people. Thank you!');
+    expect(S.creditsAttribution).toBe('Inspired by Block Blast! (Hungry Studio) and 1010! (Gram Games). Not affiliated.');
     expect(S.creditsNote).toBe('CC0 means anyone may use it for free. We credit them anyway.');
   });
   it('uses singular Adventure copy and the stated bonus-move wording', () => {

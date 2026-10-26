@@ -6,6 +6,14 @@ Drag jelly blocks onto an 8×8 board to fill rows and columns. Same-colour jelli
 
 It runs in any modern browser on a phone or a desktop. You don't need an install, an account or a connection after the first load. It has no ads and nothing to buy.
 
+## Inspiration and credits
+
+Gloop Pop's core loop (place three pieces, clear full rows and columns) is inspired by [Block Blast!](https://www.blockblast.com/) by Hungry Studio and [1010!](https://gramgames.net/game-detail-1010.html) by Gram Games. Tetris, created by Alexey Pajitnov, is the original line-clear game.
+
+The jelly twist, where touching pieces of the same colour merge into one gloop that pops all at once, is Gloop Pop's own. The code and art were made for this game. The sounds and music are original or CC0, and the fonts use the SIL Open Font License. [CREDITS.md](CREDITS.md) lists every asset and its licence.
+
+Gloop Pop is a fan-made, free project. It is not affiliated with, endorsed by or connected to Hungry Studio, Gram Games, The Tetris Company or their games.
+
 <p>
   <img src="docs/screenshots/tutorial.png" width="216" alt="First launch: the tutorial asks you to drag a piece into the gap">
   <img src="docs/screenshots/big-pop.png" width="216" alt="A Big Pop in a Classic run">

@@ -84,6 +84,7 @@ export async function bootApp(): Promise<void> {
   const chooseAdventureBot = debug && import.meta.env.DEV ? (await import('../core/levelBot')).chooseLevelMove : undefined;
   setSaveWritesDisabled(dbg?.debugSaveWritesDisabled(query, veteranDemo) ?? false);
   let save = veteranDemo && dbg ? dbg.veteranSaveState() : loadSave(); save = rollDay(save, dayKeyFromMs(Date.now()));
+  if (debug && dbg) save = dbg.seedMegaPlainSave(save, query);
   if (debug && dbg) save = dbg.debugMissionSave(save, query, dayKeyFromMs(Date.now()));
   const savedRun = runToResumeOnBoot(save.inProgress);
   const tutorialSave = dbg?.debugTutorialState(save, query) ?? save;

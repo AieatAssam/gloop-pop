@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { CREDITS, creditLine } from '../../audio/credits';
 import { createCreditsScreen } from './credits';
+import { S } from '../strings';
 
 describe('Credits screen', () => {
   it('renders exactly the credit entries in their specified groups', () => {
@@ -10,6 +11,7 @@ describe('Credits screen', () => {
     expect(lines).toHaveLength(CREDITS.length);
     expect(lines.map((line) => line.textContent)).toEqual(CREDITS.map(creditLine));
     expect([...screen.querySelectorAll('.credits-group h2')].map((heading) => heading.textContent)).toEqual(['Music', 'Sound effects', 'Code and art']);
+    expect(screen.querySelector('.credits-attribution')?.textContent).toBe(S.creditsAttribution);
   });
   it('opens each linked credit safely in a new tab with its design aria label', () => {
     const screen = createCreditsScreen(vi.fn());

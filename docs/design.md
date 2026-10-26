@@ -667,6 +667,7 @@ Settings: "Sound effects", "Effects volume", "Music", "Music volume" (slider val
 Credits (SG §11.13; entry points: "Credits" in Settings and in the Home footer after "How to play"):
 - Title "Credits"; button "Back"
 - Intro: "Gloop Pop uses free sounds and music made by these people. Thank you!"
+- Attribution line at the top of the list: "Inspired by Block Blast! (Hungry Studio) and 1010! (Gram Games). Not affiliated."
 - Group headings: "Music", "Sound effects", "Code and art"
 - One line per credit, built as "{title} by {author} · {licence} · {site}", where {site} is the link text. The lines are generated from `src/audio/credits.ts` and read exactly:
   - Music: "Lofi Hip Hop Loop by omfgdude · CC0 · OpenGameArt"

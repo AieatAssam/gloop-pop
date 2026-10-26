@@ -1,5 +1,7 @@
 # Credits
 
+Inspiration: the place-three-pieces, clear-rows-and-columns loop comes from Block Blast! (Hungry Studio) and 1010! (Gram Games); Tetris (Alexey Pajitnov) is the original line-clear game. Gloop Pop is not affiliated with them.
+
 The "Changes" lines match `docs/art/style-guide.md` §13.11 and are implemented by `tools/build-audio.mjs`. `src/audio/credits.ts` holds the matching data for the in-game Credits screen.
 
 Every asset below is released under **CC0 1.0 Universal (Public Domain Dedication)**, https://creativecommons.org/publicdomain/zero/1.0/. CC0 needs no attribution. We credit the authors anyway. Each licence was checked on the asset's own page on 25 Oct 2026. Copies of the source files and their licence facts are in `assets-src/audio/`.

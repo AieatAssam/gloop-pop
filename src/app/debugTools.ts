@@ -2,7 +2,7 @@ import veteranSave from '../meta/fixtures/save-v1-veteran.json';
 import { migrate } from '../meta/migrate';
 import { chooseBotMove } from '../core/sim';
 import { seededRng } from '../core/rng';
-import { createFeelScene, createGoalScene, debugSaveWritesDisabled, debugTutorialState, markTutorialSkipped } from './demoScenes';
+import { createFeelScene, createGoalScene, debugSaveWritesDisabled, debugTutorialState, markTutorialSkipped, seedMegaPlainSave } from './demoScenes';
 import { clearDebugAudioTrace, enableDebugAudioTrace } from '../audio/engine';
 import { PALETTE } from '../render/palette';
 import type { Layout } from '../render/layout';
@@ -12,7 +12,7 @@ import { newAdventureGame } from '../core/adventure';
 import type { LevelDef } from '../core/levels';
 import { levelParams } from '../core/levels';
 
-export { chooseBotMove, createFeelScene, createGoalScene, debugSaveWritesDisabled, debugTutorialState, markTutorialSkipped };
+export { chooseBotMove, createFeelScene, createGoalScene, debugSaveWritesDisabled, debugTutorialState, markTutorialSkipped, seedMegaPlainSave };
 export const startAudioTrace = enableDebugAudioTrace;
 export const clearAudioTrace = clearDebugAudioTrace;
 
@@ -107,7 +107,7 @@ export function debugGameScene(state: GameState, query: URLSearchParams): GameSt
   }
   if (demo !== 'feel') return undefined;
   const scene = query.get('scene') ?? 'place';
-  if (scene === 'combo' || scene === 'mega') return createFeelScene(state, scene);
+  if (scene === 'combo' || scene === 'mega' || scene === 'mega-plain') return createFeelScene(state, scene);
   const next = structuredClone(state); next.mode = 'classic'; next.board = new Array<number>(64).fill(0);
   if (scene === 'line') {
     for (const row of [6, 7]) for (let col = 0; col < 6; col += 1) next.board[row * 8 + col] = 2 + ((row + col) % 2) * 3;

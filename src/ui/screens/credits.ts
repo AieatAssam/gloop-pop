@@ -16,6 +16,7 @@ export function createCreditsScreen(back: () => void): HTMLElement {
   const title = document.createElement('h1'); title.textContent = S.credits; header.append(backButton, title);
   const content = document.createElement('div'); content.className = 'credits-content';
   const intro = document.createElement('p'); intro.className = 'credits-intro'; intro.textContent = S.creditsIntro; content.append(intro);
+  const attribution = document.createElement('p'); attribution.className = 'credits-attribution'; attribution.textContent = S.creditsAttribution; content.append(attribution);
   for (const group of GROUPS) {
     const entries = CREDITS.filter((credit) => credit.group === group.id);
     if (!entries.length) continue;
