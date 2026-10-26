@@ -9,7 +9,7 @@
  */
 import { activeVoiceCount, getAudioGraph, isMasterMuted, isMusicEnabled, isSfxEnabled, scheduleAt, setMasterMuted as setMute, setMusicEnabled as setMusic, setSfxEnabled as setSfx, toggleMasterMuted } from './engine';
 import { music, type MusicTier } from './music';
-import { resetPopSequence, sfx } from './sfx';
+import { MEGA_MIX_DB, resetPopSequence, sfx } from './sfx';
 import type { GameEvent } from '../core/types';
 import { PIECES } from '../core/pieces';
 import type { MovePlan } from './movePlan';
@@ -18,6 +18,7 @@ import { applyDuck } from './duck';
 
 export { initAudioOnFirstInput, getAudioGraph } from './engine';
 export { noteFor, PENTATONIC, resetPopSequence, sfx } from './sfx';
+export { MEGA_MIX_DB } from './sfx';
 export { music } from './music';
 export type { MusicTier } from './music';
 export { setSfxEnabled as setSfxEnabledRaw, setMusicEnabled as setMusicEnabledRaw, isMasterMuted, isSfxEnabled, isMusicEnabled } from './engine';
@@ -107,11 +108,11 @@ export function onImpact(plan: MovePlan): void {
   if (plan.stinger === 'newBest') playStinger('newBest', plan.combo);
 }
 export function onBurst(plan: MovePlan, order: number, gloopTier: string, isLastOfGloop: boolean): void {
-  if (order % 2 === 0 && order / 2 < 14) sfx.gloopPop({ index: order, base: plan.largestPop >= 24 ? -4 : plan.largestPop >= 15 ? -2 : plan.largestPop >= 8 ? 0 : 2, gainDb: plan.largestPop >= 24 ? -14 : -12 });
+  if (order % 2 === 0 && order / 2 < 14) sfx.gloopPop({ index: order, base: plan.largestPop >= 24 ? -4 : plan.largestPop >= 15 ? -2 : plan.largestPop >= 8 ? 0 : 2, gainDb: plan.largestPop >= 24 ? MEGA_MIX_DB.popCell : -12 });
   if (isLastOfGloop && gloopTier === 'big') sfx.bigPop({ combo: plan.combo });
 }
 export function onPopFirst(plan: MovePlan, tier: 'big' | 'huge' | 'mega'): void {
-  sfx.gooPop({ gainDb: tier === 'mega' ? -10 : tier === 'huge' ? -9 : -12, subGainDb: tier === 'mega' ? -14 : undefined, rate: tier === 'mega' ? 0.891 : tier === 'huge' ? 0.944 : 1, delay: tier === 'mega' ? 0.025 : 0, sub: tier === 'mega' });
+  sfx.gooPop({ gainDb: tier === 'mega' ? MEGA_MIX_DB.goo : tier === 'huge' ? -9 : -12, subGainDb: tier === 'mega' ? MEGA_MIX_DB.sub : undefined, rate: tier === 'mega' ? 0.891 : tier === 'huge' ? 0.944 : 1, delay: tier === 'mega' ? 0.025 : 0, sub: tier === 'mega' });
 }
 export function onClimax(plan: MovePlan, kind: 'huge' | 'mega' | 'allClear'): void {
   if (kind === 'allClear' && plan.stinger === 'allClear') playStinger('allClear', plan.combo);

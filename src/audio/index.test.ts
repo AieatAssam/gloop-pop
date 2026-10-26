@@ -12,7 +12,7 @@ vi.mock('./engine', () => ({
 vi.mock('./music', () => ({ music: { setTier() {}, setGameOver() {}, setPaused() {}, start() {}, stop() {}, debugState: () => 'tier 0' } }));
 vi.mock('./sfx', () => {
   const sfx = new Proxy({}, { get: (_target, key) => (...args: unknown[]) => { state.sfxCalls.push({ name: String(key), args }); } });
-  return { sfx, resetPopSequence() {} };
+  return { sfx, MEGA_MIX_DB: { goo: -10, sub: -14, popCell: -14 }, resetPopSequence() {} };
 });
 
 import { onBurst, onClimax, onImpact, onPopFirst, stingerCooldownReady } from './index';

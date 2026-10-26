@@ -8,6 +8,28 @@ import { coinTicksForCount, voiceDue, type RateLimiter } from './voices';
 
 export { PENTATONIC, lastPopVoiceTime, noteFor, popVoiceDue, resetPopSequence } from './fallback';
 
+export const MEGA_MIX_DB = {
+  goo: -10,
+  sub: -14,
+  popCell: -14,
+  lineBody: -12,
+  lineTink: -16,
+  fizz: -26,
+  comboHarmony: -22,
+  sparkle: -22,
+  stingerBody: -9,
+  stingerTink: -13,
+  held: -7,
+  heldAtMs: 270,
+  bloom: -14,
+  bloomAtMs: 315,
+  allClearBody: -10,
+  allClearTink: -14,
+  allClearBloom: -7,
+  allClearBloomAtMs: 330,
+  allClearBloomRollMs: 60,
+} as const;
+
 export const sfx = {
   ...fallbackSfx,
   snapTick(): void {
@@ -47,7 +69,7 @@ export const sfx = {
     if (now !== undefined) { if (!popVoiceDue(lastPopVoiceAt, now)) return; lastPopVoiceAt = now; }
     const at = params.at ?? scheduleAt();
     if (playSegment('pop1', { at, group: 'pop', variants: 6, priority: 'pop', gain: 10 ** ((params.gainDb ?? -12) / 20), rate, rateVariation: 0.03, gainDbVariation: 1.5 })) return;
-    fallbackSfx.gloopPop({ index, base, at });
+    fallbackSfx.gloopPop({ index, base, at, gainDb: params.gainDb });
   },
   zenShake(): void {
     const at = scheduleAt();
@@ -58,17 +80,19 @@ export const sfx = {
   },
   lineClear(params: { combo: number; lines?: number; tier?: number; mega?: boolean }): void {
     const graph = getAudioGraph();
-    if (!graph) { fallbackSfx.lineClear(params); return; }
+    const bodyDb = params.mega ? MEGA_MIX_DB.lineBody : -10;
+    const tinkDb = params.mega ? MEGA_MIX_DB.lineTink : -14;
+    const fizzDb = params.mega ? MEGA_MIX_DB.fizz : -24;
+    if (!graph) { fallbackSfx.lineClear({ ...params, megaMix: params.mega ? { lineBody: bodyDb, lineTink: tinkDb, fizz: fizzDb } : undefined }); return; }
     const count = voicedLineCount(params.lines ?? 1); const at = scheduleAt();
-    // spec-note: The Mega feel capture peaked in the untouched multi-line impact stack, so trim only this move's line and combo layers.
-    const trim = params.mega ? 2 : 0;
-    for (let i = 0; i < count; i += 1) playCandyBar(rungFor(params.combo, i), at + i * 0.045, 1, -10 - trim, -14 - trim);
-    if (count) noise({ duration: 0.12, peak: 10 ** ((-24 - trim) / 20), filterType: 'bandpass', frequency: 3000, q: 0.7, at, priority: 'ladder' });
+    for (let i = 0; i < count; i += 1) playCandyBar(rungFor(params.combo, i), at + i * 0.045, 1, bodyDb, tinkDb);
+    if (count) noise({ duration: 0.12, peak: 10 ** (fizzDb / 20), filterType: 'bandpass', frequency: 3000, q: 0.7, at, priority: 'ladder' });
   },
-  comboHarmony(params: { combo: number; lineIndex?: number; delayMs?: number; mega?: boolean }): void { fallbackSfx.comboHarmony(params); },
+  comboHarmony(params: { combo: number; lineIndex?: number; delayMs?: number; mega?: boolean }): void { fallbackSfx.comboHarmony({ ...params, megaGainDb: params.mega ? MEGA_MIX_DB.comboHarmony : undefined }); },
   sparkle(params: { combo: number; lineIndex?: number; delayMs?: number; mega?: boolean }): void {
     const first = rungFor(params.combo, params.lineIndex ?? 0); const at = scheduleAt() + (params.delayMs ?? 0) / 1000;
-    const gain = 10 ** ((-22) / 20);
+    const gain = 10 ** ((params.mega ? MEGA_MIX_DB.sparkle : -22) / 20);
+    if (params.mega && !getAudioGraph()) { fallbackSfx.sparkle({ ...params, megaGainDb: MEGA_MIX_DB.sparkle }); return; }
     for (let i = 0; i < 4; i += 1) {
       const rung = Math.min(10, first + i); const when = at + i * 0.03;
       if (!playSegment('tink', { at: when, group: 'sparkle', priority: 'ladder', gain, rate: rungRate(rung), rateVariation: 2 ** (3 / 1200) - 1 })) tone({ frequency: PENTATONIC[rung]!, duration: 0.04, peak: gain, at: when, priority: 'ladder' });
@@ -92,16 +116,16 @@ export const sfx = {
   levelBest(): void { if (!playSegment('best', { group: 'stinger', priority: 'stinger', gain: 10 ** (-10 / 20) })) fallbackSfx.newBest(); },
   megaStinger(params: { combo: number }): void {
     const start = Math.min(Math.max(Math.floor(params.combo) - 1, 0), 5); const at = scheduleAt();
-    for (let i = 0; i < 6; i += 1) playCandyBar(Math.min(10, start + i), at + i * 0.045, 1, -11, -15, 'stinger');
-    tone({ frequency: PENTATONIC[Math.min(10, start + 5)]!, duration: 0.6, peak: 10 ** (-11 / 20), at: at + 0.225, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
-    tone({ frequency: PENTATONIC[Math.min(10, start + 5)]!, duration: 0.6, peak: 10 ** (-17 / 20), at: at + 0.27, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
-    tone({ frequency: PENTATONIC[Math.min(10, start + 3)]!, duration: 0.6, peak: 10 ** (-17 / 20), at: at + 0.27, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
+    for (let i = 0; i < 6; i += 1) playCandyBar(Math.min(10, start + i), at + i * 0.045, 1, MEGA_MIX_DB.stingerBody, MEGA_MIX_DB.stingerTink, 'stinger');
+    tone({ frequency: PENTATONIC[Math.min(10, start + 5)]!, duration: 0.6, peak: 10 ** (MEGA_MIX_DB.held / 20), at: at + MEGA_MIX_DB.heldAtMs / 1000, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
+    tone({ frequency: PENTATONIC[Math.min(10, start + 5)]!, duration: 0.6, peak: 10 ** (MEGA_MIX_DB.bloom / 20), at: at + MEGA_MIX_DB.bloomAtMs / 1000, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
+    tone({ frequency: PENTATONIC[Math.min(10, start + 3)]!, duration: 0.6, peak: 10 ** (MEGA_MIX_DB.bloom / 20), at: at + MEGA_MIX_DB.bloomAtMs / 1000, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
   },
   allClearStinger(): void {
-    const at = scheduleAt(); for (let rung = 0; rung <= 10; rung += 1) playCandyBar(rung, at + rung * 0.03, 1, -10, -14, 'stinger');
-    for (const rung of [5, 7, 8]) {
-      tone({ frequency: PENTATONIC[rung]!, duration: 0.9, peak: 10 ** (-14 / 20), at: at + 0.33, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
-    }
+    const at = scheduleAt(); for (let rung = 0; rung <= 10; rung += 1) playCandyBar(rung, at + rung * 0.03, 1, MEGA_MIX_DB.allClearBody, MEGA_MIX_DB.allClearTink, 'stinger');
+    [5, 7, 8].forEach((rung, index) => {
+      tone({ frequency: PENTATONIC[rung]!, duration: 0.9, peak: 10 ** (MEGA_MIX_DB.allClearBloom / 20), at: at + (MEGA_MIX_DB.allClearBloomAtMs + index * MEGA_MIX_DB.allClearBloomRollMs) / 1000, tremolo: { frequency: 5, depth: 0.15 }, priority: 'stinger' });
+    });
   },
   coinTick(params: { count?: number; gainDb?: number } = {}): void {
     const count = coinTicksForCount(params.count ?? 1); const at = scheduleAt();

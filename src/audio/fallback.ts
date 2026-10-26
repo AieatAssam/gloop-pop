@@ -30,24 +30,27 @@ export const sfx = {
   returnToTray(): void { tone({ frequency: 440, endFrequency: 294, duration: 0.12, peak: 10 ** (-20 / 20), wave: 'triangle', attack: 0.005 }); tone({ frequency: 880, endFrequency: 588, duration: 0.12, peak: 10 ** (-28 / 20), attack: 0.005 }); },
   invalidHover(): void { /* Silent by design. */ },
   deal(): void { for (let i = 0; i < 3; i += 1) tone({ frequency: 1320, duration: 0.025, peak: 0.07, at: scheduleAt() + i * 0.06 }); },
-  lineClear(params: { combo: number; lines?: number; tier?: number; mega?: boolean }): void {
+  lineClear(params: { combo: number; lines?: number; tier?: number; mega?: boolean; megaMix?: { lineBody: number; lineTink: number; fizz: number } }): void {
     const count = Math.min(5, params.lines ?? 1); const start = Math.min(Math.max(Math.floor(params.combo) - 1, 0), 10);
-    const trim = params.mega ? 10 ** (-2 / 20) : 1;
+    // spec-note: The synth's existing peaks are relative baselines, so apply the table dB values as deltas from -10/-14/-24 dB.
+    const body = params.mega ? 0.3 * 10 ** (((params.megaMix?.lineBody ?? -12) + 10) / 20) : 0.3;
+    const tink = params.mega ? 0.08 * 10 ** (((params.megaMix?.lineTink ?? -16) + 14) / 20) : 0.08;
+    const fizz = params.mega ? 0.063 * 10 ** (((params.megaMix?.fizz ?? -26) + 24) / 20) : 0.063;
     for (let i = 0; i < count; i += 1) {
       const at = scheduleAt() + i * 0.045;
       const freq = PENTATONIC[Math.min(10, start + i)] ?? PENTATONIC[10];
-      tone({ frequency: freq, duration: 0.26, peak: 0.3 * trim, wave: 'triangle', attack: 0.004, at });
-      tone({ frequency: freq * 1.25, duration: 0.2, peak: 0.08 * trim, at });
+      tone({ frequency: freq, duration: 0.26, peak: body, wave: 'triangle', attack: 0.004, at });
+      tone({ frequency: freq * 1.25, duration: 0.2, peak: tink, at });
     }
-    if (count > 0) noise({ duration: 0.12, peak: 0.063 * trim, filterType: 'bandpass', frequency: 3000, at: scheduleAt() });
+    if (count > 0) noise({ duration: 0.12, peak: fizz, filterType: 'bandpass', frequency: 3000, at: scheduleAt() });
   },
-  comboHarmony(params: { combo: number; lineIndex?: number; delayMs?: number; mega?: boolean }): void {
+  comboHarmony(params: { combo: number; lineIndex?: number; delayMs?: number; mega?: boolean; megaGainDb?: number }): void {
     const lastRung = Math.min(10, Math.max(0, Math.floor(params.combo) - 1) + (params.lineIndex ?? 0));
-    tone({ frequency: PENTATONIC[Math.min(10, lastRung + 2)]!, duration: 0.2, peak: 10 ** ((params.mega ? -22 : -20) / 20), at: scheduleAt() + (params.delayMs ?? 0) / 1000 });
+    tone({ frequency: PENTATONIC[Math.min(10, lastRung + 2)]!, duration: 0.2, peak: 10 ** ((params.mega ? params.megaGainDb ?? -22 : -20) / 20), at: scheduleAt() + (params.delayMs ?? 0) / 1000 });
   },
-  sparkle(params: { combo: number; lineIndex?: number; delayMs?: number; mega?: boolean }): void {
+  sparkle(params: { combo: number; lineIndex?: number; delayMs?: number; mega?: boolean; megaGainDb?: number }): void {
     const start = Math.min(10, Math.max(0, Math.floor(params.combo) - 1) + (params.lineIndex ?? 0)); const at = scheduleAt() + (params.delayMs ?? 0) / 1000;
-    for (let ping = 0; ping < 4; ping += 1) tone({ frequency: PENTATONIC[Math.min(10, start + ping)]!, duration: 0.04, peak: 10 ** (-22 / 20), at: at + ping * 0.03 });
+    for (let ping = 0; ping < 4; ping += 1) tone({ frequency: PENTATONIC[Math.min(10, start + ping)]!, duration: 0.04, peak: 10 ** ((params.mega ? params.megaGainDb ?? -22 : -22) / 20), at: at + ping * 0.03 });
   },
   gloopPop(params: { index?: number; base?: number; at?: number; gainDb?: number } = {}): void {
     const graph = getAudioGraph(); if (!graph) return;
