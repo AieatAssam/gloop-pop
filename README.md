@@ -12,7 +12,7 @@ Gloop Pop's core loop (place three pieces, clear full rows and columns) is inspi
 
 The jelly twist, where touching pieces of the same colour merge into one gloop that pops all at once, is Gloop Pop's own. The code and art were made for this game. The sounds and music are original or CC0, and the fonts use the SIL Open Font License. [CREDITS.md](CREDITS.md) lists every asset and its licence.
 
-Gloop Pop is a fan-made, free project. It is not affiliated with, endorsed by or connected to Hungry Studio, Gram Games, The Tetris Company or their games.
+Gloop Pop is an independent, free project. It is not affiliated with, endorsed by or connected to Hungry Studio, Gram Games, The Tetris Company or their games.
 
 <p>
   <img src="docs/screenshots/tutorial.png" width="216" alt="First launch: the tutorial asks you to drag a piece into the gap">

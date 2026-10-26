@@ -33,6 +33,10 @@ export function checkSize(dist = resolve('dist'), audioDirectory = resolve('publ
     log.error('JavaScript bundle exceeds the 150 KB hard limit.');
     return 1;
   }
+  if (debug > 8 * 1024) {
+    log.error('Debug chunk exceeds the 8 KB limit.');
+    return 1;
+  }
 
 let failed = false;
 if (statSync(audioDirectory, { throwIfNoEntry: false })?.isDirectory()) {

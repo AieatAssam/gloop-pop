@@ -40,16 +40,22 @@ export function tone(options: { frequency: number; endFrequency?: number; durati
     oscillator.connect(filter);
     filter.connect(envelope);
   } else oscillator.connect(envelope);
+  let tremoloGain: GainNode | undefined;
   if (options.tremolo) {
-    const tremoloGain = context.createGain(); tremoloGain.gain.value = 1;
-    const lfo = context.createOscillator(); const depth = context.createGain();
-    lfo.frequency.value = options.tremolo.frequency; depth.gain.value = options.tremolo.depth;
-    lfo.connect(depth); depth.connect(tremoloGain.gain); envelope.connect(tremoloGain);
+    tremoloGain = context.createGain(); tremoloGain.gain.value = 1;
+    envelope.connect(tremoloGain);
     tremoloGain.connect(options.bus === 'music' ? graph.layerGain : graph.sfxBus);
-    if (!claimVoice(lfo, options.priority ?? 'ladder', undefined, at, at + options.duration + 0.01)) { trace(false); return; }
-    lfo.start(at); lfo.stop(at + options.duration + 0.01);
   } else envelope.connect(options.bus === 'music' ? graph.layerGain : graph.sfxBus);
   if (!claimVoice(oscillator, options.priority ?? 'ladder', envelope, at, at + options.duration + 0.01)) { trace(false); return; }
+  if (options.tremolo && tremoloGain) {
+    const lfo = context.createOscillator(); const depth = context.createGain();
+    lfo.frequency.value = options.tremolo.frequency; depth.gain.value = options.tremolo.depth;
+    lfo.connect(depth); depth.connect(tremoloGain.gain);
+    // spec-note: If only the optional LFO is denied, keep the already-claimed tone audible without tremolo.
+    if (claimVoice(lfo, options.priority ?? 'ladder', undefined, at, at + options.duration + 0.01)) {
+      lfo.start(at); lfo.stop(at + options.duration + 0.01);
+    }
+  }
   oscillator.start(at);
   oscillator.stop(at + options.duration + 0.01);
   trace(true);

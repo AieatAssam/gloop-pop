@@ -142,14 +142,14 @@ export function claimVoice(source: AudioScheduledSourceNode, priority: VoicePrio
   }
   // spec-note: [start, stop) means a voice ending exactly when another starts is free;
   // check the exact peak over the proposed interval so staggered stingers use only live capacity.
-  const peak = peakOverlapCount(voices, startAt, stopAt);
-  if (peak >= 24) {
-    const candidate = stealCandidate(overlapping);
-    if (candidate < 0) return false;
-    if (candidate >= 0) {
-      const victim = overlapping[candidate];
-      if (victim) stopVoice(victim, at);
-    }
+  let peak = peakOverlapCount(voices, startAt, stopAt);
+  while (peak.count >= 24) {
+    const soundingAtPeak = voices.filter((voice) => voice.startAt <= peak.at && peak.at < voice.stopAt);
+    const candidate = stealCandidate(soundingAtPeak);
+    const victim = soundingAtPeak[candidate];
+    if (!victim) return false;
+    stopVoice(victim, at);
+    peak = peakOverlapCount(voices, startAt, stopAt);
   }
   const voice = { source, priority, order: voiceOrder++, startAt, stopAt, ...(gain ? { gain } : {}) };
   voices.push(voice);
@@ -160,11 +160,14 @@ export function claimVoice(source: AudioScheduledSourceNode, priority: VoicePrio
   return true;
 }
 
-function peakOverlapCount(entries: readonly ActiveVoice[], startAt: number, stopAt: number): number {
+function peakOverlapCount(entries: readonly ActiveVoice[], startAt: number, stopAt: number): { count: number; at: number } {
   const points = [startAt, ...entries.flatMap((voice) => [Math.max(startAt, voice.startAt), Math.min(stopAt, voice.stopAt)])]
     .filter((point) => point >= startAt && point < stopAt);
-  let peak = 0;
-  for (const point of points) peak = Math.max(peak, entries.reduce((count, voice) => count + Number(voice.startAt <= point && point < voice.stopAt), 0));
+  let peak = { count: 0, at: startAt };
+  for (const point of points) {
+    const count = entries.reduce((total, voice) => total + Number(voice.startAt <= point && point < voice.stopAt), 0);
+    if (count > peak.count) peak = { count, at: point };
+  }
   return peak;
 }
 

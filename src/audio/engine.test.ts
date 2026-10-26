@@ -154,4 +154,44 @@ describe('first input audio initialization', () => {
     expect(trace.slice(0, 24).every((entry) => entry.granted)).toBe(true);
     expect(trace[24]?.granted).toBe(false);
   });
+
+  it('steals at the peak moment instead of stopping a short voice outside the peak', async () => {
+    const started = { oscillator: 0 };
+    vi.stubGlobal('AudioContext', vi.fn(function () { return fakeAudioContext(started); }));
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => undefined)));
+    const engine = await import('./engine'); engine.initAudioOnFirstInput();
+    const source = () => ({ stop: vi.fn(), addEventListener: vi.fn() } as unknown as AudioScheduledSourceNode);
+    const ladder = Array.from({ length: 24 }, source);
+    const shortUi = source();
+    for (const voice of ladder) engine.claimVoice(voice, 'ladder', undefined, 0.5, 0.8);
+    engine.claimVoice(shortUi, 'ui', undefined, 0.3, 0.31);
+    const stinger = source();
+
+    expect(engine.claimVoice(stinger, 'stinger', undefined, 0.3, 0.9)).toBe(true);
+    expect((shortUi as unknown as { stop: ReturnType<typeof vi.fn> }).stop).not.toHaveBeenCalled();
+    const stoppedLadders = ladder.filter((voice) => (voice as unknown as { stop: ReturnType<typeof vi.fn> }).stop.mock.calls.length > 0);
+    expect(stoppedLadders).toHaveLength(1);
+    const intervals = [...ladder, shortUi, stinger].map((voice) => {
+      const stopCalls = (voice as unknown as { stop: ReturnType<typeof vi.fn> }).stop.mock.calls;
+      const isStolen = stopCalls.length > 0;
+      const original = voice === shortUi ? [0.3, 0.31] : voice === stinger ? [0.3, 0.9] : [0.5, 0.8];
+      return isStolen ? [original[0]!, Math.min(original[1]!, Math.max(original[0]!, 0.005))] as const : original;
+    });
+    const times = intervals.flatMap(([start, stop]) => [start, stop]).filter((time) => time >= 0.3 && time < 0.9);
+    expect(Math.max(...times.map((time) => intervals.filter(([start, stop]) => start <= time && time < stop).length))).toBeLessThanOrEqual(24);
+  });
+
+  it('does not leave a voice entry when a tremolo oscillator claim is denied', async () => {
+    const started = { oscillator: 0 };
+    vi.stubGlobal('AudioContext', vi.fn(function () { return fakeAudioContext(started); }));
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => undefined)));
+    const engine = await import('./engine'); engine.initAudioOnFirstInput();
+    const source = () => ({ stop: vi.fn(), addEventListener: vi.fn() } as unknown as AudioScheduledSourceNode);
+    for (let index = 0; index < 24; index += 1) engine.claimVoice(source(), 'stinger', undefined, 0.1, 0.6);
+    const before = engine.activeVoiceCount();
+    const { tone } = await import('./synth');
+    tone({ frequency: 440, duration: 0.4, peak: 0.2, tremolo: { frequency: 8, depth: 0.2 }, at: 0.1, priority: 'ladder' });
+    expect(started.oscillator).toBe(0);
+    expect(engine.activeVoiceCount()).toBe(before);
+  });
 });

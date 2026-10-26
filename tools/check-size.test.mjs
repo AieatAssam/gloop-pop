@@ -43,4 +43,14 @@ describe('audio size budget checker', () => {
     for (const name of ['sfx.12345678.ogg', 'sfx.12345678.mp3', 'music.12345678.ogg', 'music.12345678.mp3']) writeFileSync(join(audio, name), new Uint8Array(1));
     expect(checkSize(dist, audio, { log() {}, error() {} })).toBe(1);
   });
+
+  it('fails when the debug chunk exceeds 8 KB', () => {
+    const root = mkdtempSync(join(tmpdir(), 'gloop-debug-size-')); temporary.push(root);
+    const dist = join(root, 'dist'); const assets = join(dist, 'assets'); const audio = join(root, 'audio');
+    mkdirSync(assets, { recursive: true }); mkdirSync(audio);
+    writeFileSync(join(assets, 'index-entry.js'), 'player');
+    writeFileSync(join(assets, 'debug-tools.js'), randomBytes(9 * 1024));
+    for (const name of ['sfx.12345678.ogg', 'sfx.12345678.mp3', 'music.12345678.ogg', 'music.12345678.mp3']) writeFileSync(join(audio, name), new Uint8Array(1));
+    expect(checkSize(dist, audio, { log() {}, error() {} })).toBe(1);
+  });
 });
