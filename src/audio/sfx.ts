@@ -25,7 +25,7 @@ export const MEGA_MIX_DB = {
   bloomAtMs: 315,
   allClearBody: -10,
   allClearTink: -14,
-  allClearBloom: -7,
+  allClearBloom: -10,
   allClearBloomAtMs: 330,
   allClearBloomRollMs: 60,
 } as const;

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-function fakeAudioContext(started: { oscillator: number }): AudioContext {
+function fakeAudioContext(started: { oscillator: number; buffer?: number; oscillatorTimes?: number[] }): AudioContext {
   const param = (): AudioParam => ({
     value: 0,
     setValueAtTime: vi.fn(),
@@ -19,9 +19,9 @@ function fakeAudioContext(started: { oscillator: number }): AudioContext {
     createBuffer: (_channels: number, length: number) => ({ getChannelData: () => new Float32Array(length) }),
     createOscillator: () => ({
       connect: vi.fn(), frequency: param(), type: 'sine',
-      start: vi.fn(() => { started.oscillator += 1; }), stop: vi.fn(), addEventListener: vi.fn(),
+      start: vi.fn((at?: number) => { started.oscillator += 1; started.oscillatorTimes?.push(at ?? 0); }), stop: vi.fn(), addEventListener: vi.fn(),
     }),
-    createBufferSource: () => ({ connect: vi.fn(), playbackRate: param(), start: vi.fn(), stop: vi.fn(), addEventListener: vi.fn() }),
+    createBufferSource: () => ({ connect: vi.fn(), playbackRate: param(), buffer: null, start: vi.fn(() => { if (started.buffer !== undefined) started.buffer += 1; }), stop: vi.fn(), addEventListener: vi.fn() }),
     decodeAudioData: vi.fn(() => Promise.reject(new Error('not used'))),
   };
   return context as unknown as AudioContext;
@@ -104,5 +104,54 @@ describe('first input audio initialization', () => {
     engine.claimVoice(source(), 'place', gain);
     engine.claimVoice(source(), 'place', { gain: { ...parameter } } as GainNode);
     expect(ramp).toHaveBeenCalledWith(0, 0.015);
+  });
+
+  it('grants the full All Clear and Mega stingers over scheduled voice intervals', async () => {
+    vi.doMock('./loader', () => ({
+      loadSprite: vi.fn(), getSegmentBuffer: () => ({ duration: 0.12 }), playSegment: vi.fn(() => false),
+    }));
+    const allClear = { oscillator: 0, buffer: 0, oscillatorTimes: [] as number[] };
+    vi.stubGlobal('AudioContext', vi.fn(function () { return fakeAudioContext(allClear); }));
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => undefined)));
+    const engine = await import('./engine');
+    engine.initAudioOnFirstInput();
+    const trace = engine.enableDebugAudioTrace();
+    const { sfx } = await import('./sfx');
+    sfx.allClearStinger();
+    expect(allClear.buffer).toBe(11);
+    expect(allClear.oscillator).toBe(35); // 29 bar partials, 3 bloom oscillators, and 3 LFOs.
+    expect([0.335, 0.395, 0.455].map((at) => allClear.oscillatorTimes.filter((time) => time === at).length)).toEqual([2, 2, 2]);
+    expect(trace.every((entry) => entry.granted)).toBe(true);
+
+    vi.resetModules();
+    vi.doMock('./loader', () => ({
+      loadSprite: vi.fn(), getSegmentBuffer: () => ({ duration: 0.12 }), playSegment: vi.fn(() => false),
+    }));
+    const mega = { oscillator: 0, buffer: 0, oscillatorTimes: [] as number[] };
+    vi.stubGlobal('AudioContext', vi.fn(function () { return fakeAudioContext(mega); }));
+    const megaEngine = await import('./engine');
+    megaEngine.initAudioOnFirstInput();
+    const megaTrace = megaEngine.enableDebugAudioTrace();
+    const { sfx: megaSfx } = await import('./sfx');
+    megaSfx.megaStinger({ combo: 12 });
+    expect(mega.buffer).toBe(6);
+    expect(mega.oscillatorTimes.filter((time) => time === 0.32)).toHaveLength(4);
+    expect(megaTrace.every((entry) => entry.granted)).toBe(true);
+  });
+
+  it('keeps the cap at 24 overlapping stinger voices and traces the denied call', async () => {
+    vi.doMock('./loader', () => ({ loadSprite: vi.fn(), getSegmentBuffer: () => null, playSegment: vi.fn(() => false) }));
+    const started = { oscillator: 0, oscillatorTimes: [] as number[] };
+    vi.stubGlobal('AudioContext', vi.fn(function () { return fakeAudioContext(started); }));
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => undefined)));
+    const engine = await import('./engine');
+    engine.initAudioOnFirstInput();
+    const trace = engine.enableDebugAudioTrace();
+    const { tone } = await import('./synth');
+    for (let index = 0; index < 25; index += 1) tone({ frequency: 600, duration: 0.5, peak: 0.2, at: 0.1, priority: 'stinger' });
+    expect(started.oscillator).toBe(24);
+    expect(trace).toHaveLength(25);
+    expect(trace.slice(0, 24).every((entry) => entry.granted)).toBe(true);
+    expect(trace[24]?.granted).toBe(false);
   });
 });

@@ -25,7 +25,7 @@ export function rungRate(rung: number): number { return foldRate((rungMidi[Math.
 export function playCandyBar(rung: number, at = scheduleAt(), variation = 1, bodyDb = -10, tinkDb = -14, priority: 'ladder' | 'stinger' = 'ladder', random: CosmeticRandom = cosmeticRandom): void {
   const graph = getAudioGraph();
   if (!graph) return;
-  traceAudioCall(at, 'playCandyBar', `rung:${Math.max(0, Math.min(10, Math.floor(rung)))}`, bodyDb, 'sfx');
+  let granted = false;
   const midi = rungMidi[Math.max(0, Math.min(10, Math.floor(rung)))] ?? 72;
   const pitchVariation = 2 ** (((random() * 2 - 1) * 3) / 1200);
   const gainVariation = 10 ** (((random() * 2 - 1) * 1) / 20);
@@ -40,7 +40,8 @@ export function playCandyBar(rung: number, at = scheduleAt(), variation = 1, bod
     envelope.gain.exponentialRampToValueAtTime(0.001, at + decay);
     oscillator.connect(envelope);
     envelope.connect(graph.sfxBus);
-    if (!claimVoice(oscillator, priority, envelope)) return;
+    if (!claimVoice(oscillator, priority, envelope, at, at + decay + 0.01)) return;
+    granted = true;
     oscillator.start(at);
     oscillator.stop(at + decay + 0.01);
   };
@@ -50,7 +51,10 @@ export function playCandyBar(rung: number, at = scheduleAt(), variation = 1, bod
   if (fundamental * 10 < 12000) playPartial(fundamental * 10, 0.025 * bodyGain, 0.035);
 
   const tinkBuffer = getSegmentBuffer('tink');
-  if (!tinkBuffer) return;
+  if (!tinkBuffer) {
+    traceAudioCall(at, 'playCandyBar', `rung:${Math.max(0, Math.min(10, Math.floor(rung)))}`, bodyDb, 'sfx', granted);
+    return;
+  }
   const source = graph.context.createBufferSource();
   const gain = graph.context.createGain();
   source.buffer = tinkBuffer;
@@ -58,6 +62,11 @@ export function playCandyBar(rung: number, at = scheduleAt(), variation = 1, bod
   gain.gain.setValueAtTime(10 ** (tinkDb / 20) * gainVariation, at);
   source.connect(gain);
   gain.connect(graph.sfxBus);
-  if (!claimVoice(source, priority, gain)) return;
+  if (!claimVoice(source, priority, gain, at, at + tinkBuffer.duration / (rungRate(rung) * pitchVariation))) {
+    traceAudioCall(at, 'playCandyBar', `rung:${Math.max(0, Math.min(10, Math.floor(rung)))}`, bodyDb, 'sfx', granted);
+    return;
+  }
+  granted = true;
   source.start(at);
+  traceAudioCall(at, 'playCandyBar', `rung:${Math.max(0, Math.min(10, Math.floor(rung)))}`, bodyDb, 'sfx', granted);
 }

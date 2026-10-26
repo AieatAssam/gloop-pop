@@ -27,7 +27,7 @@ describe('sample event mapping', () => {
       goo: -10, sub: -14, popCell: -14, lineBody: -12, lineTink: -16, fizz: -26,
       comboHarmony: -22, sparkle: -22, stingerBody: -9, stingerTink: -13,
       held: -7, heldAtMs: 270, bloom: -14, bloomAtMs: 315,
-      allClearBody: -10, allClearTink: -14, allClearBloom: -7,
+      allClearBody: -10, allClearTink: -14, allClearBloom: -10,
       allClearBloomAtMs: 330, allClearBloomRollMs: 60,
     });
   });
@@ -104,7 +104,7 @@ describe('sample event mapping', () => {
     expect(fixture.playCandyBar.mock.calls.map((call) => [call[0], call[1], ...call.slice(3, 5)])).toEqual(
       Array.from({ length: 11 }, (_, rung) => [rung, 0.005 + rung * 0.03, MEGA_MIX_DB.allClearBody, MEGA_MIX_DB.allClearTink]),
     );
-    expect(fixture.tone.mock.calls.map(([options]) => options.peak)).toEqual(Array(3).fill(10 ** (-7 / 20)));
+    expect(fixture.tone.mock.calls.map(([options]) => options.peak)).toEqual(Array(3).fill(10 ** (-10 / 20)));
     expect(fixture.tone.mock.calls.map(([options]) => options.at)).toEqual([0.335, 0.395, 0.455]);
     expect(fixture.tone.mock.calls.map(([options]) => options.frequency)).toEqual([1046.5, 1318.51, 1567.98]);
   });

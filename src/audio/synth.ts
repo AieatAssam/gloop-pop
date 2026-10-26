@@ -17,7 +17,7 @@ export function tone(options: { frequency: number; endFrequency?: number; durati
   if (!graph) return;
   const { context } = graph;
   const at = safeTime(context, options.at);
-  traceAudioCall(at, 'tone', `${options.wave ?? 'sine'}:${Math.round(options.frequency)}Hz`, 20 * Math.log10(options.peak), options.bus ?? 'sfx');
+  const trace = (granted: boolean): void => traceAudioCall(at, 'tone', `${options.wave ?? 'sine'}:${Math.round(options.frequency)}Hz`, 20 * Math.log10(options.peak), options.bus ?? 'sfx', granted);
   const oscillator = context.createOscillator();
   const envelope = context.createGain();
   oscillator.type = options.wave ?? 'sine';
@@ -46,12 +46,13 @@ export function tone(options: { frequency: number; endFrequency?: number; durati
     lfo.frequency.value = options.tremolo.frequency; depth.gain.value = options.tremolo.depth;
     lfo.connect(depth); depth.connect(tremoloGain.gain); envelope.connect(tremoloGain);
     tremoloGain.connect(options.bus === 'music' ? graph.layerGain : graph.sfxBus);
-    if (!claimVoice(lfo, options.priority ?? 'ladder')) return;
+    if (!claimVoice(lfo, options.priority ?? 'ladder', undefined, at, at + options.duration + 0.01)) { trace(false); return; }
     lfo.start(at); lfo.stop(at + options.duration + 0.01);
   } else envelope.connect(options.bus === 'music' ? graph.layerGain : graph.sfxBus);
-  if (!claimVoice(oscillator, options.priority ?? 'ladder', envelope)) return;
+  if (!claimVoice(oscillator, options.priority ?? 'ladder', envelope, at, at + options.duration + 0.01)) { trace(false); return; }
   oscillator.start(at);
   oscillator.stop(at + options.duration + 0.01);
+  trace(true);
 }
 
 export function noise(options: { duration: number; peak: number; bus?: 'sfx' | 'music'; at?: number; attack?: number; filterType?: BiquadFilterType; frequency?: number; endFrequency?: number; q?: number; priority?: VoicePriority }): void {
@@ -73,9 +74,13 @@ export function noise(options: { duration: number; peak: number; bus?: 'sfx' | '
   source.connect(filter);
   filter.connect(envelope);
   envelope.connect(options.bus === 'music' ? graph.layerGain : graph.sfxBus);
-  if (!claimVoice(source, options.priority ?? 'ladder', envelope)) return;
+  if (!claimVoice(source, options.priority ?? 'ladder', envelope, at, at + options.duration)) {
+    traceAudioCall(at, 'tone', `noise:${Math.round(options.frequency ?? 900)}Hz`, 20 * Math.log10(options.peak), options.bus ?? 'sfx', false);
+    return;
+  }
   source.start(at, noiseRandom() * Math.max(0, 1 - options.duration), options.duration);
   source.stop(at + options.duration + 0.01);
+  traceAudioCall(at, 'tone', `noise:${Math.round(options.frequency ?? 900)}Hz`, 20 * Math.log10(options.peak), options.bus ?? 'sfx', true);
 }
 
 // WebAudio throws on negative or non-finite times, so every scheduled time is clamped to "now or later".

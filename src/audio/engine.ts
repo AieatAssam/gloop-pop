@@ -21,7 +21,7 @@ export interface AudioGraph {
   noiseBuffer: AudioBuffer;
 }
 
-interface ActiveVoice { source: AudioScheduledSourceNode; priority: VoicePriority; order: number; gain?: GainNode }
+interface ActiveVoice { source: AudioScheduledSourceNode; priority: VoicePriority; order: number; startAt: number; stopAt: number; gain?: GainNode }
 const voices: ActiveVoice[] = [];
 let voiceOrder = 0;
 let graph: AudioGraph | null = null;
@@ -31,7 +31,7 @@ let musicEnabled = true;
 let sfxVolume = 1;
 let musicVolume = 1;
 let visibilityBound = false;
-export interface AudioTraceEntry { t: number; kind: 'playSegment' | 'tone' | 'playCandyBar'; id: string; gainDb: number; bus: 'sfx' | 'music' }
+export interface AudioTraceEntry { t: number; kind: 'playSegment' | 'tone' | 'playCandyBar'; id: string; gainDb: number; bus: 'sfx' | 'music'; granted: boolean }
 let debugAudioTrace: AudioTraceEntry[] | null = null;
 let noiseSeed = (typeof performance === 'undefined' ? 1 : performance.now()) | 0;
 function noiseSample(): number {
@@ -60,8 +60,8 @@ export function enableDebugAudioTrace(): AudioTraceEntry[] {
 
 export function clearDebugAudioTrace(): void { if (debugAudioTrace) debugAudioTrace.length = 0; }
 
-export function traceAudioCall(t: number, kind: AudioTraceEntry['kind'], id: string, gainDb: number, bus: AudioTraceEntry['bus']): void {
-  if (debugAudioTrace) debugAudioTrace.push({ t, kind, id, gainDb, bus });
+export function traceAudioCall(t: number, kind: AudioTraceEntry['kind'], id: string, gainDb: number, bus: AudioTraceEntry['bus'], granted: boolean): void {
+  if (debugAudioTrace) debugAudioTrace.push({ t, kind, id, gainDb, bus, granted });
 }
 
 export function initAudioOnFirstInput(): AudioGraph | null {
@@ -129,25 +129,29 @@ function bindVisibility(): void {
   });
 }
 
-export function claimVoice(source: AudioScheduledSourceNode, priority: VoicePriority = 'place', gain?: GainNode): boolean {
+export function claimVoice(source: AudioScheduledSourceNode, priority: VoicePriority = 'place', gain?: GainNode, startAt = scheduleAt(), stopAt = startAt + 0.01): boolean {
   const at = scheduleAt();
+  const overlapping = voices.filter((voice) => voice.startAt < stopAt && startAt < voice.stopAt);
   if (priority === 'pop') {
-    const popCount = voices.reduce((count, voice) => count + Number(voice.priority === 'pop'), 0);
-    if (popCount >= 6) { const index = popVoiceStealIndex(voices); if (index >= 0) stopVoice(voices[index]!, at); }
+    const popVoices = overlapping.filter((voice) => voice.priority === 'pop');
+    if (popVoices.length >= 6) { const index = popVoiceStealIndex(popVoices); const victim = popVoices[index]; if (victim) stopVoice(victim, at); }
   }
   if (priority === 'place') {
-    const priorPlace = voices.find((voice) => voice.priority === 'place');
+    const priorPlace = overlapping.find((voice) => voice.priority === 'place');
     if (priorPlace) stopVoice(priorPlace, at, 0.01);
   }
-  if (voices.length >= 24) {
-    const candidate = stealCandidate(voices);
+  // spec-note: [start, stop) means a voice ending exactly when another starts is free;
+  // check the exact peak over the proposed interval so staggered stingers use only live capacity.
+  const peak = peakOverlapCount(voices, startAt, stopAt);
+  if (peak >= 24) {
+    const candidate = stealCandidate(overlapping);
     if (candidate < 0) return false;
     if (candidate >= 0) {
-      const [oldest] = voices.splice(candidate, 1);
-      if (oldest) stopVoice(oldest, at);
+      const victim = overlapping[candidate];
+      if (victim) stopVoice(victim, at);
     }
   }
-  const voice = { source, priority, order: voiceOrder++, ...(gain ? { gain } : {}) };
+  const voice = { source, priority, order: voiceOrder++, startAt, stopAt, ...(gain ? { gain } : {}) };
   voices.push(voice);
   source.addEventListener('ended', () => {
     const index = voices.indexOf(voice);
@@ -156,7 +160,16 @@ export function claimVoice(source: AudioScheduledSourceNode, priority: VoicePrio
   return true;
 }
 
+function peakOverlapCount(entries: readonly ActiveVoice[], startAt: number, stopAt: number): number {
+  const points = [startAt, ...entries.flatMap((voice) => [Math.max(startAt, voice.startAt), Math.min(stopAt, voice.stopAt)])]
+    .filter((point) => point >= startAt && point < stopAt);
+  let peak = 0;
+  for (const point of points) peak = Math.max(peak, entries.reduce((count, voice) => count + Number(voice.startAt <= point && point < voice.stopAt), 0));
+  return peak;
+}
+
 function stopVoice(voice: ActiveVoice, at: number, fade = 0): void {
+  voice.stopAt = Math.min(voice.stopAt, Math.max(voice.startAt, at + (fade > 0 ? fade + 0.001 : 0)));
   try {
     if (fade > 0 && voice.gain) {
       voice.gain.gain.cancelScheduledValues(at);

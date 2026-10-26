@@ -86,7 +86,7 @@ export function playSegment(id: SegmentId, options: { at?: number; rate?: number
   const buffer = buffers.get(id);
   if (!graph) return false;
   if (!buffer) {
-    traceAudioCall(options.at ?? scheduleAt(), 'playSegment', id, 20 * Math.log10(options.gain ?? 1), 'sfx');
+    traceAudioCall(options.at ?? scheduleAt(), 'playSegment', id, 20 * Math.log10(options.gain ?? 1), 'sfx', false);
     return false;
   }
   const group = options.group ?? id;
@@ -98,7 +98,6 @@ export function playSegment(id: SegmentId, options: { at?: number; rate?: number
   const variantId = ((options.variants ?? 1) > 1 ? `${id.slice(0, -1)}${variant + 1}` : id) as SegmentId;
   const selected = buffers.get(variantId) ?? buffer;
   const at = options.at ?? scheduleAt();
-  traceAudioCall(at, 'playSegment', variantId, 20 * Math.log10(level), 'sfx');
   const source = graph.context.createBufferSource();
   const gain = graph.context.createGain();
   source.buffer = selected;
@@ -106,7 +105,12 @@ export function playSegment(id: SegmentId, options: { at?: number; rate?: number
   gain.gain.setValueAtTime(level, at);
   source.connect(gain);
   gain.connect(graph.sfxBus);
-  if (!claimVoice(source, options.priority ?? 'place', gain)) return false;
+  const stopAt = at + selected.duration / Math.max(0.01, rate);
+  if (!claimVoice(source, options.priority ?? 'place', gain, at, stopAt)) {
+    traceAudioCall(at, 'playSegment', variantId, 20 * Math.log10(level), 'sfx', false);
+    return false;
+  }
+  traceAudioCall(at, 'playSegment', variantId, 20 * Math.log10(level), 'sfx', true);
   source.start(at);
   return true;
 }
