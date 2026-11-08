@@ -15,3 +15,13 @@ describe('screen router Adventure entry', () => {
     expect(history.state).toMatchObject({ gloopScreen: 'adventure' });
   });
 });
+
+describe('screen router Adventure level card', () => {
+  it('re-renders the Adventure map when the card entry is popped', async () => {
+    const router = createRouter('home'); const listener = vi.fn(); router.subscribe(listener); router.open('adventure');
+    history.pushState({ gloopScreen: router.current, adventureCard: true }, '');
+    const popped = new Promise<void>((resolve) => window.addEventListener('popstate', () => resolve(), { once: true }));
+    history.back(); await popped;
+    expect(router.current).toBe('adventure'); expect(listener).toHaveBeenLastCalledWith('adventure');
+  });
+});

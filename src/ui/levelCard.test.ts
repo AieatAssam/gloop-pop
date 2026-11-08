@@ -46,3 +46,12 @@ describe('Adventure level start card', () => {
     expect(clean.querySelector('.adventure-assist-row')).toBeNull();
   });
 });
+
+describe('Adventure level start card controls', () => {
+  it('wires × and Back to map to back()', () => {
+    const back = vi.fn(); const card = createLevelCard(LEVELS[20]!, { play: vi.fn(), back });
+    card.querySelector<HTMLButtonElement>('.adventure-card-close')!.click();
+    card.querySelector<HTMLButtonElement>('.text-button')!.click();
+    expect(back).toHaveBeenCalledTimes(2);
+  });
+});

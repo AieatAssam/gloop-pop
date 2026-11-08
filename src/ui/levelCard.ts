@@ -73,7 +73,7 @@ export function createLevelCard(def: LevelDef, actions: { play(selection?: Boost
   body.append(boosterRow); const captions = document.createElement('div'); captions.className = 'adventure-booster-captions'; const freeText = document.createElement('small'); freeText.textContent = S.boosterCaptionWin; const returnText = document.createElement('small'); returnText.textContent = S.boosterCaptionReturn; captions.append(freeText, returnText); body.append(captions);
   const actionsRow = document.createElement('div'); actionsRow.className = 'adventure-card-actions'; const play = makeButton(S.levelPlay, 'button button--primary', () => actions.play(selection, assist)); const back = makeButton(S.backToMap, 'text-button', () => actions.back()); actionsRow.append(play, back);
   panel.append(body, actionsRow); shade.append(panel); requestAnimationFrame(() => play.focus());
-  const key = (event: KeyboardEvent): void => { event.stopPropagation(); if (event.key === 'Escape') { event.preventDefault(); actions.back(); } else if ((event.key === 'Enter' || event.key === ' ') && !(event.target instanceof Element && event.target.closest('button'))) { event.preventDefault(); actions.play(); } };
+  const key = (event: KeyboardEvent): void => { event.stopPropagation(); if (event.key === 'Escape') { event.preventDefault(); actions.back(); } else if ((event.key === 'Enter' || event.key === ' ') && !(event.target instanceof Element && event.target.closest('button'))) { event.preventDefault(); actions.play(selection, assist); } };
   shade.addEventListener('keydown', key); shade.tabIndex = -1; return shade;
   function updateMoves(): void { count.textContent = moveCount(def.moves, baseBonus + (selection.moves ? 3 : 0) + (assist ? 5 : 0)); }
 }

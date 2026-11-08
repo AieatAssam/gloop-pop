@@ -136,8 +136,10 @@ body { color: var(--ui-text-primary); }
 .streak-day.is-today { border-color: var(--ui-gold); color: var(--ui-gold); }
 .home-links { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 16px; }
 .text-button { border: 0; padding: 8px; color: var(--ui-text-secondary); background: transparent; font: 800 15px "Nunito", sans-serif; text-decoration: underline; cursor: pointer; }
-.full-screen-panel h1 { margin: 0; color: var(--ui-text-primary); font: 800 34px/1.1 "Baloo 2", sans-serif; }
-.screen-header { display: flex; align-items: center; gap: 14px; }
+.full-screen-panel h1 { min-width: 0; margin: 0; color: var(--ui-text-primary); font: 800 34px/1.1 "Baloo 2", sans-serif; overflow-wrap: anywhere; }
+/* Header row wraps on narrow phones instead of pushing the coin count off the panel; sticky keeps back + coins on screen while the list scrolls. */
+.screen-header { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.full-screen-panel > .screen-header { position: sticky; top: 0; z-index: 2; padding: 4px 0; background: var(--ui-panel-solid); }
 .screen-back { min-height: 44px; padding: 0 18px; font-size: 16px; }
 .stats-list { display: grid; grid-template-columns: 1fr auto; gap: 5px 12px; margin: 0; font-size: 14px; }
 .stats-list dt { color: var(--ui-text-secondary); }
@@ -188,8 +190,8 @@ body { color: var(--ui-text-primary); }
 
 /* SG §20.2–20.5: Adventure map, modal cards and result panels. */
 .adventure-screen { display: block; padding: 0; overflow: hidden; background: linear-gradient(180deg, color-mix(in srgb,var(--ui-panel) 82%,transparent),color-mix(in srgb,var(--ui-panel) 94%,transparent)); }
-.adventure-header { position: absolute; z-index: 2; inset: var(--safe-area-top) 0 auto; height: 64px; display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 8px; padding: 0 12px; background: var(--ui-panel); box-shadow: 0 4px 12px var(--light-shadow); }
-.adventure-header h1 { margin: 0; color: var(--ui-text-primary); font: 800 28px/1 "Baloo 2",sans-serif; text-align: center; }
+.adventure-header { position: absolute; z-index: 2; inset: var(--safe-area-top) 0 auto; height: 64px; display: grid; grid-template-columns: 52px minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 0 12px; background: var(--ui-panel); box-shadow: 0 4px 12px var(--light-shadow); }
+.adventure-header h1 { min-width: 0; margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--ui-text-primary); font: 800 28px/1 "Baloo 2",sans-serif; text-align: center; }
 .adventure-back { width: 44px; height: 44px; border: 2px solid var(--ui-panel-border); border-radius: 50%; color: var(--ui-text-primary); background: linear-gradient(var(--ui-secondary-top),var(--ui-secondary-bottom)); font: 800 32px/1 "Nunito",sans-serif; cursor: pointer; }
 .adventure-chips { display: flex; gap: 8px; }.adventure-chip { padding: 8px 10px; border-radius: 18px; color: var(--ui-text-primary); background: var(--ui-panel-solid); font: 800 14px/1 "Nunito",sans-serif; white-space: nowrap; }.adventure-chip.coin-chip svg { width: 17px; height: 17px; flex-basis: 17px; }
 .adventure-scroll { position: absolute; inset: calc(var(--safe-area-top) + 64px) 0 calc(var(--safe-area-bottom) + 88px); overflow-y: auto; overscroll-behavior: contain; }
@@ -211,6 +213,8 @@ body { color: var(--ui-text-primary); }
 .adventure-footer { width: min(calc(100% - 32px),360px); }
 .adventure-all-won { width: 100%; margin: 10px 0 0; padding: 0 20px; box-sizing: border-box; color: var(--ui-text-primary); text-align: center; font: 800 15px/1.3 "Nunito",sans-serif; }
 .adventure-modal-shade { position: fixed; z-index: 12; inset: 0; display: grid; place-items: center; padding: 24px 16px; background: var(--ui-scrim); }
+/* spec-note: #ui is pointer-events:none and only .button re-enables it; these overlays need it for their × , text buttons and booster tiles. */
+.adventure-modal-shade, .adventure-result-panel { pointer-events: auto; }
 .adventure-level-card,.adventure-result-panel { position: relative; width: min(100%,360px); max-height: calc(100% - 24px); overflow: hidden; display: flex; flex-direction: column; gap: 12px; padding: 24px; }
 .adventure-result-shade { padding-top: calc(var(--safe-area-top) + 96px); }.adventure-result-shade .adventure-result-panel { max-height: 100%; }
 .adventure-card-body { min-height: 0; overflow-y: auto; display: grid; gap: 12px; padding: 0 2px 4px; }
@@ -299,6 +303,7 @@ body { color: var(--ui-text-primary); }
 .achievement-track { width: 100%; height: 8px; overflow: hidden; border-radius: 5px; background: var(--ui-track); }
 .achievement-track span { display: block; height: 100%; border-radius: inherit; background: var(--ui-gold); }
 .achievement-progress { color: var(--ui-gold)!important; }
+@media (max-width: 420px) { .full-screen-panel { padding: 16px; } .full-screen-panel h1 { font-size: 28px; } .screen-header { gap: 10px; } .adventure-header h1 { font-size: 24px; } .adventure-chips { gap: 6px; } .adventure-chip { padding: 6px 8px; font-size: 13px; } }
 @media(max-width:600px){.collection-grid{grid-template-columns:1fr}.achievement-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 6px}.achievement-badge{width:68px;height:68px;border-radius:18px}.achievement-face{width:30px;height:30px}}
 @media(max-width:480px){.volume-row{grid-template-columns:minmax(48px,1fr) 160px 40px;gap:8px;padding-inline:8px}.volume-row input[type="range"]{width:160px}}
 @media(min-width:700px){.volume-row{grid-template-columns:minmax(112px,1fr) 200px 44px}.volume-row input[type="range"]{width:200px}}
