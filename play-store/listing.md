@@ -48,7 +48,7 @@ PLAYS OFFLINE
 
 - App or game: **Game**
 - Category: **Puzzle**
-- Tags (pick up to 5 in Console): Block puzzle, Casual, Offline, Single player, Stylized
+- Tags (pick up to 5 in Console, closest labels): Block puzzle, Merge, Offline, Casual, Stylized / Cute
 - Contains ads: **No**
 - In-app purchases: **No**
 
@@ -75,8 +75,9 @@ Screenshots were captured from the dev build with debug scenes (`?debug=1&overla
 - **Privacy policy:** URL above.
 - **Ads:** No ads.
 - **App access:** All functionality available without special access.
-- **Content rating (IARC):** Puzzle game; no violence, no user interaction, no sharing of location, no purchases, no gambling. Expected rating: Everyone / PEGI 3.
-- **Target audience:** 13+ recommended (selecting under-13 triggers Families policy review; the game would comply, but choose deliberately).
+- **Content rating (IARC):** Puzzle game; no violence, no user interaction, no sharing of location, no purchases, no gambling. Expected rating: Everyone / PEGI 3 / IARC 3+.
+- **Target audience:** All ages (5 and under, 6–8, 9–12, 13–15, 16–17, 18+). This puts the app under the Families policy: no ads, no ad SDKs or advertising ID, no data collected, and links that leave the Android app (Settings → Credits) sit behind an adult check (a multiplication question). Sharing uses the system share sheet only when the player taps Share.
+- **Advertising ID:** No. The app requests only `INTERNET` and `VIBRATE`.
 - **Data safety:** No data collected, no data shared. The app has no network calls, analytics or accounts. Saves stay on the device; Android Auto Backup may copy them to the user's own Google account backup, which is not "collection" by the developer. Answer "No" to "Does your app collect or share any of the required user data types?".
 - **Government app / financial features / health:** No.
 - **News app:** No.

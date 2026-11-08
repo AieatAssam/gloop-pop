@@ -2,6 +2,7 @@
 import { CREDITS, creditAriaLabel, creditLine, type CreditGroup } from '../../audio/credits';
 import { S } from '../strings';
 import { isNativeRuntime, nativeOpenUrl } from '../../platform/native';
+import { showAdultCheck } from '../adultCheck';
 
 const GROUPS: readonly { id: CreditGroup; label: string }[] = [
   { id: 'Music', label: S.creditsMusic },
@@ -28,7 +29,7 @@ export function createCreditsScreen(back: () => void): HTMLElement {
       if (credit.url) {
         const prefix = creditLine(credit).slice(0, -credit.site.length);
         line.append(document.createTextNode(prefix));
-        const link = document.createElement('a'); link.href = credit.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.setAttribute('aria-label', creditAriaLabel(credit)); link.textContent = credit.site; link.addEventListener('click', (event) => { if (!isNativeRuntime()) return; event.preventDefault(); void nativeOpenUrl(link.href); }); line.append(link);
+        const link = document.createElement('a'); link.href = credit.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.setAttribute('aria-label', creditAriaLabel(credit)); link.textContent = credit.site; link.addEventListener('click', (event) => { if (!isNativeRuntime()) return; event.preventDefault(); showAdultCheck(root, () => { void nativeOpenUrl(link.href); }); }); line.append(link);
       } else line.textContent = creditLine(credit);
       section.append(line);
     }

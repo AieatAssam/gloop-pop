@@ -86,6 +86,8 @@ export const S = {
   nearFallback: (pop: number, lines: number): string => pop > 0 ? `Biggest pop this run: ${number(pop)} cells.` : `You cleared ${number(lines)} lines.`,
   targetShort: (distance: number, target: number): string => `${number(distance)} points short of the ${number(target)} target.`,
   pause: 'Paused', resume: 'Resume', restart: 'Restart', home: 'Home', settings: 'Settings',
+  // design §16.4 Credits: adult check before links leave the Android app.
+  adultCheckTitle: 'Ask a grown-up', adultCheckQuestion: (a: number, b: number): string => `To open this link, what is ${number(a)} × ${number(b)}?`, adultCheckAnswer: 'Answer', adultCheckOpen: 'Open link', adultCheckWrong: 'Not quite. Try this one.',
   rescueUse: 'Use rescue', rescueDecline: 'No thanks', startOver: 'Start over', cancel: 'Cancel',
   rescueTitle: 'Out of room!', rescueBody: 'Use your rescue? It pops your biggest gloop and gives you 3 pieces that fit.',
   restartConfirm: 'Start over? This run will end.', noRoom: 'No room left', playAgain: 'Play again', shareScore: 'Share score',
