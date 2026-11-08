@@ -7,6 +7,7 @@ import { withAlpha } from './colour';
 import { drawGloop } from './gloopRenderer';
 import { components, largestSquare } from '../core/gloops';
 import type { Flavour, Gloop } from '../core/types';
+import { shareSiteUrl } from '../platform/native';
 
 export interface ShareCardData { title: string; date: string; score: number; combo: number; biggestPop: number; lines: number; streak: number; theme: ThemeKey; daily?: DailyResult; board?: readonly number[]; biggestGloop?: { cells: number[]; flavour: number }; heroFlavour?: number }
 const W = 1080; const H = 1350; const COUNTER_Y = 1060;
@@ -26,7 +27,7 @@ export function renderShareCard(data: ShareCardData): HTMLCanvasElement {
   chips.forEach((label, i) => { const x = startX + i * (chipW + gap); rounded(ctx, x, 898, chipW, 68, 34, withAlpha(PALETTE.ui.panelSolid, 0.92)); ctx.strokeStyle = PALETTE.ui.panelBorder; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(x, 898, chipW, 68, 34); ctx.stroke(); ctx.fillStyle = PALETTE.ui.textPrimary; ctx.font = '800 32px Nunito, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(label, x + chipW / 2, 943); });
   if (!data.daily) { ctx.font = '800 44px "Baloo 2", sans-serif'; ctx.fillStyle = PALETTE.ui.gold; ctx.strokeStyle = PALETTE.face.ink; ctx.lineWidth = 8; ctx.strokeText(S.canBeatIt, 540, 1022); ctx.fillText(S.canBeatIt, 540, 1022); }
   drawCounter(ctx, theme, data);
-  const site = `${location.host}${import.meta.env.BASE_URL.replace(/\/$/, '')}`;
+  const site = shareSiteUrl();
   ctx.font = '700 30px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.textSecondary;
   if (data.streak >= 2) {
     const streak = S.streakCard(data.streak); ctx.font = '800 30px Nunito, sans-serif'; const streakW = ctx.measureText(streak).width; ctx.font = '700 30px Nunito, sans-serif'; const siteW = ctx.measureText(site).width;

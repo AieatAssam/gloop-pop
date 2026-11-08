@@ -45,6 +45,18 @@ describe('responsive layout', () => {
     const desktop = computeLayout(1280, 800, {}, true);
     expect(desktop.goalStrip.x + desktop.goalStrip.width).toBeLessThanOrEqual(desktop.board.x);
     expect(desktop.board.x + desktop.board.width).toBeLessThanOrEqual(desktop.tray.x);
-    expect(desktop.goalStrip.y).toBe(300);
+    expect(desktop.goalStrip.y).toBe(desktop.board.y + 400); // under the rescue ring, clear of Stage and Combo
+  });
+  // spec-note: wide landscape (tablet) viewports keep the SG §15.2 landscape composition; every rect stays on screen.
+  it.each([[1280, 800], [1600, 720], [2000, 1200], [2560, 1600], [900, 560]])('keeps every element on screen at %i×%i landscape', (width, height) => {
+    const layout = computeLayout(width, height);
+    expect(layout.portrait).toBe(false);
+    for (const r of [layout.board, layout.score, layout.combo, layout.tray, layout.topBar, layout.bottom]) {
+      expect(r.x).toBeGreaterThanOrEqual(0);
+      expect(r.y).toBeGreaterThanOrEqual(0);
+      expect(r.x + r.width).toBeLessThanOrEqual(width + 0.5);
+      expect(r.y + r.height).toBeLessThanOrEqual(height + 0.5);
+    }
+    expect(layout.board.x + layout.board.width / 2).toBeCloseTo(width / 2, 0);
   });
 });

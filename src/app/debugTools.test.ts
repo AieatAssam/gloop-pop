@@ -41,6 +41,7 @@ describe('debug bundle boundary', () => {
     expect(app).not.toContain('save-v1-veteran.json');
     expect(app).not.toContain('./demoScenes');
     expect(app).not.toContain('../core/sim');
+    expect(app).toContain("const debug = (!import.meta.env.PROD || !isAndroidRuntime()) && query.get('debug') === '1'");
     expect(app).toContain("const dbg = debug ? await import('./debugTools') : null");
   });
 });
