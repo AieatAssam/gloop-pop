@@ -66,6 +66,7 @@ PLAYS OFFLINE
 | Feature graphic | `graphics/feature-graphic-1024x500.jpg` | 1024×500 JPEG/24-bit PNG |
 | Phone screenshots (6) | `screenshots/phone/*.png` | 1080×1920, 2–8 required |
 | 10-inch tablet screenshots (2) | `screenshots/tablet-10in/*.png` | 2560×1600 landscape |
+| Promo video | `video/gloop-pop-promo-one-piece.mp4` (25 s), `video/gloop-pop-promo-meet-the-gloops.mp4` (30 s) | Upload one to YouTube (public or unlisted, ads off), paste its URL in "YouTube video" |
 
 Screenshots were captured from the dev build with debug scenes (`?debug=1&overlay=0&…`) in headless Chrome at 540×960 @2× (phone) and 1280×800 @2× (tablet): `save=veteran&autoplay=1&speed=fast`, `demo=mega`, `save=veteran` home, `demo=adventure-map&frontier=41`, `demo=level-card&level=24&streak=3&coins=120&boosters=1,0,5`, `demo=adventure-win&stars=3`. Re-take after visual changes. 7-inch tablet screenshots are optional; the 10-inch set can be reused.
 
