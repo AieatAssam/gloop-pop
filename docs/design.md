@@ -675,6 +675,7 @@ Credits (SG §11.13; entry points: "Credits" in Settings and in the Home footer 
   - Code and art: "Code, art and synth sounds: made for Gloop Pop." (no link)
 - Link label (aria): "Open {title} on {site}"
 - Note at the end: "CC0 means anyone may use it for free. We credit them anyway."
+- Adult check (Android app only, Google Play Families policy): tapping a link opens a dialog before the browser. Title "Ask a grown-up"; question "To open this link, what is {a} × {b}?" with {a} and {b} random from 6 to 9; answer field aria "Answer" (numeric keypad); buttons "Open link" and "Cancel". A wrong answer asks a new question, prefixed "Not quite. Try this one." The link opens only after a correct answer. The web version opens links directly.
 Collection: tabs "Themes", "Skins", "Pop effects"; item buttons per §14.4.
 Stats: see §18.
 
