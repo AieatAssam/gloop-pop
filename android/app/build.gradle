@@ -5,10 +5,10 @@ def releaseKeystore = releaseKeystorePath ? file(releaseKeystorePath) : null
 def hasReleaseKeystore = releaseKeystore != null && releaseKeystore.exists()
 
 android {
-    namespace = "io.github.aieatassam.glooppop"
+    namespace = "net.aieat.gloop_pop"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "io.github.aieatassam.glooppop"
+        applicationId "net.aieat.gloop_pop"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode((project.findProperty('versionCode') ?: '1') as Integer)

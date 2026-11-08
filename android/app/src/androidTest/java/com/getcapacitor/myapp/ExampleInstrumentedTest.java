@@ -21,6 +21,6 @@ public class ExampleInstrumentedTest {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
-        assertEquals("io.github.aieatassam.glooppop", appContext.getPackageName());
+        assertEquals("net.aieat.gloop_pop", appContext.getPackageName());
     }
 }

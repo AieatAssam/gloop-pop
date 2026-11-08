@@ -28,7 +28,7 @@
 }
 
 # Local plugins and app classes.
--keep class io.github.aieatassam.glooppop.** { *; }
+-keep class net.aieat.gloop_pop.** { *; }
 
 # WebView bridge.
 -keepattributes *Annotation*,JavascriptInterface
