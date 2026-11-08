@@ -56,7 +56,7 @@ PLAYS OFFLINE
 
 - Email: _set in Console (required)_
 - Website: https://aieatassam.github.io/gloop-pop/
-- Privacy policy: https://aieatassam.github.io/gloop-pop/privacy.html (page source: `public/privacy.html`, published with the web build)
+- Privacy policy: https://aieatassam.github.io/gloop-pop/privacy.html (page source: `public/privacy.html`, published with the web build; same text in `/PRIVACY.md`)
 
 ## Graphics (`play-store/graphics/`, `play-store/screenshots/`)
 
