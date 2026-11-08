@@ -183,7 +183,7 @@ f2["compositions/flavours.html"] = scene("flavours", 10.5,
     <div class="copy"><div class="s">Seven flavours.</div><div class="stack">
 {names}
     </div></div>""", fl_script,
-    ".stack { position: relative; height: 200px; } .fl { position: absolute; left: 0; top: 0; font: 800 170px/1 'Baloo 2'; "
+    ".stack { position: relative; height: 150px; } .fl { position: absolute; left: 0; top: 0; font: 800 128px/1 'Baloo 2'; "
     f"-webkit-text-stroke: 7px {C['faceInk']}; paint-order: stroke fill; transform-origin: 30% 90%; opacity: 0; }}")
 f2["compositions/merge.html"] = scene("merge", 7,
     win(window_clip("merge-v", "mega.mp4", 0, 7, 0.75, 0.5)) + "\n" +
