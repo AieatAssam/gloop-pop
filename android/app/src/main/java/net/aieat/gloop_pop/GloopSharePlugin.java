@@ -1,4 +1,4 @@
-package io.github.aieatassam.glooppop;
+package net.aieat.gloop_pop;
 
 import android.content.ClipData;
 import android.content.Intent;

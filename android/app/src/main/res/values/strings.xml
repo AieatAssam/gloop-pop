@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">Gloop Pop</string>
     <string name="title_activity_main">Gloop Pop</string>
-    <string name="package_name">io.github.aieatassam.glooppop</string>
-    <string name="custom_url_scheme">io.github.aieatassam.glooppop</string>
+    <string name="package_name">net.aieat.gloop_pop</string>
+    <string name="custom_url_scheme">net.aieat.glooppop</string>
 </resources>
