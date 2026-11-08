@@ -1,0 +1,251 @@
+name: Android
+
+on:
+  pull_request:
+    paths:
+      - "android/**"
+      - "src/**"
+      - "package*.json"
+      - "capacitor.config.json"
+      - ".github/workflows/android.yml"
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+# Read-only by default. Only the release job gets write access.
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  # Never cancel a tag or manual release run half-way through.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Works out versionName and versionCode for every run.
+  #   pull_request      -> 0.0.0-pr<number>, code 1
+  #   tag v<Y.M.D.N>    -> name taken from the tag, code YYYYMMDD*100 + N
+  #   workflow_dispatch -> next free N for today (UTC), tag is created in the release job
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version_name: ${{ steps.version.outputs.version_name }}
+      version_code: ${{ steps.version.outputs.version_code }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute version
+        id: version
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          re='^v([0-9]{4})\.(0[1-9]|1[0-2])\.(0[1-9]|[12][0-9]|3[01])\.([1-9][0-9]?)$'
+
+          case "$EVENT" in
+            pull_request)
+              name="0.0.0-pr${PR_NUMBER}"
+              code=1
+              tag=""
+              ;;
+            push)
+              if [[ ! "$REF_NAME" =~ $re ]]; then
+                echo "::error::Tag '$REF_NAME' must match v<YYYY>.<MM>.<DD>.<N> with N from 1 to 99, e.g. v2026.11.08.1"
+                exit 1
+              fi
+              y="${BASH_REMATCH[1]}"; m="${BASH_REMATCH[2]}"; d="${BASH_REMATCH[3]}"; n="${BASH_REMATCH[4]}"
+              name="${y}.${m}.${d}.${n}"
+              code=$(( 10#${y}${m}${d} * 100 + 10#${n} ))
+              tag="$REF_NAME"
+              ;;
+            workflow_dispatch)
+              git fetch --tags --force origin
+              today=$(date -u +%Y.%m.%d)
+              today_re=${today//./\\.}
+              max=$(git tag -l "v${today}.*" | grep -E "^v${today_re}\.[0-9]+$" | awk -F. '{print $NF}' | sort -n | tail -1 || true)
+              n=$(( ${max:-0} + 1 ))
+              if (( n > 99 )); then
+                echo "::error::Already 99 releases tagged for $today. Cannot pick N."
+                exit 1
+              fi
+              IFS=. read -r y m d <<< "$today"
+              name="${today}.${n}"
+              code=$(( 10#${y}${m}${d} * 100 + n ))
+              tag="v${name}"
+              ;;
+            *)
+              echo "::error::Unsupported event $EVENT"
+              exit 1
+              ;;
+          esac
+
+          echo "version_name=$name" >> "$GITHUB_OUTPUT"
+          echo "version_code=$code" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "versionName=$name versionCode=$code tag=${tag:-none}"
+
+  # Unsigned-by-secret debug build for every PR. No secrets used.
+  debug-apk:
+    name: Debug APK
+    if: github.event_name == 'pull_request'
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      VERSION_NAME: ${{ needs.version.outputs.version_name }}
+      VERSION_CODE: ${{ needs.version.outputs.version_code }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app and sync Capacitor
+        run: npm run build:android
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug -PversionCode="$VERSION_CODE" -PversionName="$VERSION_NAME"
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: gloop-pop-debug-${{ needs.version.outputs.version_name }}
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+  # Signed release build for version tags and manual dispatch.
+  release:
+    name: Release
+    if: github.event_name != 'pull_request'
+    needs: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION_NAME: ${{ needs.version.outputs.version_name }}
+      VERSION_CODE: ${{ needs.version.outputs.version_code }}
+      TAG: ${{ needs.version.outputs.tag }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Decode upload keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::Secret ANDROID_KEYSTORE_BASE64 is empty or missing."
+            exit 1
+          fi
+          ks="$RUNNER_TEMP/upload.p12"
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$ks"
+          chmod 600 "$ks"
+          echo "ANDROID_KEYSTORE_PATH=$ks" >> "$GITHUB_ENV"
+
+      - name: Check keystore
+        run: |
+          keytool -list -storetype PKCS12 -keystore "$ANDROID_KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app and sync Capacitor
+        run: npm run build:android
+
+      - name: Build signed release AAB and APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease assembleRelease -PversionCode="$VERSION_CODE" -PversionName="$VERSION_NAME"
+
+      - name: Verify signatures and stage release files
+        run: |
+          set -euo pipefail
+          apk="android/app/build/outputs/apk/release/app-release.apk"
+          aab="android/app/build/outputs/bundle/release/app-release.aab"
+          test -f "$apk"
+          test -f "$aab"
+
+          bt_ver=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)
+          "$ANDROID_HOME/build-tools/$bt_ver/apksigner" verify --print-certs "$apk"
+
+          out=$(jarsigner -verify "$aab" 2>&1) || true
+          echo "$out"
+          echo "$out" | grep -q "jar verified" || { echo "::error::AAB signature check failed."; exit 1; }
+
+          mkdir -p release-out
+          cp "$apk" "release-out/gloop-pop-${VERSION_NAME}.apk"
+          cp "$aab" "release-out/gloop-pop-${VERSION_NAME}.aab"
+
+      - name: Upload release files
+        uses: actions/upload-artifact@v4
+        with:
+          name: gloop-pop-release-${{ needs.version.outputs.version_name }}
+          path: release-out/*
+          if-no-files-found: error
+
+      - name: Create and push tag (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "refs/tags/$TAG"
+
+      - name: Create GitHub Release
+        run: |
+          gh release create "$TAG" \
+            "release-out/gloop-pop-${VERSION_NAME}.aab" \
+            "release-out/gloop-pop-${VERSION_NAME}.apk" \
+            --title "$TAG" \
+            --generate-notes
+
+      - name: Delete keystore
+        if: always()
+        run: |
+          if [ -n "${ANDROID_KEYSTORE_PATH:-}" ]; then
+            rm -f "$ANDROID_KEYSTORE_PATH"
+          fi

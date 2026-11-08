@@ -43,6 +43,7 @@ import { createDailyResultScreen } from '../ui/screens/dailyResult';
 import { buildDailyShareText } from '../core/shareText';
 import { shareText } from '../platform/share';
 import { shareImage } from '../platform/share';
+import { androidPlayBackAction, isAndroidRuntime, listenForAndroidBack, shareSiteUrl } from '../platform/native';
 type AdventureBundle = typeof import('../ui/adventureBundle');
 type ShareCardData = Parameters<typeof import('../render/shareCard').renderShareCard>[0];
 import { buildChallengeText, flavourName, parseChallenge } from '../core/shareText';
@@ -77,7 +78,7 @@ export async function bootApp(): Promise<void> {
   const canvas = document.querySelector<HTMLCanvasElement>('#game'); const uiRoot = document.querySelector<HTMLElement>('#ui');
   if (!canvas || !uiRoot) throw new Error('Missing game surface.');
   const gameCanvas = canvas;
-  const query = new URLSearchParams(window.location.search); const debug = query.get('debug') === '1'; const veteranDemo = debug && query.get('save') === 'veteran';
+  const query = new URLSearchParams(window.location.search); const debug = (!import.meta.env.PROD || !isAndroidRuntime()) && query.get('debug') === '1'; const veteranDemo = debug && query.get('save') === 'veteran';
   const dbg = debug ? await import('./debugTools') : null;
   const audioTrace = dbg?.startAudioTrace();
   // spec-note: The level bot is development-only, even for debug URLs, so it never ships in the production bundle.
@@ -116,7 +117,7 @@ export async function bootApp(): Promise<void> {
   const router = createRouter(initialScreen); const surface = createCanvasSurface(canvas); const background = createBackground(save.equipped.theme as keyof typeof PALETTE.theme); const view = createBoardView(); const director = createDirector();
   setColourBlindPatterns(save.settings.cbPatterns);
   let backgroundTheme = save.equipped.theme; const ui = createGameUi(uiRoot); const toast = createToasts(uiRoot); const homeHost = document.createElement('div'); uiRoot.append(homeHost);
-  let paused = false; let shownScore = 0; let shownStatus = ''; let runRecorded = false; let adventureRecorded = false; let adventureReward = { xp: 0, coins: 0, progress: 0, progressMax: 0 }; let adventureChapterRewards = { chapterDone: false, chapterAllStars: false, chapter: 1 }; let adventureStreakReset = false; let countedDailyThisRun = false; let comboLostAt = -1; let layout: Layout = computeLayout(window.innerWidth, window.innerHeight, {}, Boolean(session.state.goals || session.state.adventure)); let renderElapsed = 0; let gameOverAt = -1; let saveTimer = 0; let runEvents: GameEvent[] = []; let closeCall = false;
+  let paused = false; let pauseLayer: 'none' | 'menu' | 'confirmation' = 'none'; let resumePausedRun = (): void => undefined; let shownScore = 0; let shownStatus = ''; let runRecorded = false; let adventureRecorded = false; let adventureReward = { xp: 0, coins: 0, progress: 0, progressMax: 0 }; let adventureChapterRewards = { chapterDone: false, chapterAllStars: false, chapter: 1 }; let adventureStreakReset = false; let countedDailyThisRun = false; let comboLostAt = -1; let layout: Layout = computeLayout(window.innerWidth, window.innerHeight, {}, Boolean(session.state.goals || session.state.adventure)); let renderElapsed = 0; let gameOverAt = -1; let saveTimer = 0; let runEvents: GameEvent[] = []; let closeCall = false;
   let lastAdventureMoves = session.state.adventure?.movesLeft ?? -1; let adventureMovesChangedAt = -1;
   let tutorialActive = !debugLevelState && (beginTutorial || savedRun?.mode === 'tutorial' || (!save.tutorialDone && save.ui.seenTips.includes('tutorialStep4Pending'))); let tutorialStep = tutorialActive ? (session.state.mode === 'tutorial' ? Math.min(3, session.state.traysDealt) : 4) : 0; let tutorialTouched = false; let tutorialBubbleText = ''; let tutorialBubbleUntil = -1; let tutorialTipForGameOver = false;
   let candyFlameUntil = -1; let candyFlameFlavour = 1; let discoveryCoins = 0;
@@ -183,6 +184,18 @@ export async function bootApp(): Promise<void> {
   const boosterBar = createBoosterBar((id) => { if (id === 'shuffle') pointer.cancel(); apply({ type: 'booster', id }); }); uiRoot.append(boosterBar.element);
   boosterBar.update(session.state, layout);
   const keyboard = attachKeyboard(view, () => layout, () => session.state, (slot, row, col) => apply({ type: 'place', slot: slot as 0 | 1 | 2, row, col }), () => pointer.cancel(), () => { if (router.current === 'play') showPause(); else router.back(); }, () => sfx.snapTick(), (id) => { if (id === 'shuffle') pointer.cancel(); apply({ type: 'booster', id }); });
+  // spec-note: Android back closes a confirmation before the pause menu, resumes from pause, and exits from Home.
+  listenForAndroidBack(() => {
+    if (router.current === 'play') {
+      if (session.state.status === 'playing') {
+        const action = androidPlayBackAction(paused, pauseLayer === 'confirmation');
+        if (action === 'pause' || action === 'closeConfirmation') showPause(); else resumePausedRun();
+      }
+      return false;
+    }
+    if (router.current !== 'home') { router.back(); return false; }
+    return true;
+  });
   const resize = (): void => {
     surface.resize(window.innerWidth, window.innerHeight);
     const { top: safeTop, bottom: safeBottom } = readSafeAreaInsets();
@@ -376,18 +389,20 @@ export async function bootApp(): Promise<void> {
     saveNow(save);
   }
   function restart(): void { if (challengeBeaten) { activeChallenge = null; challengeBeaten = false; } runBest = bestFor(save, session.state.mode); session = createSession({ best: runBest, mode: session.state.mode, goals: save.tutorialDone || debug }); resetRun(); updateCanvasAria(); resize(); ui.hide(); pointer.cancel(); persist(false); }
-  function resetRun(): void { renderLoop.resetEffects(); director.reset(); runStartedAt = performance.now(); runEvents = []; closeCall = false; pauseStartedAt = 0; shownScore = 0; scoreAnimFrom = 0; scoreAnimStart = renderElapsed; scoreAnimDuration = 600; newBestAt = -1; flameBreakAt = -1; comboPulseAt = -1; scoreSparkleAt = -1; shownStatus = ''; runRecorded = false; comboLostAt = -1; gameOverAt = -1; newBestShown = false; discoveryCoins = 0; paused = false; }
+  function resetRun(): void { renderLoop.resetEffects(); director.reset(); runStartedAt = performance.now(); runEvents = []; closeCall = false; pauseStartedAt = 0; shownScore = 0; scoreAnimFrom = 0; scoreAnimStart = renderElapsed; scoreAnimDuration = 600; newBestAt = -1; flameBreakAt = -1; comboPulseAt = -1; scoreSparkleAt = -1; shownStatus = ''; runRecorded = false; comboLostAt = -1; gameOverAt = -1; newBestShown = false; discoveryCoins = 0; paused = false; pauseLayer = 'none'; }
   async function withLevels(action: (bundle: AdventureBundle) => void): Promise<void> { const bundle = await import('../ui/adventureBundle'); loadedAdventureLevels = bundle.LEVELS; action(bundle); }
   function shareCard(data: ShareCardData, filename: string): void { void import('../render/shareCard').then(({ renderShareCard }) => { renderShareCard(data).toBlob((blob) => { if (blob) void shareImage(blob, filename); }); }); }
   function showPause(): void {
     if (router.current !== 'play' || session.state.status !== 'playing') return;
-    paused = true; setAudioPaused(true); if (pauseStartedAt === 0) pauseStartedAt = performance.now(); persist(true); const mode = session.state.mode; const label = mode === 'daily' || mode === 'adventure' ? S.giveUp : mode === 'zen' ? S.endRun : S.restart;
-    ui.showPause(() => { if (pauseStartedAt > 0) runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; paused = false; setAudioPaused(false); ui.hide(); }, () => {
-      if (mode === 'daily') ui.showDailyGiveUpConfirm(() => { if (pauseStartedAt > 0) runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; apply({ type: 'endRun' }); }, () => showPause());
-      else if (mode === 'adventure') ui.showAdventureGiveUpConfirm(() => { if (pauseStartedAt > 0) runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; apply({ type: 'endRun' }); }, () => showPause());
+    paused = true; pauseLayer = 'menu'; setAudioPaused(true); if (pauseStartedAt === 0) pauseStartedAt = performance.now(); persist(true); const mode = session.state.mode; const label = mode === 'daily' || mode === 'adventure' ? S.giveUp : mode === 'zen' ? S.endRun : S.restart;
+    resumePausedRun = () => { if (pauseStartedAt > 0) runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; paused = false; pauseLayer = 'none'; setAudioPaused(false); ui.hide(); };
+    ui.showPause(resumePausedRun, () => {
+      pauseLayer = 'confirmation';
+      if (mode === 'daily') ui.showDailyGiveUpConfirm(() => { if (pauseStartedAt > 0) runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; paused = false; pauseLayer = 'none'; apply({ type: 'endRun' }); }, () => showPause());
+      else if (mode === 'adventure') ui.showAdventureGiveUpConfirm(() => { if (pauseStartedAt > 0) runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; paused = false; pauseLayer = 'none'; apply({ type: 'endRun' }); }, () => showPause());
       else if (mode === 'zen') { if (pauseStartedAt > 0) runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; apply({ type: 'endRun' }); }
       else if (session.state.score > 0) ui.showRestartConfirm(() => restart(), () => showPause()); else restart();
-    }, () => { paused = true; if (pauseStartedAt === 0) pauseStartedAt = performance.now(); ui.hide(); router.open('home'); persist(true); }, label);
+    }, () => { paused = true; pauseLayer = 'none'; if (pauseStartedAt === 0) pauseStartedAt = performance.now(); ui.hide(); router.open('home'); persist(true); }, label);
   }
   function goHome(): void {
     if (router.current !== 'play') return;
@@ -454,7 +469,7 @@ export async function bootApp(): Promise<void> {
       // spec-note: A counted Daily goes straight to the existing full result screen, whose Practice, Share, and Home actions satisfy the Daily game-over actions in design §13.3.
       if (countedDailyThisRun) { router.open('dailyResult'); return; }
       paused = false; const summary = summarizeRun(session.state, runEvents); const challengeMode = session.state.mode === 'classic' || session.state.mode === 'expert';
-      const challengeText = (): void => { const flavor = summary.biggestGloop?.flavour ?? 1; const url = `${location.host}${import.meta.env.BASE_URL.replace(/\/$/, '')}/?beat=${session.state.score}&f=${flavourName(flavor as 1 | 2 | 3 | 4 | 5 | 6 | 7)}`; const text = buildChallengeText({ score: session.state.score, biggestPop: session.state.stats.biggestPop, bestCombo: session.state.bestCombo, flavour: flavor as 1 | 2 | 3 | 4 | 5 | 6 | 7 }, session.state.mode === 'expert' ? 'expert' : 'classic', url); void shareText(text, () => toast.show(S.copied)); };
+      const challengeText = (): void => { const flavor = summary.biggestGloop?.flavour ?? 1; const url = `${shareSiteUrl()}/?beat=${session.state.score}&f=${flavourName(flavor as 1 | 2 | 3 | 4 | 5 | 6 | 7)}`; const text = buildChallengeText({ score: session.state.score, biggestPop: session.state.stats.biggestPop, bestCombo: session.state.bestCombo, flavour: flavor as 1 | 2 | 3 | 4 | 5 | 6 | 7 }, session.state.mode === 'expert' ? 'expert' : 'classic', url); void shareText(text, () => toast.show(S.copied)); };
       const weeklyId = WEEKLY_POOL[((save.weekly.weekIndex % WEEKLY_POOL.length) + WEEKLY_POOL.length) % WEEKLY_POOL.length]!; const weeklyTarget = WEEKLY_TARGETS[weeklyId];
       const nearAchievement = ACHIEVEMENTS.filter((def) => !save.achievements[def.id] && COUNTER_ACHIEVEMENTS.has(def.id)).map((def) => { const progress = achievementProgress(def.id, save); return { remaining: Math.max(0, progress.target - progress.current), target: progress.target, name: S.achievementName(def.id), unit: S.achievementUnit(def.id) }; }).filter((entry) => entry.remaining <= entry.target * 0.2).sort((a, b) => a.remaining - b.remaining)[0];
       const missionNear = (session.state.mode === 'classic' || session.state.mode === 'expert') ? missionNearMiss(save) : null;
@@ -503,7 +518,7 @@ export async function bootApp(): Promise<void> {
       paused = false; const key = dayKeyFromMs(Date.now()); const result = dailyResult(save, key);
       if (!result) { router.open('home'); return; }
       const remaining = Math.floor(((Math.floor(Date.now() / 86_400_000) + 1) * 86_400_000 - Date.now()) / 1000); const clock = `${String(Math.floor(remaining / 3600)).padStart(2, '0')}:${String(Math.floor(remaining / 60) % 60).padStart(2, '0')}:${String(remaining % 60).padStart(2, '0')}`;
-      homeHost.append(createDailyResultScreen(result, dayNumber(key), save.streak.current, result.freezeUsed, () => { const text = buildDailyShareText(dayNumber(key), flavourForDay(key), result, save.streak.current, `${location.host}${import.meta.env.BASE_URL.replace(/\/$/, '')}`); void shareText(text, () => toast.show(S.copied)); }, () => {
+      homeHost.append(createDailyResultScreen(result, dayNumber(key), save.streak.current, result.freezeUsed, () => { const text = buildDailyShareText(dayNumber(key), flavourForDay(key), result, save.streak.current, shareSiteUrl()); void shareText(text, () => toast.show(S.copied)); }, () => {
         shareCard({ title: S.dailyResult(dayNumber(key)), date: new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(Date.now()), score: result.score, combo: result.bestCombo, biggestPop: result.biggestPop, lines: result.lines, streak: save.streak.current, theme: save.equipped.theme as keyof typeof PALETTE.theme, daily: result, heroFlavour: flavourForDay(key) }, `gloop-pop-daily-${dayNumber(key)}.png`);
       }, () => start('daily'), () => router.open('home')));
       const countdown = document.createElement('p'); countdown.className = 'daily-next'; countdown.textContent = S.nextDaily(clock); homeHost.querySelector('.daily-result-panel')?.append(countdown);

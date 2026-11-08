@@ -9,6 +9,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:android": "vite build --base=/ && cap sync android",
+    "open:android": "cap open android",
+    "android:debug": "npm run build:android && cd android && ./gradlew assembleDebug",
+    "android:bundle": "npm run build:android && cd android && ./gradlew bundleRelease",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && node tools/check-no-hex.mjs",
@@ -23,10 +27,14 @@
     "levels:verify": "npm run levels -- --verify"
   },
   "dependencies": {
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.0",
     "@fontsource/baloo-2": "5.3.0",
     "@fontsource/nunito": "5.3.0"
   },
   "devDependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/cli": "8.6.0",
     "@eslint/js": "10.0.1",
     "@types/node": "26.6.5",
     "eslint": "10.13.0",

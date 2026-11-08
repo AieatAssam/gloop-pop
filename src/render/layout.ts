@@ -83,7 +83,7 @@ function computeLandscape(w: number, h: number, safeTop: number, safeBottom: num
   const board = rect(left, top, size, size);
   return {
     width: w, height: h, portrait: false,
-    column: rect(0, 0, w, h), topBar: rect(0, 0, w, 72 * u + safeTop), goalStrip: hasGoalStrip ? rect(left - 288 * u, 300 * u, 240 * u, 74 * u) : rect(0, 0, 0, 0),
+    column: rect(0, 0, w, h), topBar: rect(0, 0, w, 72 * u + safeTop), goalStrip: hasGoalStrip ? rect(left - 288 * u, top + 400 * u, 240 * u, 74 * u) : rect(0, 0, 0, 0), // spec-note: chips sit under the rescue ring; at 300u they covered Stage and Combo.
     score: rect(left - 288 * u, top, 240 * u, size), board,
     combo: rect(left - 288 * u, top + 220 * u, 240 * u, 100 * u),
     tray: rect(left + size + 48 * u, top + 8 * u, 240 * u, 552 * u),
