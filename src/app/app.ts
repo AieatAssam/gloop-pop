@@ -10,7 +10,7 @@ import { drawHud } from '../render/hudView';
 import { createDirector } from '../render/director';
 import { dispatchImmediately } from '../render/fx/hitStop';
 import { createPointerInput, pointerDropPoint } from '../input/pointer';
-import { attachKeyboard } from '../input/keyboard';
+import { attachKeyboard, gameKeysBlocked } from '../input/keyboard';
 import { createSession, runToResumeOnBoot } from './session';
 import { createGameUi } from '../ui/dom';
 import { createTopBar } from '../ui/topBar';
@@ -186,6 +186,7 @@ export async function bootApp(): Promise<void> {
   const keyboard = attachKeyboard(view, () => layout, () => session.state, (slot, row, col) => apply({ type: 'place', slot: slot as 0 | 1 | 2, row, col }), () => pointer.cancel(), () => { if (router.current === 'play') showPause(); else router.back(); }, () => sfx.snapTick(), (id) => { if (id === 'shuffle') pointer.cancel(); apply({ type: 'booster', id }); });
   // spec-note: Android back closes a confirmation before the pause menu, resumes from pause, and exits from Home.
   listenForAndroidBack(() => {
+    if (adventureCardState()) { closeAdventureCard(); return false; }
     if (router.current === 'play') {
       if (session.state.status === 'playing') {
         const action = androidPlayBackAction(paused, pauseLayer === 'confirmation');
@@ -211,6 +212,7 @@ export async function bootApp(): Promise<void> {
   document.addEventListener('visibilitychange', () => { if (document.hidden && router.current === 'play' && !paused && session.state.status === 'playing') showPause(); });
   window.addEventListener('keydown', (event) => {
     lastAudioInputAt = performance.now(); enableAudio();
+    if (gameKeysBlocked(event)) return;
     if (['1', '2', '3'].includes(event.key)) { sfx.pickUp(); vibrate('pick', save.settings.haptics); }
     if (event.key.toLowerCase() === 'm') { save.settings.muted = !save.settings.muted; setMasterMuted(save.settings.muted); topBar.muteButton.setAttribute('aria-label', save.settings.muted ? S.unmute : S.mute); persist(true); }
     if (session.state.status === 'over' && router.current === 'play' && [' ', 'Enter', 'r', 'R'].includes(event.key)) {
@@ -333,12 +335,19 @@ export async function bootApp(): Promise<void> {
   }
   async function showAdventureCard(level: number, fromMap: boolean): Promise<void> {
     // spec-note: The start card stays above the map route; Next level uses the same card above the finished board.
+    // spec-note: The card owns one history entry, marked adventureCard. From the map it is pushed; after a finished level it reuses the result entry, so closing or playing never leaves a stray entry.
     await withLevels(({ LEVELS, createLevelCard }) => { const def = LEVELS[level - 1]; if (!def) return;
-    history.pushState({ gloopScreen: router.current, adventureCard: true }, '');
-    const card = createLevelCard(def, { play: (selection, assist) => void toAdventure(level, selection, assist), back: () => { if (fromMap) history.back(); else router.replace('adventure'); }, bought: (name, nextSave) => { save = nextSave; toast.show(S.boosterBought(name), 'coin'); saveNow(save); sfx.coinTick({ count: 3 }); } }, { save, streak: save.adventure.winStreak, lossRun: save.adventure.levels[String(level)]?.lossRun ?? 0 });
+    cardClosing = false; const entry = { gloopScreen: router.current, adventureCard: true, fromMap };
+    if (fromMap) history.pushState(entry, ''); else history.replaceState(entry, '');
+    const card = createLevelCard(def, { play: (selection, assist) => { if (adventureCardState()) router.replace('play'); void toAdventure(level, selection, assist); }, back: closeAdventureCard, bought: (name, nextSave) => { save = nextSave; toast.show(S.boosterBought(name), 'coin'); saveNow(save); sfx.coinTick({ count: 3 }); } }, { save, streak: save.adventure.winStreak, lossRun: save.adventure.levels[String(level)]?.lossRun ?? 0 });
     homeHost.querySelector('.adventure-modal-shade')?.remove(); if (fromMap) homeHost.append(card); else homeHost.replaceChildren(card);
     });
   }
+  function adventureCardState(): { fromMap: boolean } | undefined { const state = history.state as { adventureCard?: boolean; fromMap?: boolean } | null; return state?.adventureCard ? { fromMap: state.fromMap === true } : undefined; }
+  // spec-note: Closing a map card pops its entry; popstate re-renders the map and removes the card. A card from a finished level replaces its own entry instead.
+  // ponytail: cardClosing is one flag, reset when the next card opens; a double tap cannot pop two entries.
+  let cardClosing = false;
+  function closeAdventureCard(): void { if (cardClosing || !adventureCardState()) return; cardClosing = true; if (adventureCardState()?.fromMap) history.back(); else router.replace('adventure'); }
   function toAdventure(level: number, selection: BoosterSelection = {}, assist = false): void {
     recordPendingAdventureResult(session.state, adventureRecorded, finishAdventure);
     const begin = (levels: NonNullable<typeof loadedAdventureLevels>): void => {
@@ -394,6 +403,7 @@ export async function bootApp(): Promise<void> {
   function shareCard(data: ShareCardData, filename: string): void { void import('../render/shareCard').then(({ renderShareCard }) => { renderShareCard(data).toBlob((blob) => { if (blob) void shareImage(blob, filename); }); }); }
   function showPause(): void {
     if (router.current !== 'play' || session.state.status !== 'playing') return;
+    pointer.cancel(); // spec-note: a piece dragged when the menu opens is dropped back to the tray, since pointerup is ignored while paused.
     paused = true; pauseLayer = 'menu'; setAudioPaused(true); if (pauseStartedAt === 0) pauseStartedAt = performance.now(); persist(true); const mode = session.state.mode; const label = mode === 'daily' || mode === 'adventure' ? S.giveUp : mode === 'zen' ? S.endRun : S.restart;
     resumePausedRun = () => { if (pauseStartedAt > 0) runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; paused = false; pauseLayer = 'none'; setAudioPaused(false); ui.hide(); };
     ui.showPause(resumePausedRun, () => {
@@ -454,20 +464,20 @@ export async function bootApp(): Promise<void> {
           return '';
         }).filter(Boolean);
         const wrap = document.createElement('div'); wrap.className = 'adventure-modal-shade adventure-result-shade';
-        void import('../ui/adventureBundle').then(({ createLevelResultPanel }) => {
+        void import('../ui/adventureBundle').catch(() => { shownStatus = ''; return undefined; }).then((bundle) => { if (!bundle) return; const { createLevelResultPanel } = bundle;
         if (session.state.status !== 'over' || !session.state.adventure?.result) return;
         history.pushState({ gloopScreen: 'play', adventureResult: true }, '');
         wrap.append(createLevelResultPanel(session.state, adventureReward, {
           next: () => { const nextLevel = session.state.adventure?.level ?? 120; if (nextLevel < 120) void showAdventureCard(nextLevel + 1, false); else router.open('adventure'); },
-          replay: () => { homeHost.replaceChildren(); void toAdventure(session.state.adventure?.level ?? 1); },
-          assistAgain: () => { homeHost.replaceChildren(); void toAdventure(session.state.adventure?.level ?? 1, {}, true); },
-          map: () => { homeHost.replaceChildren(); router.open('adventure'); },
+          replay: () => { homeHost.replaceChildren(); router.replace('play'); void toAdventure(session.state.adventure?.level ?? 1); },
+          assistAgain: () => { homeHost.replaceChildren(); router.replace('play'); void toAdventure(session.state.adventure?.level ?? 1, {}, true); },
+          map: () => { homeHost.replaceChildren(); router.replace('adventure'); },
         }, nearLines, { winStreak: save.adventure.winStreak, streakReset: adventureStreakReset, assistAvailable: assistAvailable(save, session.state.adventure.level) })); homeHost.append(wrap);
         }); return;
       }
       finishRun();
       // spec-note: A counted Daily goes straight to the existing full result screen, whose Practice, Share, and Home actions satisfy the Daily game-over actions in design §13.3.
-      if (countedDailyThisRun) { router.open('dailyResult'); return; }
+      if (countedDailyThisRun) { router.replace('dailyResult'); return; }
       paused = false; const summary = summarizeRun(session.state, runEvents); const challengeMode = session.state.mode === 'classic' || session.state.mode === 'expert';
       const challengeText = (): void => { const flavor = summary.biggestGloop?.flavour ?? 1; const url = `${shareSiteUrl()}/?beat=${session.state.score}&f=${flavourName(flavor as 1 | 2 | 3 | 4 | 5 | 6 | 7)}`; const text = buildChallengeText({ score: session.state.score, biggestPop: session.state.stats.biggestPop, bestCombo: session.state.bestCombo, flavour: flavor as 1 | 2 | 3 | 4 | 5 | 6 | 7 }, session.state.mode === 'expert' ? 'expert' : 'classic', url); void shareText(text, () => toast.show(S.copied)); };
       const weeklyId = WEEKLY_POOL[((save.weekly.weekIndex % WEEKLY_POOL.length) + WEEKLY_POOL.length) % WEEKLY_POOL.length]!; const weeklyTarget = WEEKLY_TARGETS[weeklyId];
