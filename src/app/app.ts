@@ -269,7 +269,7 @@ export async function bootApp(): Promise<void> {
     currentFrame = frame;
     const elapsedMs = frame.realNow; const dtMs = frame.realDt;
     renderElapsed = elapsedMs;
-    // spec-note: In play, toasts sit under the goal strip (or on the board's top edge when there is no goal strip, as in Daily). The value is the toast's centre, since the toast is translated by -50%. The score band is never covered: at 360x760 the old y (top bar + 26) put the 40 px toast over the score number at scene start. SG §11.8 and the design layout note put toasts at y 64, which is the score band.
+    // spec-note: In play, toasts sit under the goal strip (or on the board's top edge when there is no goal strip, as in Daily). The value is the toast's centre, since the toast is translated by -50%. The score band is never covered: at 360x760 the old y (top bar + 26) put the 40 px toast over the score number at scene start. SG §11.8 now has the in-play rule; the earlier y 64 placement was the score band.
     uiRoot.style.setProperty('--toast-play-top', `${layout.goalStrip.height > 0 ? layout.goalStrip.y + layout.goalStrip.height + 24 : layout.board.y + 24}px`); uiRoot.style.setProperty('--toast-play-left', `${layout.column.x + layout.column.width / 2}px`);
     const reducedForFrame = shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion()); background.setReducedMotion(reducedForFrame);
     pointer.advance(frame.realDt, reducedForFrame);

@@ -88,6 +88,7 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   │   ├─ app.ts             # top-level state machine (§5), wires everything
 │   │   ├─ session.ts         # owns current GameState, autosave, resume
 │   │   ├─ demoScenes.ts      # debug-only deterministic capture states for game-feel QA
+│   │   ├─ qaHook.ts          # Android QA hook window.__gloopQa; imported only when VITE_QA_HOOK is "true"
 │   │   ├─ router.ts          # screen stack + history.pushState
 │   │   └─ clock.ts           # injectable now() for UTC day logic (tests can fake it)
 │   ├─ input/
@@ -98,6 +99,7 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   │   ├─ colour.ts          # withAlpha, mix (only helpers allowed)
 │   │   ├─ easing.ts          # SG §9.0
 │   │   ├─ canvas.ts          # DPR setup, resize, adaptive DPR
+│   │   ├─ canvas.test.ts     # DPR budget and adaptive-DPR detectors (pure)
 │   │   ├─ layout.ts          # SG §15 (pure, tested)
 │   │   ├─ loop.ts            # rAF loop; reused R/W/B clock frame (§9.13.a)
 │   │   ├─ background.ts      # SG §7, themes §14
@@ -107,6 +109,7 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   │   ├─ boardView.ts       # board layer, animated cells, ghost/previews
 │   │   ├─ trayView.ts        # tray slots, deal animation, dragged piece
 │   │   ├─ hudView.ts         # score, best, combo meter (canvas parts)
+│   │   ├─ hudView.test.ts    # score digit slots (SG §9.13.i)
 │   │   ├─ goalStrip.ts       # M12.2/M12.5: SG §20.7 target and mini pills, Adventure goal chips
 │   │   ├─ cubes.ts           # M12.4: SG §20.1 sugar and hard cube sprites
 │   │   ├─ director.ts        # turns GameEvents into timed animations/fx/sfx cues (SG §9)

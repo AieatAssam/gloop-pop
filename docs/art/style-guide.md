@@ -82,6 +82,7 @@ The same path builder is used for: the drop shadow, the body, the outline, the p
 - The whole static board (frame, sockets, all idle gloop bodies) is composited into one **board layer** canvas that is redrawn only when the board changes or the theme/size changes.
 - Animating gloops (squash, ripple, pop) are skipped in the board layer and drawn per frame from their gloop cache with transforms.
 - Tray pieces use the same renderer at tray scale; cache per tray slot.
+- The popping face has no time-based parts, so a popping gloop's body and face share one cached sprite (no per-frame face paths).
 
 ### 5.4 Colour-blind patterns
 When "Colour-blind patterns" is on, each body gets a pattern clipped to its path, drawn in `mix(flavour.dark, face.ink, 0.25)` at alpha 0.45, in a cell-aligned repeat so merged gloops tile seamlessly:
@@ -222,6 +223,7 @@ Board grid top-left = `(bx, by)`; cell (r, c) occupies `[bx + c·c, by + r·c]` 
 - **Drop:** valid → piece animates to the target (§9.2). Invalid or released outside the board → returns to its slot along an arc over 180 ms `easeOutCubic`, scaling back to `ct`, with the "return" sound. (superseded in part by §9.13.b and §9.13.e)
 - **Keyboard (desktop):** keys 1/2/3 select a piece (it lifts above its slot); a ghost appears at the first valid position closest to the board centre; arrows move the ghost exactly one cell (clamped so the piece stays inside the board); at an invalid position the ghost is drawn as an outline only (`fx.ghostOutline` at alpha 0.5, no fill) and the held piece looks worried; Space/Enter places if valid, otherwise plays nothing and wiggles the ghost 4 px; Esc cancels.
 - **Click-click (desktop):** clicking a piece selects it (like keys); the ghost follows the mouse over the board; a click places.
+- **Pointers:** only the pointer that picked a piece up can move, drop or cancel it. A second finger is ignored, so it never takes over the drag or drops the piece at its own position.
 
 ### 8.4 Ghost and previews (where the twist teaches itself)
 While the snap target is valid:
@@ -608,6 +610,8 @@ On pointerdown in a slot (frame 0):
 - The §9.7 sugar sparkle (≥ 1,000) fires at D.
 - **Reduced motion:** 150 ms count with no ticks or punch. The colour pulse stays (it does not move).
 
+- **Digit slots and glyph sprites:** digits sit in fixed-width slots (the widest digit of the current font), so a count-up never shifts the digits next to a changing one. The whole number is still centred on x. Each glyph is cached once as a 2× sprite and placed with `drawImage`, so a scaled count-up does not re-rasterise text every frame.
+
 ### 9.13.j Game over settle (replaces nothing in §9.8 except where noted)
 - On `stuck` (t 0), the slow-mo controller gets s → **0.4** over 60 ms (`easeOutQuad`), holds 240 ms (R), then goes back to 1 over 150 ms (`easeInOutSine`). Total 450 ms, ending exactly when the §9.8 panel slides up at t 450 ms (R, unchanged). *(tuning; S17: slow before the climax)*
 - During the settle, the stuck tray shake, worried → dizzy faces, trauma and near-miss pulse play slowed on W.
@@ -619,6 +623,7 @@ On pointerdown in a slot (frame 0):
 ### 9.13.k Haptics (`navigator.vibrate`, replaces §16)
 **Rules:**
 - **Every pulse ≤ 20 ms; every gap ≥ 50 ms.** S18: a good tick is 10–20 ms, and the motor rings 20–50 ms after it. Big events use several short pulses, never long ones.
+- **No vibrate before a gesture:** browsers log an error and skip `navigator.vibrate` until the first user gesture. The app skips the call silently in that case, so no error is logged; later pulses are unaffected.
 - Fire on the **visual impact frame** (S18 sync):
   - pick: frame 0
   - place: L
@@ -678,6 +683,12 @@ On pointerdown in a slot (frame 0):
   - Body `Path2D`s are cached per c.
   - No `createLinearGradient` per frame: sweep bars and vignettes are cached sprites.
   - `director.receive` may allocate (once per move, not per frame).
+- **Canvas budget and DPR:** the backing store holds at most 1.3 M device pixels (`MAX_CANVAS_PIXELS`). DPR = min(device DPR, 2, √(1.3 M ÷ CSS area)), never below 1. A 360 × 760 phone keeps DPR 2 (1.1 M px). A 600 × 960 tablet gets about 1.5 (DPR 2 there is 2.3 M px and ran at 36 fps on the Android 8 device; 1.3 M px ran at 58 fps).
+- **Adaptive drop:** when more than half of the last 120 frames are over 25 ms, for 2 s, the DPR cap drops from 2 to 1.5, and from 1.5 to 1.25. The test counts slow frames over a window, not a mean, so a cold start cannot drop a phone for the whole session.
+- **Recovery:** after 20 s of fast frames (no frame over 25 ms, streak mean 18 ms or less) the cap steps back up: to 1.5, then to 2. Each later step-up needs 20 s more (40 s, then 60 s), and at most 2 step-ups happen per session.
+- **Frame loop:** the next frame is requested before drawing, so one throwing frame cannot stop the loop.
+- **Pause:** while paused, the canvas keeps its last frame (the scrimmed board) instead of repainting it 60 times a second. A resize wipes the canvas, so the frame is drawn again once.
+- **Particles:** shapes come from cached sprites, 24 sprite px per unit of radius, with a 0.1 margin.
 - **Budget:** §9.12, all effects ≤ 4 ms per frame at Mega Pop + combo 12. Shadow sprites: 2 per piece def, built lazily. Squash canvases: 3 pooled.
 - **No `shadowBlur` or `filter` per frame** (§18).
 - **Hitstop safety:**
@@ -761,7 +772,7 @@ On pointerdown in a slot (frame 0):
 ### 11.1 Buttons
 - **Primary ("candy pill"):** height 56 px (desktop 52), padding 0 28 px, radius 28 px, background linear-gradient(`ui.primaryTop`, `ui.primaryBottom`), `box-shadow: 0 4px 0 ui.primaryLip, 0 8px 18px light.shadow`, a white top gloss (inset 0 2px 0 alpha 0.45). Text Baloo 2 800 22 px `ui.textOnPrimary`.
   - Pressed: translateY(3px), lip shadow 1px, 80 ms. Release: back with 140 ms `easeOutBack` (CSS cubic-bezier(.34,1.56,.64,1)).
-  - Hover (desktop): brightness 1.06, scale 1.02.
+  - Hover: brightness 1.06, scale 1.02, only where the pointer can hover (`@media (hover: hover)`). A tap never leaves a button stuck in its hover state.
 - **Secondary:** same shape, height 48, gradient `ui.secondaryTop` → `ui.secondaryBottom`, lip `ui.secondaryLip`, text Nunito 800 18 px `ui.textPrimary`.
 - **Danger:** secondary shape with danger colours (only for "Delete everything", "Give up").
 - **Text button:** no background, Nunito 800 16 px `ui.textSecondary`, underline on hover.
@@ -771,13 +782,17 @@ On pointerdown in a slot (frame 0):
 ### 11.2 Icon buttons (top bar)
 44×44 circles, fill `ui.panelSolid` at alpha 0.7, 2 px border `ui.panelBorder`, icon 22 px stroked 3 px `ui.textPrimary`, round caps. Icons drawn as inline SVG paths in `src/ui/icons.ts`: menu (3 rounded lines), pause (2 rounded bars), play, speaker on/off (speaker + 2 arcs / speaker + ×), back chevron, gear, trophy, chart, palette, question mark, share (box + arrow), image, coin, flame, snowflake, lock, check.
 
+**App icon (Android adaptive):** the apple is drawn at 0.54 of the 108 dp foreground and stays inside the 66 dp safe-zone circle (radius 33 dp), so circle and squircle launcher masks never crop it.
+
 ### 11.3 Panels and modals
-- Panel: radius 24 px, background `ui.panel` (with `backdrop-filter: blur(6px)` where supported), 2 px border `ui.panelBorder`, inner top highlight `ui.panelHighlight` 1 px, shadow `0 12px 32px light.shadowDeep`. Padding 24 px.
+- Panel: radius 24 px, background `ui.panel` (92% alpha; no `backdrop-filter`, because a blur re-blurred the animating canvas every frame on the Android 8 device), 2 px border `ui.panelBorder`, inner top highlight `ui.panelHighlight` 1 px, shadow `0 12px 32px light.shadowDeep`. Padding 24 px.
+- **Gutters and scroll:** overlay modals (`.gloop-overlay`) keep 16 px from the screen edges plus the safe-area insets, and a modal taller than the screen scrolls inside itself. Full-screen panels use 16 px padding at 420 px wide or less.
+- **Game over on short phones:** on phones 800 px tall or less the game-over panel has 16 px top and bottom and 20 px sides, 8 px gaps and a 72 px gloop picture, so "Play again" and the share row fit above the toast space on 320 × 568 and 360 × 640. The two share buttons ("Challenge a friend", "Share image") use 16 px labels with 10 px side padding, so each stays on one line at 360 px.
 - Modals sit over a scrim `ui.scrim`; enter: translateY(40px) → 0 and opacity, 220 ms `easeOutBack`; exit: 140 ms fade. Max width 360 px (phone), 420 px (desktop).
 - Full screens (Home, Collection…): the game canvas keeps drawing the background layers only (no board, no tray), and screens are DOM panels over it. Screen enter: slide from right 24 px + fade, 200 ms.
 
 ### 11.4 HUD score block
-Canvas-drawn (so it can pop and shake with the game). Score centred, best below. On new best during a run, "Best" line turns `ui.gold` and reads "New best!".
+Canvas-drawn (so it can pop and shake with the game). Score centred, best below. On new best during a run, "Best" line turns `ui.gold` and reads "New best!". Daily runs use a 116 px score band (84 px otherwise) with one row each under the score, at fractions of the band height: "Best" (or "New best!") at 0.67, "Tray {k} / 30" at 0.83 and the Flavour of the Day chip "{Flavour} pops ×2" at 0.98. The score is at 0.50.
 
 ### 11.5 Combo meter
 Under the board (portrait) or in the left panel (desktop). Text "Combo 4 ×2.5" left-aligned, then 3 fuse pips (circles 10 px, gap 6 px): filled `fx.comboTier1`→tier colour, empty `ui.track`. When fuse = 1, the last pip blinks (alpha 1 ↔ 0.3, 400 ms period). Hidden (fades 200 ms) when C = 0. **M14:** the pips are never drawn without the text: label and pips share one alpha and one visibility test (C ≥ 1). The M13 build drew three unlabeled dots under the board at C = 0 (`phone-cubes.png`, `phone-mini-done.png`) and lit them without the label (`phone-target-hit.png`); three dots with no word are a puzzle.
@@ -789,7 +804,7 @@ Under the board (portrait) or in the left panel (desktop). Text "Combo 4 ×2.5" 
 Radius 18 px, `ui.panelSolid`, 2 px border `ui.panelBorder`, padding 16 px. Mode cards have a 56 px illustration on the left: a gloop of the mode's signature flavour (Classic cherry, Daily = Flavour of the Day, Zen blueberry with sleep face, Expert grape with crown), drawn with the canvas gloop renderer into a small canvas. Locked cards: illustration greyed (draw at alpha 0.4), lock icon, text "Reach Level 8" (Zen "Reach Level 3", Adventure "Reach Level 2"; M14: the locked Adventure card showed its normal description). The unlock text replaces the description; it is never shown next to it.
 
 ### 11.8 Toasts
-Top-centre, below the top bar. Pill, height 40, padding 0 18 px, `ui.panelSolid`, border 2 px in the toast's accent (coin/xp/gold/streak/freeze colour), icon left. Enter: drop from −20 px + fade, 180 ms `easeOutBack`; stay 2400 ms; exit 160 ms. Queue, max 1 visible, 600 ms between. **Placement rule:** a toast must never cover a panel or screen title. While a modal panel (game over, rescue, pause, **the Adventure win and lose panels and the level start card**, M14) or a full screen (Home, Collection, Daily result …) is open, toasts sit at the bottom centre instead (16 px above the bottom safe area), and a toast that is already showing moves there when a panel opens.
+Top-centre, below the top bar. Pill, height 40, padding 0 18 px, `ui.panelSolid`, border 2 px in the toast's accent (coin/xp/gold/streak/freeze colour), icon left. Enter: drop from −20 px + fade, 180 ms `easeOutBack`; stay 2400 ms; exit 160 ms. Queue, max 1 visible, 600 ms between. **In-play placement:** the toast is centred on the column, with its centre 24 px below the goal strip (or 24 px below the board top when there is no goal strip, as in Daily). The score band is never covered. **Modal panels:** while a `.gloop-overlay` panel is open (pause, game over, rescue), no toast shows. A toast on screen when the panel opens is removed and goes back to the front of the queue, and queued toasts show after the panel closes. **Bottom placement:** on full screens (Home, Collection, Daily result …) and on Adventure cards and result panels, toasts sit at the bottom centre, 16 px above the bottom safe area. Adventure result shades reserve 72 px there, so the panel does not move.
 
 ### 11.9 Progress bars and toggles
 - XP bar: height 12 px, radius 6, track `ui.track`, fill gradient `ui.xpTop` → `ui.xpBottom`, 2 px gloss line at alpha 0.4 on top. Fills with 600 ms `easeOutCubic`; level-up: fills to the end, flashes white 120 ms, resets and continues.
@@ -798,13 +813,17 @@ Top-centre, below the top bar. Pill, height 40, padding 0 18 px, `ui.panelSolid`
 
 ### 11.10 Tutorial bubble and ghost hand
 - **Bubble:** rounded rect radius 16, fill `ui.bubble`, text `ui.bubbleText` Nunito 800 18 px, max width 300 px, a tail pointing down to the tray piece. Enters with scale 0.8 → 1, 200 ms `easeOutBack`.
+- **Placement:** normally the bubble's bottom edge is 12 px above the tray top, and its top is at least 72 px from the screen top. On 360 × 640 and 320 × 568 the gap under the board is too small for that without covering the bottom board row, so the bubble moves up over the score band (which has no drop target): its bottom edge is 6 px above the board top, and its top is never above 56 px.
+- **Skip:** 44 px tall. In the play top bar (tutorial mode) it sits at the right end of the bar, 6 px below the safe-area inset.
 - **Ghost hand:** a cartoon hand (rounded palm + index finger, drawn with paths) filled `ui.ghostHand` alpha 0.9, outline `face.ink` 2 px, shadow `ui.ghostHandShadow`. Animation loop: fade in 400 ms on the tray piece; press (scale 0.9) 120 ms; drag along a quadratic curve (control point 1.5c above the midpoint) to the target over 900 ms `easeInOutSine`, carrying a translucent copy of the piece (alpha 0.5); hold 300 ms with a press pulse ring; fade 300 ms; wait 500 ms; repeat. Disappears instantly on pointerdown on a piece.
 
 ### 11.11 Achievement badges
 80 px rounded squares (radius 20). Unlocked: fill gradient of a flavour chosen per achievement category (lines = blueberry, pops = cherry, combo = orange, score and goals (Adventure, missions, §20) = lemon, daily/streak = grape, misc = apple, collection = bubblegum), with a white icon and a small gloop face peeking from the bottom edge. Locked: `ui.disabled`, lock icon, progress text below.
 
+At 600 px wide or less the badges are 68 px. On phones (480 px or less) the grid bleeds past the panel padding by (width − 216 px) ÷ 4 on each side, so the outer badges line up with the header edges. The panel clips the bleed, so it never scrolls sideways.
+
 ### 11.12 Top bar (play screen)
-Left: menu button. Centre: daily pill (height 36, radius 18, `ui.panelSolid`, text Nunito 800 15 px; dot `ui.danger` 8 px when not played). Right: mute button, then pause button. On desktop the top bar spans the full width with 24 px side padding.
+Left: menu button. Centre: daily pill (height 36, radius 18, `ui.panelSolid`, text Nunito 800 15 px; dot `ui.danger` 8 px when not played). Right: mute button, then pause button. On desktop the top bar spans the full width with 24 px side padding. The mute button shows the speaker icon when sound is on, and the speaker-off icon when nothing is audible: master mute is on, or Sound effects and Music are both off.
 
 ### 11.13 Credits screen (M11)
 - **Entry points:** a secondary button "Credits" in Settings, under "Show tutorial again". A text button "Credits" in the Home footer row, after "How to play".
@@ -821,6 +840,7 @@ Left: menu button. Centre: daily pill (height 36, radius 18, `ui.panelSolid`, te
 - A row under each of the "Sound effects" and "Music" toggles: the label ("Effects volume" / "Music volume", Body style) on the left, then a native `<input type="range" min="0" max="100" step="10">` that is 160 px wide (desktop 200), then the value "{n}%" in Small style with tabular numbers.
 - Track: height 8 px, radius 4, `ui.track`, filled part `ui.toggleOn`. Thumb: 24 px circle, `ui.toggleKnob`, with the toggle's shadow. Style it with `accent-color` plus the `::-webkit-slider-*` / `::-moz-range-*` pseudo-elements, using CSS variables only.
 - When its toggle is off, the slider is `disabled` (alpha 0.5) and keeps its value.
+- **Phone layout:** the slider is 160 px wide from 481 px up to 699 px, and 200 px from 700 px. On phones (480 px or less) the label sits on its own line, and the slider (full width) and the "{n}%" value sit on the row below. The slider starts at the same left edge in both volume rows. The slider and the Settings select are 44 px tall (touch targets).
 - `input` applies the gain live (at most every 50 ms). `change` saves, and for Effects plays one `place` preview at the new volume (§13.9).
 - Keyboard: arrow keys move by 10. `aria-valuetext` is "{n}%".
 
@@ -1237,7 +1257,7 @@ Theme switching: 400 ms crossfade of the background canvas; board and gloop cach
 ## 15. Layout
 
 ### 15.1 Portrait (reference 390 × 844 CSS px, no safe-area insets)
-(Pass 3: Classic, Expert and Adventure add a 30 px goal strip under the score band. Those numbers, and the Pixel 7 table, are in §20.8. This table stays exact for Daily and Zen.)
+(Pass 3: Classic, Expert and Adventure add a 30 px goal strip under the score band. Those numbers, and the Pixel 7 table, are in §20.8. This table stays exact for Zen. Daily uses a 116 px score band instead of 84 (§15.3).)
 Bands from the top (H = viewport height, safe insets added to the top and bottom bands):
 
 | Band | y from → to | Contents |
@@ -1252,20 +1272,21 @@ Bands from the top (H = viewport height, safe insets added to the top and bottom
 | Tray | 660 → 828 | 3 slots, each 122 × 160, x 4/134/264 (gaps 8), centre y 744; ct = min(26.4, 122/5.4) = 22.6 |
 | Bottom | 828 → 844 | 16 px + safe-area-inset-bottom |
 
-Tutorial bubble: bottom edge 12 px above the tray top, centred on the target slot. Toasts: y 64 (overlapping gap A and score; toasts are short-lived).
+Tutorial bubble: bottom edge 12 px above the tray top, centred on the target slot. On 360 × 640 and 320 × 568 it moves up over the score band instead (§11.10). In play, the toast centre sits 24 px below the goal strip (or below the board top in Daily). At 390 × 844 that is y 216, so the lower part of the toast sits on the top of the board. Toasts never cover the score number.
 
 ### 15.2 Desktop / landscape (reference 1280 × 800)
 | Element | Position |
 |---|---|
 | Top bar | y 0 → 72, buttons 44 px at y 14; menu x 24; daily pill centred; mute x 1156, pause x 1212 |
 | Board | frame 560 × 560 at x 360 → 920, y 120 → 680; grid inset 8 px → 544 px; c = 68 |
-| Left panel | x 72 → 312: "Score" label y 170 (18 px), score y 230 (64 px), best y 268 (18 px), combo label + pips y 360, stage text "Stage 3" y 400 (16 px `ui.textDim`), rescue ring centre (192, 500), 56 px |
+| Left panel | x 72 → 312 (text starts at x 96, 10% in from the panel edge): "Score" label y 170 (18 px), score y 230 (64 px), best y 268 (18 px), combo label + pips y 360, stage text "Stage 3" y 400 (16 px `ui.textDim`), rescue ring centre (192, 500), 56 px |
+| Goal strip (Classic, Expert, Adventure) | x 72 → 312, y 520 → 594 (240 × 74 at u = 1), under the rescue ring |
 | Right panel (tray) | x 968 → 1208: 3 slots 240 × 168 at y 128, 316, 504 (centres 212, 400, 588); ct = min(40.8, 240/5.4, 168/5.4) = 31.1 |
 | Controls hint | y 760, centred, Nunito 700 14 px `ui.textDim`: "Drag pieces, or press 1 2 3, arrows and Space" (hidden after 3 runs) |
 
 ### 15.3 Responsive algorithm (`src/render/layout.ts`, pure function, unit-tested)
 - `portrait = H / W ≥ 1.25`.
-- **Portrait:** non-board bands at reference total 372 px (top 60, score 84, combo 44, tray 168, bottom 16). Scale them by `k = clamp(H / 844, 0.78, 1.15)`. `board = min(W − 22, 560, H − 372k − safeTop − safeBottom)`, rounded down to a multiple of 8 for the grid; `c = (board − 16) / 8`. Leftover vertical space is split 25% gap A, 25% gap B, 50% gap C. Widths > 600: centre a 600 px wide column.
+- **Portrait:** non-board bands at reference total 372 px (top 60, score 84, combo 44, tray 168, bottom 16); Daily uses score 116 (total 404). Scale them by `k = clamp(H / 844, 0.7, 1.15)`, then apply floors: the top bar is at least 52 px (plus safe top), so the 44 px icon buttons and the 48 px tutorial Skip fit, and the combo band is at least 40 px, so the rescue ring clears the tray. `board = max(24, floor(min(W − 22, 560, H − non-board bands) / 8) × 8)`, so a transient tiny height cannot give a negative cell size. `c = (board − 16) / 8`. Leftover vertical space is split 25% gap A, 25% gap B, 50% gap C. With a goal strip, gap B is at least 6 px (or all of the leftover, if less), so the board never touches the pills. Tray slots: width = min(122, (W − 24) / 3) (4 px outer margins, 8 px gaps), centred in the column; `ct = min(26.4, slot / 5.4)`. Widths > 600: centre a 600 px wide column. The layout is recomputed when the goal strip or Daily state changes.
 - **Landscape:** `u = min(W / 1280, H / 800)`, clamp 0.6–1.4; scale every 15.2 value by u around the centre. If `W < 900` and landscape (phone sideways), use the portrait layout inside a centred column of width `H × 0.62`.
 - Canvas covers the whole viewport; DOM HUD buttons are positioned from the same layout object (CSS variables set on resize).
 - Resize/orientation change: recompute layout, rebuild caches, no state change.
@@ -1406,6 +1427,7 @@ A modal panel (§11.3, max width 360 phone / 420 desktop, padding 24) over the m
 Same board, tray, drag and juice as Classic. Only the HUD bands change.
 - **Top bar:** the centre pill shows "Level 23" (§11.12 pill style, not a button). Menu, mute and pause as usual.
 - **Score band:** the big number is **moves left** (HUD score style, Baloo 2 800 52 / 64 px). Under it, "moves left" in the HUD best style. It counts down on R at the placement's input time with a 1 → 0.92 → 1 squash (120 ms). At 3 moves or fewer it turns `ui.danger` and does one 1 → 1.08 → 1 pulse (200 ms) per move. It never blinks continuously and never plays a warning sound (honest, no panic). The run's score is shown only on S levels, as that goal's chip.
+- **Short screens:** on 320 × 568 the score band is 58.8 px, so the "moves left" label stays 6 px above the band's bottom edge instead of sitting under the goal strip.
 - **Goal strip (§20.7 band):** one chip per goal, 28 px tall, centred, 8 px apart, each max (W − 40) / 2 wide: the 20 px goal icon (C = the sugar-cube sprite from §20.1 drawn at 18 px with `drawCube`, the same picture as on the board and the start card; M14: it was a hollow square that read as an empty checkbox), then "12 / 30" (Nunito 800 14, tabular). The fill inside the chip is `ui.gold` alpha 0.35 from the left, proportional to progress, easing over 300 ms on R. Each progress change ticks the number on the move's F frame (or L if nothing cleared). Done: fill `ui.success` alpha 0.4, a check icon replaces the number, one 1 → 1.15 → 1 pop (260 ms `easeOutBack`), 6 sugar sparkles (W), and the `chime` sample at −14 dB.
 - **Booster bar:** in the combo strip, where the rescue ring sits in Classic (Adventure has no rescue). Up to 2 circular buttons, 44 px (desktop 56), for Shuffle and Pop. They show only when armed for this attempt. Pixel 7 centres: x 326 and 378, y 644. Desktop: (152, 540) and (232, 540) in the left panel. Armed: `ui.panelSolid` fill, a 2 px `ui.gold` border and the white icon. Pressed: 80 ms squash. After use: `ui.disabled`, a check, aria "Used". Pop with no gloop on the board: disabled.
   - **Shuffle:** at R t0 the current tray pieces drop 0.4c and fade (120 ms), then the new tray deals with the normal deal animation (§9.1) and `deal` ticks. Any drag in progress is cancelled first; that is the only input it touches, and only when the player taps the button.
@@ -1462,7 +1484,7 @@ Modal panels (§11.3) like the game-over panel (§13.3 layout). Buttons work fro
 - **Desktop left panel, new order (x 72 → 312):** "Score" label y 170; score y 230; best y 268; PB bar at y 280 (6 px); **target pill 240 × 32 at y 300; mini pill 240 × 32 at y 342**; combo label and pips y 410; stage text y 450; rescue ring centre (192, 540), 56 px. Adventure: moves number y 230, "moves left" y 268, goal chips (240 × 32) at y 300 and 342, combo y 410, booster buttons at y 540.
 
 ### 20.8 Layout numbers with the goal strip (amends §15.1 and §15.3)
-**§15.3 algorithm change:** the non-board reference total is 402 px (top 60, score 84, **goal 30**, combo 44, tray 168, bottom 16) when the strip is present, else 372 as before. Everything else is unchanged: `k = clamp(H / 844, 0.78, 1.15)`, the board rounding rule, and the leftover split of 25% gap A, 25% gap B and 50% gap C.
+**§15.3 algorithm change:** the non-board reference total is 402 px (top 60, score 84, **goal 30**, combo 44, tray 168, bottom 16) when the strip is present, else 372 as before. Everything else is unchanged: `k = clamp(H / 844, 0.7, 1.15)` (floors in §15.3), the board rounding rule, and the leftover split of 25% gap A, 25% gap B and 50% gap C.
 
 **390 × 844 with the strip** (Classic, Expert, Adventure; layout tests ±1 px):
 
@@ -1484,14 +1506,14 @@ Modal panels (§11.3) like the game-over panel (§13.3 layout). Buttons work fro
 | Band | y from → to | Contents |
 |---|---|---|
 | Top bar | 0 → 65 | icon buttons 44 px at y 10: menu x 12, centre pill, mute x 312, pause x 356 |
-| gap A | 65 → 89 | toasts at y 69 |
+| gap A | 65 → 89 | |
 | Score | 89 → 180 | score (or moves) baseline y 143, 52 px; best (or "moves left") baseline y 169, 15 px |
 | Goal strip | 180 → 212 | two pills 186 × 28 at x 16 and x 210, y 182 → 210 |
 | gap B | 212 → 236 | |
 | Board | 236 → 620 | frame x 14 → 398; grid x 22 → 390, y 244 → 612; c = 46 |
 | Combo strip | 620 → 668 | combo label + pips at x 22; rescue ring centre (378, 644) 40 px; Adventure booster buttons centres (326, 644) and (378, 644), 44 px |
 | gap C | 668 → 716 | |
-| Tray | 716 → 898 | 3 slots 129 × 173 at x 4 / 141 / 278, centre y 807; ct = min(28.6, 129 / 5.4) = 23.9 |
+| Tray | 716 → 898 | 3 slots 122 × 173, centred (x 15 / 145 / 275), centre y 807; ct = min(26.4, 122 / 5.4) = 22.6 |
 | Bottom | 898 → 915 | |
 
 **Pixel 7 without the strip** (Daily, Zen): the §15.3 algorithm gives board 384 and leftover 127.6 px: gap A 31.9, gap B 31.9, gap C 63.8.

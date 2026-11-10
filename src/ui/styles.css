@@ -277,7 +277,7 @@ body { color: var(--ui-text-primary); }
   padding: 24px;
   background: var(--ui-panel);
   box-shadow: 0 12px 32px var(--light-shadow-deep), inset 0 1px 0 var(--ui-panel-highlight);
-  /* spec-note: backdrop-filter blur(6px) removed (SG §775 asked for it). It re-blurred the animating canvas every frame: 57 of 340 frames over 20 ms on the Android 8 device. The panel is 92% opaque, so the visual loss is small. */
+  /* spec-note: backdrop-filter blur(6px) removed (SG §11.3 now says so). It re-blurred the animating canvas every frame: 57 of 340 frames over 20 ms on the Android 8 device. The panel is 92% opaque, so the visual loss is small. */
 }
 .collection-panel { width: min(100%, 820px); }
 .collection-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }

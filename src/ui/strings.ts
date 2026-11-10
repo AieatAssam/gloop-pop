@@ -3,7 +3,7 @@ const WEEKLY_TITLES: Readonly<Record<string, string>> = { lines: 'This week: Cle
 const numberFormat = new Intl.NumberFormat('en-US');
 export const formatNumber = (value: number): string => numberFormat.format(value);
 const number = formatNumber;
-// spec-note: The spec gives only plural cell counts. A count of 1 reads "1 cell" so the copy never says "1 cells".
+// spec-note: Design §13.4 and §23.7 give plural cell counts; a count of 1 reads "1 cell" so the copy never says "1 cells".
 const cellCount = (n: number): string => n === 1 ? '1 cell' : `${number(n)} cells`;
 // spec-note: The achievement total is 41 per design §23.5 (#41 Rivals), despite §15 and §18 still saying 40.
 export const S = {
