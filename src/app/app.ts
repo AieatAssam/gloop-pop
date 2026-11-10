@@ -194,9 +194,14 @@ export async function bootApp(): Promise<void> {
       dropPoint: dropPointFor,
       toast: (message, accent) => toast.show(message, accent),
       place: (slot, row, col) => { if (router.current === 'play' && !paused && session.state.status === 'playing') apply({ type: 'place', slot: slot as 0 | 1 | 2, row, col }); },
-      scene: (query) => {
-        const next = scenes.debugGameScene(session.state, new URLSearchParams(query)); if (!next) return false;
+      scene: async (query) => {
+        const params = new URLSearchParams(query);
+        const next = params.get('demo')?.startsWith('adventure')
+          ? scenes.debugAdventureState(newAdventureGame((await import('../ui/adventureBundle')).LEVELS[0]!, { bonusMoves: 0, boosters: { shuffle: 0, pop: 0 }, freeShuffle: false }).state, params)
+          : scenes.debugGameScene(session.state, params);
+        if (!next) return false;
         session = createSession({ state: next, best: session.best }); runBest = session.best; runEvents = []; gameOverAt = -1; shownStatus = ''; updateCanvasAria();
+        resize();
         return true;
       },
     }));

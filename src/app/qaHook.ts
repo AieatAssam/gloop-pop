@@ -10,7 +10,7 @@ export interface QaDrive {
   /** Places a tray piece without touch input, the same as a completed drag. */
   place(slot: number, row: number, col: number): void;
   /** Loads a debug scene from a query string such as `demo=feel&scene=line`. Returns false when the scene is unknown. */
-  scene(query: string): boolean;
+  scene(query: string): boolean | Promise<boolean>;
 }
 
 export interface QaWindow { __gloopQa?: unknown }
@@ -23,6 +23,6 @@ export function installQaHook(drive: QaDrive): void {
     dropPoint: (slot: number, row: number, col: number) => drive.dropPoint(slot, row, col),
     toast: (message: string, accent: ToastAccent = 'gold') => drive.toast(message, accent),
     place: (slot: number, row: number, col: number) => drive.place(slot, row, col),
-    scene: (query: string) => drive.scene(query),
+    scene: (query: string) => Promise.resolve(drive.scene(query)),
   };
 }
