@@ -7,7 +7,7 @@ export interface QaDrive {
   trayPoint(slot: number): { x: number; y: number };
   dropPoint(slot: number, row: number, col: number): { x: number; y: number };
   toast(message: string, accent: ToastAccent): void;
-  /** Resets the in-memory save to a new install (tutorial not done). Reload afterwards to start the first run. */
+  /** Clears the saved game and settings, then reloads the page as a new install. Saves are not written during the reload. */
   freshInstall(): void;
   /** Places a tray piece without touch input, the same as a completed drag. */
   place(slot: number, row: number, col: number): void;

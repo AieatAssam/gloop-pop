@@ -15,7 +15,8 @@ import { createSession, runToResumeOnBoot } from './session';
 import { createGameUi } from '../ui/dom';
 import { createTopBar } from '../ui/topBar';
 import { S, formatNumber } from '../ui/strings';
-import { loadSave, saveNow, setSaveWritesDisabled } from '../platform/saveStore';
+import { SAVE_KEY, loadSave, saveNow, setSaveWritesDisabled } from '../platform/saveStore';
+import { remove } from '../platform/storage';
 import type { SaveV2 } from '../meta/saveSchema';
 import { recordAdventureRunStats, recordRun } from '../meta/stats';
 import { grantXp, rewardsForRun, totalXpForLevel, xpToNext } from '../meta/progression';
@@ -47,7 +48,7 @@ import { androidPlayBackAction, isAndroidRuntime, listenForAndroidBack, shareSit
 type AdventureBundle = typeof import('../ui/adventureBundle');
 type ShareCardData = Parameters<typeof import('../render/shareCard').renderShareCard>[0];
 import { buildChallengeText, flavourName, parseChallenge } from '../core/shareText';
-import { initAudioOnFirstInput, playGameEvents, startMusic, setAudioPaused, setSfxEnabled, setMusicEnabled, setMasterMuted, setEffectsVolume, setMusicVolume, sfx, music, onLand, onImpact, onBurst, onPopFirst, onClimax, audioDebugLine } from '../audio';
+import { MUTE_KEY, initAudioOnFirstInput, playGameEvents, startMusic, setAudioPaused, setSfxEnabled, setMusicEnabled, setMasterMuted, setEffectsVolume, setMusicVolume, sfx, music, onLand, onImpact, onBurst, onPopFirst, onClimax, audioDebugLine } from '../audio';
 import { planMove } from '../audio/movePlan';
 import { shouldReduceMotion, devicePrefersReducedMotion, canStartSlowMo } from '../platform/motion';
 import { addComboTicks, hapticPattern, vibrate } from '../platform/haptics';
@@ -194,7 +195,7 @@ export async function bootApp(): Promise<void> {
       trayPoint: trayPointFor,
       dropPoint: dropPointFor,
       toast: (message, accent) => toast.show(message, accent),
-      freshInstall: () => { save = defaultSave(Date.now()); session.state.status = 'over'; router.replace('home'); saveNow(save); },
+      freshInstall: () => { setSaveWritesDisabled(true); remove(SAVE_KEY); remove(MUTE_KEY); window.location.reload(); },
       place: (slot, row, col) => { if (router.current === 'play' && !paused && session.state.status === 'playing') apply({ type: 'place', slot: slot as 0 | 1 | 2, row, col }); },
       scene: async (query) => {
         const params = new URLSearchParams(query);

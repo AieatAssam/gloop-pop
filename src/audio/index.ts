@@ -37,9 +37,11 @@ export type AudioEvent =
   | { type: 'bigGloop'; size: number } | { type: 'scored'; points: number; combo: number; mult: number };
 export interface AudioEventContext { combo?: number; tier?: MusicTier; newBest?: boolean; levelUp?: boolean; achievement?: boolean }
 
+/** localStorage key for the top-bar master mute. */
+export const MUTE_KEY = 'gloop-pop:muted';
 export function setMasterMuted(muted: boolean): void {
   setMute(muted);
-  try { localStorage.setItem('gloop-pop:muted', muted ? '1' : '0'); } catch { /* Storage can be unavailable. */ }
+  try { localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); } catch { /* Storage can be unavailable. */ }
 }
 export function setSfxEnabled(enabled: boolean): void { setSfx(enabled); }
 export function setMusicEnabled(enabled: boolean): void {
@@ -49,12 +51,12 @@ export function setMusicEnabled(enabled: boolean): void {
 }
 export function toggleMute(): boolean {
   const value = toggleMasterMuted();
-  try { localStorage.setItem('gloop-pop:muted', value ? '1' : '0'); } catch { /* Storage can be unavailable. */ }
+  try { localStorage.setItem(MUTE_KEY, value ? '1' : '0'); } catch { /* Storage can be unavailable. */ }
   return value;
 }
 
 // Restore the top-bar master mute preference without creating an AudioContext.
-try { setMute(localStorage.getItem('gloop-pop:muted') === '1'); } catch { /* Storage can be unavailable. */ }
+try { setMute(localStorage.getItem(MUTE_KEY) === '1'); } catch { /* Storage can be unavailable. */ }
 
 export function playForEvents(events: readonly AudioEvent[], _ctx: AudioEventContext = {}): void {
   for (const event of events) {
