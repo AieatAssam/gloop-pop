@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeLayout } from './layout';
+import { computeLayout, portraitTraySlotWidth } from './layout';
 import { traySlotRect } from './boardView';
 
 describe('responsive layout', () => {
@@ -83,11 +83,16 @@ describe('responsive layout', () => {
     expect(daily.score.height).toBeGreaterThan(classic.score.height);
     expect(daily.score.height).toBeGreaterThanOrEqual(80);
   });
+  it('sizes tray slots as large as the column allows (SG §15.3: 112 at 360, 122 at 390, 129 at 412)', () => {
+    expect(portraitTraySlotWidth(360)).toBeCloseTo(112, 6);
+    expect(portraitTraySlotWidth(390)).toBeCloseTo(122, 6);
+    expect(portraitTraySlotWidth(412)).toBeCloseTo(129.33, 1);
+  });
   it('sizes tray slots from the column width, not the height, and keeps them apart', () => {
     for (const [width, height] of [[320, 568], [360, 640], [360, 760], [390, 844]] as const) {
       const layout = computeLayout(width, height);
       const slot = traySlotRect(0, layout); const last = traySlotRect(2, layout);
-      expect(slot.width).toBeGreaterThanOrEqual(Math.min(122, (width - 24) / 3) - 0.01);
+      expect(slot.width).toBeCloseTo((width - 24) / 3, 6);
       expect(last.x + last.width).toBeLessThanOrEqual(width - 4 + 0.01);
       expect(traySlotRect(1, layout).x).toBeGreaterThanOrEqual(slot.x + slot.width);
       expect(layout.trayCellSize).toBeLessThanOrEqual(26.4);
