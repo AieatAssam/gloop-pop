@@ -73,10 +73,11 @@ export interface ToastSpot {
  *   2. top-gap: from the bottom of the top bar to the top of the score band (gap A). Free of every drawn item.
  *   3. score: no strip fits on 320x568, 360x640, 360x760 with a goal strip, and the tablet. The toast then covers the score band's centre for its short life. The top bar is not used: its only wide middle holds the Daily pill, which is a button and must never be covered.
  * Landscape keeps its old placement (24 px below the board top).
+ * spec-note: Only Classic draws the rescue ring. In other modes the combo band is free below the ring line, so the first strip starts at the combo band top. That keeps the toast off the Adventure moves counter (score band) at 320x568, 360x760 and 412x915.
  */
-export function toastSpot(layout: Layout): ToastSpot {
+export function toastSpot(layout: Layout, rescueRing = true): ToastSpot {
   if (!layout.portrait) return { region: 'landscape', centreY: layout.board.y + 24 };
-  const trayGapTop = layout.combo.y + RESCUE_RING_BOTTOM;
+  const trayGapTop = layout.combo.y + (rescueRing ? RESCUE_RING_BOTTOM : 0);
   const trayGapBottom = layout.tray.y + PORTRAIT_TRAY_MARGIN;
   if (trayGapBottom - trayGapTop >= TOAST_HEIGHT) return { region: 'tray-gap', centreY: (trayGapTop + trayGapBottom) / 2 };
   const topGapTop = layout.topBar.y + layout.topBar.height;

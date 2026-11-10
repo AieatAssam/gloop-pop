@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MIN_GOAL_BOARD_GAP, TOAST_HEIGHT, computeLayout, portraitTraySlotWidth, toastSpot } from './layout';
+import { MIN_GOAL_BOARD_GAP, TOAST_HEIGHT, computeLayout, portraitTraySlotWidth, toastSpot, type Layout } from './layout';
 import { traySlotRect } from './boardView';
 
 describe('responsive layout', () => {
@@ -170,5 +170,24 @@ describe('in-play toast spot (SG §11.8, §15.3)', () => {
     const before = computeLayout(360, 760, {}, true, false);
     toastSpot(before);
     expect(computeLayout(360, 760, {}, true, false)).toEqual(before);
+  });
+});
+
+describe('in-play toast spot without the rescue ring (Adventure moves counter)', () => {
+  // The moves counter is centred in the score band: its number sits at 59% of the band height and its label 28 px lower.
+  const movesCounter = (layout: Layout) => {
+    const centre = layout.score.y + layout.score.height * 0.59;
+    return { x: layout.column.x + layout.column.width / 2 - 60, y: centre - 44, width: 120, height: 80 };
+  };
+  const overlaps = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }): boolean =>
+    a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  it.each([[320, 568], [360, 640], [360, 760], [412, 915]] as const)('%i×%i: the toast clears the moves counter and the board and tray', (width, height) => {
+    const layout = computeLayout(width, height, {}, true, false);
+    const spot = toastSpot(layout, false);
+    expect(spot.region).not.toBe('score');
+    const toast = { x: layout.column.x, y: spot.centreY - TOAST_HEIGHT / 2, width: layout.column.width, height: TOAST_HEIGHT };
+    expect(overlaps(toast, movesCounter(layout))).toBe(false);
+    expect(overlaps(toast, layout.board)).toBe(false);
+    for (let i = 0; i < 3; i++) expect(overlaps(toast, traySlotRect(i, layout))).toBe(false);
   });
 });
