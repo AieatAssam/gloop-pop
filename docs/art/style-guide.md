@@ -791,6 +791,8 @@ On pointerdown in a slot (frame 0):
 - Modals sit over a scrim `ui.scrim`; enter: translateY(40px) → 0 and opacity, 220 ms `easeOutBack`; exit: 140 ms fade. Max width 360 px (phone), 420 px (desktop).
 - Full screens (Home, Collection…): the game canvas keeps drawing the background layers only (no board, no tray), and screens are DOM panels over it. Screen enter: slide from right 24 px + fade, 200 ms.
 
+- **Sticky screen headers** (Collection, Achievements, Stats, How to play, Credits, Settings): the header stays at the top while the list scrolls. A 14 px fade under it runs from `ui.panelSolid` to transparent, so scrolled content fades out instead of ending at a hard edge.
+
 ### 11.4 HUD score block
 Canvas-drawn (so it can pop and shake with the game). Score centred, best below. On new best during a run, "Best" line turns `ui.gold` and reads "New best!". Daily runs use a 116 px score band (84 px otherwise) with one row each under the score, at fractions of the band height: "Best" (or "New best!") at 0.67, "Tray {k} / 30" at 0.83 and the Flavour of the Day chip "{Flavour} pops ×2" at 0.98. The score is at 0.50.
 

@@ -143,6 +143,8 @@ body { color: var(--ui-text-primary); }
 /* Header row wraps on narrow phones instead of pushing the coin count off the panel; sticky keeps back + coins on screen while the list scrolls. */
 .screen-header { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
 .full-screen-panel > .screen-header { position: sticky; top: 0; z-index: 2; padding: 4px 0; background: var(--ui-panel-solid); }
+/* spec-note: A 14 px fade under the sticky header (SG §11.3) so scrolled content fades out instead of being cut off by a hard edge. Palette colours only; no backdrop-filter. */
+.full-screen-panel > .screen-header::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 14px; pointer-events: none; background: linear-gradient(var(--ui-panel-solid), transparent); }
 .screen-back { min-height: 44px; padding: 0 18px; font-size: 16px; }
 .stats-list { display: grid; grid-template-columns: 1fr auto; gap: 5px 12px; margin: 0; font-size: 14px; }
 .stats-list dt { color: var(--ui-text-secondary); }
