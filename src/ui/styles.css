@@ -258,7 +258,8 @@ body { color: var(--ui-text-primary); }
   pointer-events: auto;
   transition: transform 140ms cubic-bezier(.34, 1.56, .64, 1), filter 140ms ease;
 }
-.button:hover { filter: brightness(1.06); transform: scale(1.02); }
+/* spec-note: hover styles only for real pointers. On touch screens a tap left the button stuck in its hover state (scaled, filtered) until the next tap. */
+@media (hover: hover) { .button:hover { filter: brightness(1.06); transform: scale(1.02); } }
 .button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ui-primary-lip); transition-duration: 80ms; }
 .button:focus-visible { outline: 3px solid var(--ui-focus-ring); outline-offset: 3px; }
 .button--secondary {
