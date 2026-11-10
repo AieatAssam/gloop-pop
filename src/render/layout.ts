@@ -54,7 +54,9 @@ export const PORTRAIT_TRAY_MARGIN = 4;
 export const PORTRAIT_TRAY_GAP = 8;
 /** SG §15.3 tray slot width: three slots fill the column minus 4 px outer margins and 8 px gaps, so slots are as large as the column allows (112 at 360 wide, 122 at the 390 reference, 129 at 412). Never scaled by height. */
 // spec-note: The old 122 px cap left 7 px of unused width per slot on 412 px phones. The uncapped formula is the one the layout maths gives, so the cap is removed; the piece scale still caps at 26.4 px per cell.
-export function portraitTraySlotWidth(columnWidth: number): number { return (columnWidth - PORTRAIT_TRAY_MARGIN * 2 - PORTRAIT_TRAY_GAP * 2) / 3; }
+// spec-note: Capped at 144 px so a 600 dp tablet keeps 76 px side margins. Without the cap the slots ran to within 4 dp of the screen edges (the piece scale is unchanged: 144 / 5.4 is above the 26.4 cap).
+export const PORTRAIT_TRAY_SLOT_MAX = 144;
+export function portraitTraySlotWidth(columnWidth: number): number { return Math.min(PORTRAIT_TRAY_SLOT_MAX, (columnWidth - PORTRAIT_TRAY_MARGIN * 2 - PORTRAIT_TRAY_GAP * 2) / 3); }
 
 function computePortrait(w: number, h: number, safeTop: number, safeBottom: number, hasGoalStrip: boolean, daily: boolean): Layout {
   const k = clamp(h / 844, 0.7, 1.15);

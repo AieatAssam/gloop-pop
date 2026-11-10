@@ -88,6 +88,13 @@ describe('responsive layout', () => {
     expect(portraitTraySlotWidth(390)).toBeCloseTo(122, 6);
     expect(portraitTraySlotWidth(412)).toBeCloseTo(129.33, 1);
   });
+  it('keeps a side margin of at least 16 px around the tray on a 600 dp tablet (slots capped at 144 px)', () => {
+    const layout = computeLayout(600, 960);
+    const first = traySlotRect(0, layout); const last = traySlotRect(2, layout);
+    expect(first.x).toBeGreaterThanOrEqual(16);
+    expect(last.x + last.width).toBeLessThanOrEqual(600 - 16);
+    expect(first.width).toBeLessThanOrEqual(144);
+  });
   it('sizes tray slots from the column width, not the height, and keeps them apart', () => {
     for (const [width, height] of [[320, 568], [360, 640], [360, 760], [390, 844]] as const) {
       const layout = computeLayout(width, height);
