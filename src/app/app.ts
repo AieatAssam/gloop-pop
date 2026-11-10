@@ -223,6 +223,10 @@ export async function bootApp(): Promise<void> {
       if (session.state.status === 'playing') {
         const action = androidPlayBackAction(paused, pauseLayer === 'confirmation');
         if (action === 'pause' || action === 'closeConfirmation') showPause(); else resumePausedRun();
+      } else {
+        // spec-note: Back on a finished run or the rescue offer (no pause to open) takes the panel's own exit button: Map (adventure result), Home (game over) or No thanks (rescue). Before this, back did nothing and the panel could only be left by touch.
+        const exit = [...document.querySelectorAll<HTMLButtonElement>('.adventure-result-shade button, .gloop-overlay.is-visible button')].find((b) => ['Map', 'Home', 'No thanks'].includes(b.textContent.trim()));
+        exit?.click();
       }
       return false;
     }
@@ -514,7 +518,7 @@ export async function bootApp(): Promise<void> {
         const wrap = document.createElement('div'); wrap.className = 'adventure-modal-shade adventure-result-shade';
         void import('../ui/adventureBundle').catch(() => { shownStatus = ''; return undefined; }).then((bundle) => { if (!bundle) return; const { createLevelResultPanel } = bundle;
         if (session.state.status !== 'over' || !session.state.adventure?.result) return;
-        history.pushState({ gloopScreen: 'play', adventureResult: true }, '');
+        // spec-note: The result panel does not push a history entry. A pushed 'play' entry made Android back return to the finished run from the Map, and back then looped between the Map and the result.
         wrap.append(createLevelResultPanel(session.state, adventureReward, {
           next: () => { const nextLevel = session.state.adventure?.level ?? 120; if (nextLevel < 120) void showAdventureCard(nextLevel + 1, false); else router.open('adventure'); },
           replay: () => { homeHost.replaceChildren(); router.replace('play'); void toAdventure(session.state.adventure?.level ?? 1); },
@@ -538,7 +542,7 @@ export async function bootApp(): Promise<void> {
       setAudioPaused(false);
       const endedBy = runEvents.find((event) => event.type === 'gameOver'); const gameOverTitle = session.state.mode === 'daily' ? endedBy?.type === 'gameOver' && endedBy.reason === 'traysDone' ? S.allTraysPlaced : S.dailyRunDone(session.state.daily?.dayNumber ?? 1) : S.noRoom;
       const missionsReady = save.missions.slots.filter((slot) => !slot.claimed && slot.progress >= (MISSIONS.find((mission) => mission.id === slot.id)?.target ?? Infinity)).length;
-      ui.showGameOver(() => restart(), () => { ui.hide(); router.open('home'); }, session.state.score, session.state.mode === 'zen' ? null : runBest, S.gameOverFallback(session.state.stats.biggestPop, session.state.linesCleared), runReward, summary, challengeMode ? challengeText : undefined, challengeMode ? classicImage : undefined, note, gameOverTitle, session.state.mode === 'daily' ? () => router.open('dailyResult') : undefined, { targetsHit: session.state.goals?.targetsHit ?? 0, miniDone: session.state.goals?.mini.done ?? false, missionsReady });
+      ui.showGameOver(() => restart(), () => { ui.hide(); router.replace('home'); }, session.state.score, session.state.mode === 'zen' ? null : runBest, S.gameOverFallback(session.state.stats.biggestPop, session.state.linesCleared), runReward, summary, challengeMode ? challengeText : undefined, challengeMode ? classicImage : undefined, note, gameOverTitle, session.state.mode === 'daily' ? () => router.open('dailyResult') : undefined, { targetsHit: session.state.goals?.targetsHit ?? 0, miniDone: session.state.goals?.mini.done ?? false, missionsReady });
     } else if (status === 'rescueOffer') ui.showRescue(() => apply({ type: 'useRescue' }), () => apply({ type: 'declineRescue' }));
     else if (!paused) ui.hide();
   }
