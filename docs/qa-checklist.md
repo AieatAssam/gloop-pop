@@ -141,3 +141,24 @@ Pixel 7 layout and chapter 1–2 human play checks remain listed above for the l
 - [ ] `/gloop-pop/?debug=1&demo=adventure-map-end` at 360 × 740: footer bar holds the all-won line.
 - [ ] `/gloop-pop/?debug=1&demo=level-card&level=25` at 412 × 915 and 360 × 740; `/gloop-pop/?debug=1&demo=level-card&level=50` at 412 × 915: level card goals and hard-level layouts.
 - [ ] `/gloop-pop/?debug=1&save=veteran` at 412 × 915, then Collection → Pop effects: all three Gold rows and prices.
+
+## Android polish pass (round 10)
+
+Device: one Android 8 tablet (API 26, 600 × 960 dp native, 320 dpi). Phone sizes were simulated with `adb shell wm size` at the same density. Each run used a debug build (`VITE_QA_HOOK=true`) with `window.__gloopQa`, and the sizes below are dp.
+
+Device-verified in this pass:
+
+- [x] Launcher icon at 600 × 960 on the launcher grid and the app drawer, and the recent-apps card: the apple is not cropped by the circle mask (apple kept within a 33 dp radius of the centre). Evidence: screenshots taken on the device. Themed (Android 13+) monochrome icon not verified, because the device runs Android 8.
+- [x] Collection, Themes: buy and equip at 360 × 640 (Mint Aquarium) and 320 × 568 (Starlight Observatory). The coin count and the "In use" state updated and were saved.
+- [x] Adventure level loss ("Out of moves" panel) at 320 × 568. The moves-left label was clipped under the goal strip before this pass and is fixed.
+- [x] Credits adult check at 360 × 640: a wrong answer shows "Not quite" and asks again, and the correct answer closes the check.
+- [x] Daily run that ends by itself (no room left, not Give up): the result is recorded, the result screen opens, and it was checked at 360 × 760.
+- [x] Layout audit (overflow, 16 px gutters, clipped text, tap sizes) at 360 × 760, 360 × 640, 320 × 568 and 600 × 960 on Home, Stats, How to play, Settings, Achievements, Collection, Credits, Adventure map, Play and the result panels. Settings toggles measure 52 × 30 px; their tap area is 64 × 44 px through the `::before` hit area.
+- [x] Visual review at 600 × 960 of Home, Stats, How to play, Settings, Achievements, Collection, Credits and Adventure map: no clipping or overlap found.
+
+Still needs a person:
+
+- [ ] Listening to audio (see the Audio section above) on a phone speaker and headphones.
+- [ ] A real notched or cut-out phone: safe-area insets and the top bar.
+- [ ] External links opening from Credits (the correct answer opens the link; this device did not check the browser hand-off).
+- [ ] Play Console steps: listing text, screenshots, feature graphic, content rating, data safety form and the release track. `play-store/graphics/icon-512.png` (512 × 512) and `feature-graphic-1024x500.jpg` (1024 × 500) are present and match the sizes the listing needs.
