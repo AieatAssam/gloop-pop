@@ -151,28 +151,32 @@ export async function bootApp(): Promise<void> {
   uiRoot.addEventListener('click', (event) => { const button = (event.target as Element | null)?.closest('button'); if (!button || button === topBar.muteButton) return; enableAudio(); if (button.getAttribute('role') === 'switch') { if (button.getAttribute('aria-checked') === 'true') sfx.toggleOn(); return; } sfx.uiTap(); });
   window.addEventListener('pointerdown', () => { lastAudioInputAt = performance.now(); enableAudio(); });
   const pointer = createPointerInput(view, () => layout, () => session.state, (slot, row, col) => apply({ type: 'place', slot: slot as 0 | 1 | 2, row, col }));
+  const clientPoint = (x: number, y: number): { x: number; y: number } => { const rect = canvas.getBoundingClientRect(); return { x: rect.left + x * rect.width / layout.width, y: rect.top + y * rect.height / layout.height }; };
+  // Read-only view of the live run, shared by the debug URL API and the Android QA hook.
+  const snapshotState = () => {
+    const state = session.state; const adventure = state.adventure;
+    return { mode: state.mode, score: state.score, ...(adventure ? { movesLeft: adventure.movesLeft, goals: adventure.goals.map((goal) => ({ ...goal })), level: adventure.level } : state.goals ? { goals: structuredClone(state.goals) } : {}), status: state.status,
+      tray: state.tray.flatMap((piece, slot) => piece ? [{ slot, defId: piece.defId, cells: PIECES[piece.defId]!.cells.map(([row, col]) => [row, col]) }] : []), board: [...state.board] };
+  };
+  const trayPointFor = (slot: number): { x: number; y: number } => { const rect = traySlotRect(slot, layout); return clientPoint(rect.x + rect.width / 2, rect.y + rect.height / 2); };
+  const dropPointFor = (slot: number, row: number, col: number): { x: number; y: number } => {
+    const piece = session.state.tray[slot]; if (!piece || slot < 0 || slot > 2) return { x: 0, y: 0 };
+    return pointerDropPoint(row, col, PIECES[piece.defId]!.w, PIECES[piece.defId]!.h, layout, canvas.getBoundingClientRect());
+  };
   if (debug) {
     type DebugApi = {
       screen(): string;
-      state(): { mode: string; score: number; movesLeft?: number; goals?: unknown; status: string; tray: { slot: number; defId: number; cells: number[][] }[]; board: number[]; level?: number };
+      state(): ReturnType<typeof snapshotState>;
       trayPoint(slot: number): { x: number; y: number };
       dropPoint(slot: number, row: number, col: number): { x: number; y: number };
       botMove(): { slot: number; row: number; col: number } | null;
       audioTrace?: { t: number; kind: 'playSegment' | 'tone' | 'playCandyBar'; id: string; gainDb: number; bus: 'sfx' | 'music' }[];
     };
-    const clientPoint = (x: number, y: number): { x: number; y: number } => { const rect = canvas.getBoundingClientRect(); return { x: rect.left + x * rect.width / layout.width, y: rect.top + y * rect.height / layout.height }; };
     (window as Window & { __gloopDebug?: DebugApi }).__gloopDebug = {
       screen: () => router.current,
-      state: () => {
-        const state = session.state; const adventure = state.adventure;
-        return { mode: state.mode, score: state.score, ...(adventure ? { movesLeft: adventure.movesLeft, goals: adventure.goals.map((goal) => ({ ...goal })), level: adventure.level } : state.goals ? { goals: structuredClone(state.goals) } : {}), status: state.status,
-          tray: state.tray.flatMap((piece, slot) => piece ? [{ slot, defId: piece.defId, cells: PIECES[piece.defId]!.cells.map(([row, col]) => [row, col]) }] : []), board: [...state.board] };
-      },
-      trayPoint: (slot) => { const rect = traySlotRect(slot, layout); return clientPoint(rect.x + rect.width / 2, rect.y + rect.height / 2); },
-      dropPoint: (slot, row, col) => {
-        const piece = session.state.tray[slot]; if (!piece || slot < 0 || slot > 2) return { x: 0, y: 0 };
-        return pointerDropPoint(row, col, PIECES[piece.defId]!.w, PIECES[piece.defId]!.h, layout, canvas.getBoundingClientRect());
-      },
+      state: snapshotState,
+      trayPoint: trayPointFor,
+      dropPoint: dropPointFor,
       botMove: () => {
         const state = session.state; const rng = dbg?.createBotRng(`${state.seed}/gloop-debug-bot`); if (!rng) return null;
         if (state.mode === 'adventure' && chooseAdventureBot) { const move = chooseAdventureBot(state, rng); return move?.type === 'place' ? { slot: move.slot, row: move.row, col: move.col } : null; }
@@ -180,6 +184,21 @@ export async function bootApp(): Promise<void> {
       },
       ...(audioTrace ? { audioTrace } : {}),
     };
+  }
+  // QA hook: only in builds made with VITE_QA_HOOK=true (npm run android:debug). The release build folds this branch away.
+  if (import.meta.env.VITE_QA_HOOK === 'true') {
+    void Promise.all([import('./qaHook'), import('./debugTools')]).then(([hook, scenes]) => hook.installQaHook({
+      screen: () => router.current,
+      state: snapshotState,
+      trayPoint: trayPointFor,
+      dropPoint: dropPointFor,
+      toast: (message, accent) => toast.show(message, accent),
+      scene: (query) => {
+        const next = scenes.debugGameScene(session.state, new URLSearchParams(query)); if (!next) return false;
+        session = createSession({ state: next, best: session.best }); runBest = session.best; runEvents = []; gameOverAt = -1; shownStatus = ''; updateCanvasAria();
+        return true;
+      },
+    }));
   }
   const boosterBar = createBoosterBar((id) => { if (id === 'shuffle') pointer.cancel(); apply({ type: 'booster', id }); }); uiRoot.append(boosterBar.element);
   boosterBar.update(session.state, layout);
