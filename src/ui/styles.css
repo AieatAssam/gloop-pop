@@ -26,11 +26,10 @@ body { color: var(--ui-text-primary); }
 .gloop-icon-button:focus-visible { outline: 3px solid var(--ui-focus-ring); outline-offset: 3px; }
 .button:focus-visible, .text-button:focus-visible, .daily-topbar-pill:focus-visible, .mode-card:focus-visible, .settings-toggle:focus-visible, select:focus-visible { outline: 3px solid var(--ui-focus-ring); outline-offset: 3px; }
 .tutorial-topbar-skip { display: none; min-height: 44px; padding: 0 14px; font-size: 16px; pointer-events: auto; }
+.gloop-topbar.is-tutorial .tutorial-topbar-skip { display: inline-flex; }
 .gloop-topbar.is-tutorial .gloop-topbar-actions { display: none; }
-/* spec-note: The tutorial Skip is 44 px tall (the 48 px secondary-button height pushed it to 2 px from the top on 320x568). It now sits 6 px below the safe-area inset. */
-.gloop-topbar.is-tutorial .tutorial-topbar-skip { margin-left: auto; min-height: 44px; align-self: flex-start; margin-top: calc(var(--safe-area-top) + 6px); }
-.tutorial-layer .tutorial-skip { display: none; }
-.tutorial-skip { position: absolute; right: 24px; top: 0; min-height: 44px; pointer-events: auto; }
+/* spec-note: The tutorial Skip is 44 px tall (the 48 px secondary-button height pushed it to 2 px from the top on 320x568). It sits 8 px below the safe-area inset, so it is 8 px or more from the top edge at every size (SG §11.10). */
+.gloop-topbar.is-tutorial .tutorial-topbar-skip { margin-left: auto; min-height: 44px; align-self: flex-start; margin-top: calc(var(--safe-area-top) + 8px); }
 .controls-hint { display: none; }
 @media (min-width: 700px) { .controls-hint { position: absolute; bottom: 28px; left: 50%; display: block; color: var(--ui-text-dim); font: 700 14px/1.2 Nunito, sans-serif; white-space: nowrap; text-align: center; transform: translateX(-50%); pointer-events: none; } }
 .controls-hint[hidden], #ui:has(.gloop-overlay.is-visible) .controls-hint { display: none; }
@@ -188,7 +187,6 @@ body { color: var(--ui-text-primary); }
 .tutorial-bubble { position: absolute; left: 50%; width: min(300px, calc(100vw - 32px)); padding: 13px 16px; border: 2px solid var(--ui-panel-border); border-radius: 16px; color: var(--ui-bubble-text); background: var(--ui-bubble); box-shadow: 0 8px 20px var(--light-shadow-deep), inset 0 1px 0 var(--ui-panel-highlight); font: 800 18px/1.25 Nunito, sans-serif; text-align: center; transform: translateX(-50%) scale(.8); animation: bubble-in 200ms cubic-bezier(.34,1.56,.64,1) forwards; }
 .tutorial-bubble::after { content: ""; position: absolute; left: 50%; bottom: -9px; width: 14px; height: 14px; border-right: 2px solid var(--ui-panel-border); border-bottom: 2px solid var(--ui-panel-border); background: var(--ui-bubble); transform: translateX(-50%) rotate(45deg); }
 .tutorial-bubble[hidden] { display: none; }
-.tutorial-skip { position: absolute; top: calc(var(--safe-area-top) + 10px); right: max(16px, calc((100vw - 600px) / 2 + 16px)); pointer-events: auto; }
 @keyframes bubble-in { to { transform: translateX(-50%) scale(1); } }
 @keyframes screen-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes logo-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -2px; } }
