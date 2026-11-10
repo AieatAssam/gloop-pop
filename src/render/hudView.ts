@@ -73,14 +73,59 @@ function drawScore(ctx: CanvasRenderingContext2D, text: string, x: number, y: nu
 
 // spec-note: Score digits sit in fixed-width slots (the widest digit of the current font), so a count-up never shifts the digits next to a changing one. The whole number is still centred on x, so it moves only when the digit count grows.
 const advanceCache = new Map<string, number>();
-function drawSteadyText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, mode: 'fill' | 'stroke'): void {
+const glyphWidthCache = new Map<string, number>();
+interface GlyphSprite { canvas: HTMLCanvasElement; width: number; height: number; baseline: number }
+const glyphSpriteCache = new Map<string, GlyphSprite | null>();
+const GLYPH_SPRITE_LIMIT = 256;
+
+function glyphWidth(ctx: CanvasRenderingContext2D, glyph: string): number {
+  const key = `${ctx.font}|${glyph}`; let width = glyphWidthCache.get(key);
+  if (width === undefined) { width = ctx.measureText(glyph).width; glyphWidthCache.set(key, width); }
+  return width;
+}
+
+// SG §9.13.i: a scaled count-up changes the text transform every frame. Drawing glyphs straight with fillText re-rasterises them at each new scale, so each glyph is cached once as a 2x sprite and placed with drawImage instead.
+function glyphSprite(ctx: CanvasRenderingContext2D, glyph: string, mode: 'fill' | 'stroke'): GlyphSprite | null {
+  const paint = mode === 'fill' ? ctx.fillStyle : ctx.strokeStyle;
+  // The sprite places the baseline for alphabetic text only; other baselines fall back to fillText.
+  if (typeof paint !== 'string' || typeof document === 'undefined' || ctx.textBaseline !== 'alphabetic') return null;
+  const size = /(\d+(?:\.\d+)?)px/.exec(ctx.font); if (!size) return null;
+  const key = `${ctx.font}|${mode}|${paint}|${mode === 'stroke' ? `${ctx.lineWidth}|${ctx.lineJoin}` : ''}|${glyph}`;
+  const cached = glyphSpriteCache.get(key); if (cached !== undefined) return cached;
+  const fontSize = Number(size[1]); const stroke = mode === 'stroke' ? ctx.lineWidth : 0;
+  const pad = Math.ceil(fontSize * 0.15 + stroke); const width = Math.ceil(glyphWidth(ctx, glyph) + pad * 2); const height = Math.ceil(fontSize * 1.4 + pad * 2); const baseline = pad + fontSize * 1.05;
+  const canvas = document.createElement('canvas'); canvas.width = width * 2; canvas.height = height * 2;
+  const sprite = canvas.getContext('2d');
+  let result: GlyphSprite | null = null;
+  if (sprite) {
+    sprite.scale(2, 2); sprite.font = ctx.font; sprite.textAlign = 'center'; sprite.textBaseline = 'alphabetic';
+    if (mode === 'fill') { sprite.fillStyle = paint; sprite.fillText(glyph, width / 2, baseline); }
+    else { sprite.strokeStyle = paint; sprite.lineWidth = ctx.lineWidth; sprite.lineJoin = ctx.lineJoin; sprite.strokeText(glyph, width / 2, baseline); }
+    result = { canvas, width, height, baseline };
+  }
+  if (glyphSpriteCache.size >= GLYPH_SPRITE_LIMIT) glyphSpriteCache.clear();
+  glyphSpriteCache.set(key, result);
+  return result;
+}
+
+function digitSlot(ctx: CanvasRenderingContext2D): number {
   let slot = advanceCache.get(ctx.font);
-  if (slot === undefined) { slot = 0; for (const digit of '0123456789') slot = Math.max(slot, ctx.measureText(digit).width); advanceCache.set(ctx.font, slot); }
-  const glyphs = [...text]; const widths = glyphs.map((glyph) => glyph >= '0' && glyph <= '9' ? slot : ctx.measureText(glyph).width);
+  if (slot === undefined) { slot = 0; for (const digit of '0123456789') slot = Math.max(slot, glyphWidth(ctx, digit)); advanceCache.set(ctx.font, slot); }
+  return slot;
+}
+
+export function drawSteadyText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, mode: 'fill' | 'stroke'): void {
+  const slot = digitSlot(ctx);
+  const glyphs = [...text]; const widths = glyphs.map((glyph) => glyph >= '0' && glyph <= '9' ? slot : glyphWidth(ctx, glyph));
   const total = widths.reduce((sum, width) => sum + width, 0);
   const align = ctx.textAlign; ctx.textAlign = 'center';
   let cursor = x - total / 2;
-  glyphs.forEach((glyph, index) => { const width = widths[index]!; const centre = cursor + width / 2; if (mode === 'fill') ctx.fillText(glyph, centre, y); else ctx.strokeText(glyph, centre, y); cursor += width; });
+  glyphs.forEach((glyph, index) => {
+    const width = widths[index]!; const centre = cursor + width / 2; const sprite = glyphSprite(ctx, glyph, mode);
+    if (sprite) ctx.drawImage(sprite.canvas, centre - sprite.width / 2, y - sprite.baseline, sprite.width, sprite.height);
+    else if (mode === 'fill') ctx.fillText(glyph, centre, y); else ctx.strokeText(glyph, centre, y);
+    cursor += width;
+  });
   ctx.textAlign = align;
 }
 
