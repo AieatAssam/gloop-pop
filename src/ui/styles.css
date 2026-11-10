@@ -66,7 +66,8 @@ body { color: var(--ui-text-primary); }
 @keyframes modal-in { from { opacity: 0; transform: translateY(24px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes game-over-in { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
 .screen-wrap { position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; overflow: auto; padding: max(16px, var(--safe-area-top)) 16px max(16px, var(--safe-area-bottom)); pointer-events: auto; animation: screen-in 200ms ease both; }
-.full-screen-panel, .home-panel { width: min(100%, 680px); max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 16px; }
+/* spec-note: min-width 0 stops a panel growing past the screen when a row is wider than the phone (grid items default to min-content width). */
+.full-screen-panel, .home-panel { width: min(100%, 680px); min-width: 0; max-width: 100%; max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 16px; }
 /* spec-note: The logo is centred on its own row; the level and coin chips share the row below it, so the title is not pushed off-centre. */
 .home-header { display: grid; grid-template-columns: auto auto; justify-content: center; align-items: center; gap: 12px; }
 .gloop-logo { grid-column: 1 / -1; justify-self: center; margin: 0; color: var(--ui-gold); font: 800 clamp(38px, 8vw, 56px)/1 "Baloo 2", ui-rounded, system-ui, sans-serif; transform: rotate(-2deg); -webkit-text-stroke: 2px var(--face-ink); paint-order: stroke fill; filter: drop-shadow(0 3px var(--ui-primary-lip)); }
@@ -145,7 +146,7 @@ body { color: var(--ui-text-primary); }
 .stats-list dt { color: var(--ui-text-secondary); }
 .stats-list dd { margin: 0; color: var(--ui-text-primary); font-weight: 800; text-align: right; }
 .stats-chart { width: 100%; height: 120px; }
-.settings-list { display: grid; gap: 10px; }
+.settings-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .volume-row { display: grid; grid-template-columns: minmax(112px, 1fr) 160px 44px; }
 .volume-row > label { line-height: 1.25; }
 .volume-row input[type="range"] { width: 160px; height: 24px; accent-color: var(--ui-toggle-on); background: transparent; }
@@ -168,6 +169,8 @@ body { color: var(--ui-text-primary); }
 .settings-row select { max-width: 150px; min-height: 40px; padding: 0 10px; border: 2px solid var(--ui-panel-border); border-radius: 12px; color: var(--ui-text-primary); background: var(--ui-panel); font: 800 14px Nunito, sans-serif; }
 .settings-toggle { width: 52px; height: 30px; flex: 0 0 52px; position: relative; border: 0; border-radius: 16px; background: var(--ui-toggle-off); cursor: pointer; }
 .settings-toggle[aria-checked="true"] { background: var(--ui-toggle-on); }
+/* Hit area is 44px tall; the visible switch stays 30px. */
+.settings-toggle::before { content: ""; position: absolute; inset: -7px -6px; }
 .settings-toggle::after { content: ""; position: absolute; width: 24px; height: 24px; left: 3px; top: 3px; border-radius: 50%; background: var(--ui-toggle-knob); box-shadow: 0 2px 5px var(--light-shadow); transition: transform 160ms cubic-bezier(.34,1.56,.64,1); }
 .settings-toggle[aria-checked="true"]::after { transform: translateX(22px); }
 .settings-actions { display: grid; gap: 10px; }
