@@ -117,7 +117,8 @@ export async function bootApp(): Promise<void> {
   const router = createRouter(initialScreen); const surface = createCanvasSurface(canvas); const background = createBackground(save.equipped.theme as keyof typeof PALETTE.theme); const view = createBoardView(); const director = createDirector();
   setColourBlindPatterns(save.settings.cbPatterns);
   let backgroundTheme = save.equipped.theme; const ui = createGameUi(uiRoot); const toast = createToasts(uiRoot, () => uiRoot.querySelector('.gloop-overlay.is-visible') !== null); const homeHost = document.createElement('div'); uiRoot.append(homeHost);
-  let paused = false; let pauseLayer: 'none' | 'menu' | 'confirmation' = 'none'; let resumePausedRun = (): void => undefined; let shownScore = 0; let shownStatus = ''; let runRecorded = false; let adventureRecorded = false; let adventureReward = { xp: 0, coins: 0, progress: 0, progressMax: 0 }; let adventureChapterRewards = { chapterDone: false, chapterAllStars: false, chapter: 1 }; let adventureStreakReset = false; let countedDailyThisRun = false; let comboLostAt = -1; let layout: Layout = computeLayout(window.innerWidth, window.innerHeight, {}, Boolean(session.state.goals || session.state.adventure)); let renderElapsed = 0; let gameOverAt = -1; let saveTimer = 0; let runEvents: GameEvent[] = []; let closeCall = false;
+  // spec-note: While the game is paused, the canvas keeps its last frame (the scrimmed board) instead of repainting the same frame 60 times a second. Cleared by resize, which wipes the canvas.
+  let pausedFrameDrawn = false; let paused = false; let pauseLayer: 'none' | 'menu' | 'confirmation' = 'none'; let resumePausedRun = (): void => undefined; let shownScore = 0; let shownStatus = ''; let runRecorded = false; let adventureRecorded = false; let adventureReward = { xp: 0, coins: 0, progress: 0, progressMax: 0 }; let adventureChapterRewards = { chapterDone: false, chapterAllStars: false, chapter: 1 }; let adventureStreakReset = false; let countedDailyThisRun = false; let comboLostAt = -1; let layout: Layout = computeLayout(window.innerWidth, window.innerHeight, {}, Boolean(session.state.goals || session.state.adventure)); let renderElapsed = 0; let gameOverAt = -1; let saveTimer = 0; let runEvents: GameEvent[] = []; let closeCall = false;
   let lastAdventureMoves = session.state.adventure?.movesLeft ?? -1; let adventureMovesChangedAt = -1;
   let tutorialActive = !debugLevelState && (beginTutorial || savedRun?.mode === 'tutorial' || (!save.tutorialDone && save.ui.seenTips.includes('tutorialStep4Pending'))); let tutorialStep = tutorialActive ? (session.state.mode === 'tutorial' ? Math.min(3, session.state.traysDealt) : 4) : 0; let tutorialTouched = false; let tutorialBubbleText = ''; let tutorialBubbleUntil = -1; let tutorialTipForGameOver = false;
   let candyFlameUntil = -1; let candyFlameFlavour = 1; let discoveryCoins = 0;
@@ -226,6 +227,7 @@ export async function bootApp(): Promise<void> {
   // spec-note: The HUD band layout depends on whether a goal strip and the Daily score rows are shown, so a change in either re-runs the layout.
   const layoutKey = (): string => `${Boolean(session.state.goals || session.state.adventure)}|${session.state.mode === 'daily'}`;
   const resize = (): void => {
+    pausedFrameDrawn = false;
     surface.resize(window.innerWidth, window.innerHeight);
     const { top: safeTop, bottom: safeBottom } = readSafeAreaInsets();
     layout = computeLayout(surface.width, surface.height, { top: safeTop, bottom: safeBottom }, Boolean(session.state.goals || session.state.adventure), session.state.mode === 'daily'); background.resize(surface.width, surface.height, layout);
@@ -271,7 +273,8 @@ export async function bootApp(): Promise<void> {
     if (pointer.snapChanged) { sfx.snapTick(); vibrate('snap', save.settings.haptics); }
     if (demoThemes) background.setTheme(THEME_KEYS[Math.floor(frame.worldNow / 2400) % THEME_KEYS.length]!, frame.worldNow);
     else if (backgroundTheme !== save.equipped.theme) { backgroundTheme = save.equipped.theme; background.setTheme(backgroundTheme as keyof typeof PALETTE.theme, frame.worldNow); }
-    const ctx = surface.context; ctx.setTransform(surface.dpr, 0, 0, surface.dpr, 0, 0); ctx.save(); background.draw(ctx, frame.worldNow, layout, session.state.stage); ctx.restore(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    const frozenPause = paused && router.current === 'play'; const skipCanvasDraw = frozenPause && pausedFrameDrawn;
+    const ctx = surface.context; if (!skipCanvasDraw) { ctx.setTransform(surface.dpr, 0, 0, surface.dpr, 0, 0); ctx.save(); background.draw(ctx, frame.worldNow, layout, session.state.stage); ctx.restore(); } ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     const today = dayKeyFromMs(Date.now()); const pill = session.state.adventure ? S.levelText(session.state.adventure.level) : save.daily.records[today] ? S.dailyPillDone : save.streak.current >= 2 && new Date().getUTCHours() >= 18 ? S.dailyKeepStreak(dayNumber(today), save.streak.current) : S.daily(dayNumber(today)); if (topBar.dailyPill.textContent !== pill) topBar.dailyPill.textContent = pill; (topBar.dailyPill as HTMLButtonElement).disabled = Boolean(session.state.adventure);
     // Design §23.9: the Daily is offered after the tutorial and the first Classic run, never before.
     const isPlay = router.current === 'play';
@@ -281,7 +284,7 @@ export async function bootApp(): Promise<void> {
     music.update(lastMusicState);
     const hideHint = !isPlay || save.ui.runsFinished >= 3; if (controlsHint.hidden !== hideHint) controlsHint.hidden = hideHint; topBar.element.style.display = isPlay ? 'flex' : 'none'; topBar.element.classList.toggle('is-tutorial', tutorialActive); topBar.dailyPill.hidden = tutorialActive || save.ui.runsFinished < 1; topBar.muteButton.hidden = tutorialActive; topBar.pauseButton.hidden = tutorialActive; topBar.tutorialSkip.style.display = tutorialActive ? 'block' : 'none';
     topBar.dailyPill.classList.toggle('is-at-risk', save.streak.current >= 2 && !save.daily.records[today] && new Date().getUTCHours() >= 18);
-    if (isPlay && !demoBg) {
+    if (isPlay && !demoBg && !skipCanvasDraw) {
       const reduced = reducedForFrame;
       const shake = director.shakeOffset(); const shakeScale = 1; const boardCentreX = layout.board.x + layout.board.width / 2; const boardCentreY = layout.board.y + layout.board.height / 2; ctx.save(); ctx.translate(shake.x * shakeScale, shake.y * shakeScale); ctx.translate(boardCentreX, boardCentreY); ctx.rotate(director.cameraRoll() * Math.PI / 180); ctx.translate(-boardCentreX, -boardCentreY);
       view.draw(ctx, layout, session.state, frame.worldNow, paused ? undefined : pointer.drag ?? keyboard.drag(), demoBoard ? 'board' : demoFaces ? 'faces' : '', gameOverAt, frame.boardNow, frame.realNow, pointer.returning, reduced, renderLoop.hitStopScale, frame.boardDt); const effectStart = performance.now(); director.draw(ctx, layout, frame.boardNow, frame.worldNow, frame.worldDt, reduced, frame.realNow, renderLoop.hitStopScale); effectFrameMs = performance.now() - effectStart; ctx.restore();
@@ -300,6 +303,7 @@ export async function bootApp(): Promise<void> {
     }
     updateTutorial(elapsedMs);
     updateOverlay();
+    pausedFrameDrawn = frozenPause;
     }, (elapsed) => { surface.reportFrame(currentFrame?.realDt ?? elapsed); if (autoplay && router.current === 'play' && !paused && session.state.status === 'rescueOffer') { if (rescueOfferAt < 0) rescueOfferAt = renderElapsed; if (renderElapsed - rescueOfferAt >= 600) { rescueOfferAt = -1; apply({ type: 'useRescue' }); } } else if (session.state.status !== 'rescueOffer') rescueOfferAt = -1; if (autoplay && router.current === 'play' && !paused && session.state.status === 'playing' && renderElapsed >= autoplayAt) { autoplayAt = renderElapsed + autoplayInterval; enableAudio(); const move = demoMega && session.state.moves === 0 ? { slot: 0 as const, row: 3, col: 3 } : botRng && dbg ? dbg.chooseBotMove(session.state, botRng) : undefined; if (move) apply({ type: 'place', slot: move.slot, row: move.row, col: move.col }); } });
 
   function apply(action: Action): void {
