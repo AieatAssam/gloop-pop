@@ -365,3 +365,5 @@ body { color: var(--ui-text-primary); }
 /* Round 3: short phones keep the result cards inside the screen without clipping their buttons. */
 @media (max-height: 640px) { .adventure-level-card, .adventure-result-panel { padding: 16px; gap: 8px; } .adventure-result-shade { padding-top: calc(var(--safe-area-top) + 72px); } }
 @media (max-height: 800px) { .daily-result-panel { gap: 10px; } }
+/* Round 3: result panels fit on 320x568 and 360x640 without scrolling past the actions. */
+@media (max-height: 700px) { .gloop-modal { gap: 10px; } .gloop-modal h1 { font-size: 26px; } .gloop-result-score { font-size: 46px; } .gloop-rewards { gap: 4px; } .gloop-result-note { font-size: 14px; } }
