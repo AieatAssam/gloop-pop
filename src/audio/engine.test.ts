@@ -194,4 +194,21 @@ describe('first input audio initialization', () => {
     expect(started.oscillator).toBe(0);
     expect(engine.activeVoiceCount()).toBe(before);
   });
+
+  // Regression: a claim whose startAt is behind the audio clock (scheduleAt() moved on since the caller computed it)
+  // used to re-steal the same sounding voice forever. Each stop left the voice overlapping [startAt, stopAt), so
+  // the peak never fell below 24 and the page froze at 100% CPU. The mock ends every voice after 500 stop calls so
+  // the old loop terminates and the assertion fails instead of hanging.
+  it('steals voices once when a claim starts behind the audio clock, instead of looping', async () => {
+    const engine = await import('./engine');
+    const endings: (() => void)[] = [];
+    let stops = 0;
+    const source = () => ({
+      stop: () => { stops += 1; if (stops === 500) endings.forEach((end) => end()); },
+      addEventListener: (_type: string, end: () => void) => { endings.push(end); },
+    } as unknown as AudioScheduledSourceNode);
+    for (let index = 0; index < 24; index += 1) expect(engine.claimVoice(source(), 'ladder', undefined, 0, 1)).toBe(true);
+    expect(engine.claimVoice(source(), 'ladder', undefined, 0.001, 0.5)).toBe(true);
+    expect(stops).toBeLessThanOrEqual(1);
+  });
 });
