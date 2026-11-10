@@ -46,7 +46,7 @@ export function computeLayout(width: number, height: number, safe: SafeInsets = 
 
 // spec-note: The HUD bands scale with k = clamp(H / 844, 0.7, 1.15). The floor used to be 0.78, which made the bands too tall on 320x568 and 360x640 and left the board 24 px short. The top band never drops below 52 px, so the 44 px icon buttons and the 48 px tutorial Skip button stay inside it, and the combo band never drops below 40 px so the rescue ring clears the tray.
 // spec-note: The Daily score band is taller (116 instead of 84 at k = 1) so the score, Best, Tray and Apple pops lines each get their own row. The board gives up the difference only on short phones.
-// spec-note: The toast lane is reserved inside the tray band, above the slots, so a toast never covers the score, goal strip or board at any phone size. Gaps A to C are too small on 320x568 and 390x844 (6 to 37 px), so a lane that is always there is the only fixed place. Slots keep their width; their height shrinks by the lane.
+// spec-note: The toast lane is reserved at the top of the tray band, above the slots, so a toast never covers the score, goal strip or board at any phone size. Gaps A to C are too small on 320x568 and 390x844 (6 to 37 px), so a lane that is always there is the only fixed place.
 export const PORTRAIT_TOAST_LANE = 40;
 /** SG §15.3: minimum clear space between the goal pills and the board frame. */
 export const MIN_GOAL_BOARD_GAP = 6;
@@ -61,7 +61,8 @@ function computePortrait(w: number, h: number, safeTop: number, safeBottom: numb
   const topH = Math.max(52, 60 * k) + safeTop;
   const scoreH = (daily ? 116 : 84) * k;
   const comboH = Math.max(40, 44 * k);
-  const trayH = 168 * k;
+  // spec-note: The toast lane is added to the tray band (not taken from the slots), so slot height and piece scale match the pre-round-11 layout. The board absorbs the lane on height-limited phones.
+  const trayH = 168 * k + PORTRAIT_TOAST_LANE;
   const bottomH = 16 * k + safeBottom;
   const goalH = hasGoalStrip ? 30 * k : 0;
   const fixedH = topH + scoreH + goalH + comboH + trayH + bottomH;

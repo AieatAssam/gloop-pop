@@ -106,6 +106,7 @@ export function createBoardView(): BoardView {
             const angle = drag.stretchAngle ?? 0; ctx.rotate(angle); ctx.scale(drag.stretch ?? 1, 1 / (drag.stretch ?? 1)); ctx.rotate(-angle);
             ctx.scale(drag.grabSx ?? 1, drag.grabSy ?? 1); ctx.scale(drag.pickupScale ?? 1, drag.pickupScale ?? 1);
             drawPiece(ctx, piece.flavour, def.cells, pc, drawX - anchorX, drawY - anchorY, elapsed, valid ? 'excited' : 'worried', valid ? 0.82 : 0.75); ctx.restore();
+            if (valid && preview && previewRow !== undefined && previewCol !== undefined) drawLandingOutline(ctx, piece, previewRow, previewCol, gx, gy, c, drag.ghostAlpha === undefined ? 1 : drag.ghostAlpha / GHOST_ALPHA);
           }
         }
       }
@@ -222,13 +223,20 @@ function drawHeldShadow(ctx: CanvasRenderingContext2D, cache: Map<string, [HTMLC
 }
 
 export function traySlotRect(index: number, layout: Layout): Rect {
-  if (layout.portrait) { const width = portraitTraySlotWidth(layout.tray.width); const gap = PORTRAIT_TRAY_GAP; const total = width * 3 + gap * 2; const x = layout.tray.x + (layout.tray.width - total) / 2 + index * (width + gap); return { x, y: layout.tray.y + PORTRAIT_TOAST_LANE + PORTRAIT_TRAY_MARGIN, width, height: Math.max(56, layout.tray.height - PORTRAIT_TOAST_LANE - PORTRAIT_TRAY_MARGIN * 2) }; }
+  if (layout.portrait) { const width = portraitTraySlotWidth(layout.tray.width); const gap = PORTRAIT_TRAY_GAP; const total = width * 3 + gap * 2; const x = layout.tray.x + (layout.tray.width - total) / 2 + index * (width + gap); return { x, y: layout.tray.y + PORTRAIT_TOAST_LANE + PORTRAIT_TRAY_MARGIN, width, height: Math.max(80, layout.tray.height - PORTRAIT_TOAST_LANE - PORTRAIT_TRAY_MARGIN * 2) }; }
   const width = layout.tray.width; const height = layout.tray.height / 3 - 8; return { x: layout.tray.x, y: layout.tray.y + index * (height + 12), width, height };
 }
 function hasFit(state: GameState, piece: Piece): boolean { return Array.from({ length: 64 }, (_, i) => canPlace(state, state.tray.indexOf(piece), Math.floor(i / 8), i % 8)).some(Boolean); }
 /** SG §8.4: the landing ghost fill alpha. Valid positions only; an invalid position draws no fill. */
 // spec-note: Raised from 0.32 to 0.45 so the landing cells read under the lifted piece, plus a thin outline in the piece's flavour.light (SG §8.4).
 export const GHOST_ALPHA = 0.45;
+// spec-note: The held piece covers its landing cells at alpha 0.82, so the ghost fill and its thin outline were hidden under it. The landing outline is drawn again on top of the held piece (flavour.light, at least 2 px) so the snapped target stays visible while a valid drag is held (SG §8.4).
+function drawLandingOutline(ctx: CanvasRenderingContext2D, piece: Piece, row: number, col: number, gx: number, gy: number, c: number, strength: number): void {
+  const def = PIECES[piece.defId]!; const flavour = PALETTE.flavour[Object.keys(PALETTE.flavour)[piece.flavour - 1] as keyof typeof PALETTE.flavour];
+  ctx.save(); ctx.globalAlpha = 0.9 * Math.max(0, Math.min(1, strength)); ctx.strokeStyle = flavour.light; ctx.lineWidth = Math.max(2, c * 0.05);
+  for (const [dr, dc] of def.cells) ctx.stroke(roundRectPath(gx + (col + dc) * c + 2, gy + (row + dr) * c + 2, c - 4, c - 4, c * 0.2));
+  ctx.restore();
+}
 function drawPreview(ctx: CanvasRenderingContext2D, _state: GameState, piece: Piece, preview: Preview, row: number, col: number, gx: number, gy: number, c: number, elapsed: number, alpha: number, scale: number): void {
   const def = PIECES[piece.defId]!; const cx = gx + (col + def.w / 2) * c; const cy = gy + (row + def.h / 2) * c;
   const flavour = PALETTE.flavour[Object.keys(PALETTE.flavour)[piece.flavour - 1] as keyof typeof PALETTE.flavour];

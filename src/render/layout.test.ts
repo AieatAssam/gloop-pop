@@ -17,11 +17,11 @@ describe('responsive layout', () => {
   it('uses portrait reference board metrics and splits free vertical space', () => {
     const layout = computeLayout(390, 844);
     expect(layout.portrait).toBe(true);
-    expect(layout.board).toEqual({ x: 11, y: 196, width: 368, height: 368 });
+    expect(layout.board).toEqual({ x: 11, y: 176, width: 368, height: 368 });
     expect(layout.cellSize).toBe(44);
-    expect(layout.gaps.a).toBe(26);
-    expect(layout.gaps.b).toBe(26);
-    expect(layout.gaps.c).toBe(52);
+    expect(layout.gaps.a).toBe(16);
+    expect(layout.gaps.b).toBe(16);
+    expect(layout.gaps.c).toBe(32);
   });
 
   it('keeps portrait content in a centred column on a sideways phone', () => {
@@ -32,8 +32,8 @@ describe('responsive layout', () => {
   });
   it('adds the 30 px goal band without changing layouts that do not use it', () => {
     const withStrip = computeLayout(390, 844, {}, true); const without = computeLayout(390, 844);
-    expect(withStrip.goalStrip).toEqual({ x: 0, y: 162.5, width: 390, height: 30 });
-    expect(withStrip.board.y).toBe(211);
+    expect(withStrip.goalStrip).toEqual({ x: 0, y: 152.5, width: 390, height: 30 });
+    expect(withStrip.board.y).toBe(191);
     expect(without.goalStrip.height).toBe(0);
     expect(computeLayout(412, 915, {}, true).goalStrip.height).toBeCloseTo(32.5, 1);
     expect(computeLayout(1280, 800, {}, true).board).toEqual(computeLayout(1280, 800).board);
@@ -62,7 +62,7 @@ describe('responsive layout', () => {
   });
   // Round 3: short phones give the board the height the HUD does not need, without overlapping any band.
   const bands = (layout: ReturnType<typeof computeLayout>) => [layout.topBar, layout.score, layout.goalStrip, layout.combo, layout.tray, layout.bottom].filter((r) => r.height > 0);
-  it.each([[320, 568, false, 288], [360, 640, false, 336], [360, 760, false, 336], [390, 844, false, 368], [320, 568, true, 264], [360, 640, true, 320]])('gives the board the largest size that fits at %i×%i (daily %s)', (width, height, daily, minBoard) => {
+  it.each([[320, 568, false, 248], [360, 640, false, 304], [360, 760, false, 336], [390, 844, false, 368], [320, 568, true, 224], [360, 640, true, 280]])('gives the board the largest size that fits at %i×%i (daily %s)', (width, height, daily, minBoard) => {
     const layout = computeLayout(width, height, {}, false, daily);
     expect(layout.board.width).toBeGreaterThanOrEqual(minBoard);
     expect(layout.board.width % 8).toBe(0);
@@ -116,6 +116,18 @@ describe('in-play toast lane (SG §11.8, §15.3)', () => {
         }
         expect(lane.y).toBeGreaterThanOrEqual(layout.combo.y + layout.combo.height);
       }
+    }
+  });
+  it('keeps the pre-lane tray slot size, so pieces are not smaller than before the lane (SG §8.2)', () => {
+    for (const [width, height] of sizes) {
+      const layout = computeLayout(width, height, {}, true, false);
+      const k = Math.min(1.15, Math.max(0.7, height / 844));
+      const oldSlotHeight = Math.max(80, 168 * k - 8);
+      const slot = traySlotRect(0, layout);
+      expect(slot.height).toBeGreaterThanOrEqual(oldSlotHeight - 0.01);
+      // Piece scale is min(cell, width / 5.4, height / 5.4): the same as before the lane whenever the slot height is unchanged.
+      const pc = Math.min(layout.trayCellSize, slot.width / 5.4, slot.height / 5.4);
+      expect(pc).toBeGreaterThanOrEqual(Math.min(layout.trayCellSize, slot.width / 5.4, oldSlotHeight / 5.4) - 0.01);
     }
   });
   it('tray slots start below the lane and stay inside the tray band', () => {
