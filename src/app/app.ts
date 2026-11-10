@@ -193,6 +193,7 @@ export async function bootApp(): Promise<void> {
       trayPoint: trayPointFor,
       dropPoint: dropPointFor,
       toast: (message, accent) => toast.show(message, accent),
+      place: (slot, row, col) => { if (router.current === 'play' && !paused && session.state.status === 'playing') apply({ type: 'place', slot: slot as 0 | 1 | 2, row, col }); },
       scene: (query) => {
         const next = scenes.debugGameScene(session.state, new URLSearchParams(query)); if (!next) return false;
         session = createSession({ state: next, best: session.best }); runBest = session.best; runEvents = []; gameOverAt = -1; shownStatus = ''; updateCanvasAria();
@@ -293,7 +294,7 @@ export async function bootApp(): Promise<void> {
     }
     updateTutorial(elapsedMs);
     updateOverlay();
-    }, (elapsed) => { surface.reportFrame(elapsed); if (autoplay && router.current === 'play' && !paused && session.state.status === 'rescueOffer') { if (rescueOfferAt < 0) rescueOfferAt = renderElapsed; if (renderElapsed - rescueOfferAt >= 600) { rescueOfferAt = -1; apply({ type: 'useRescue' }); } } else if (session.state.status !== 'rescueOffer') rescueOfferAt = -1; if (autoplay && router.current === 'play' && !paused && session.state.status === 'playing' && renderElapsed >= autoplayAt) { autoplayAt = renderElapsed + autoplayInterval; enableAudio(); const move = demoMega && session.state.moves === 0 ? { slot: 0 as const, row: 3, col: 3 } : botRng && dbg ? dbg.chooseBotMove(session.state, botRng) : undefined; if (move) apply({ type: 'place', slot: move.slot, row: move.row, col: move.col }); } });
+    }, (elapsed) => { surface.reportFrame(currentFrame?.realDt ?? elapsed); if (autoplay && router.current === 'play' && !paused && session.state.status === 'rescueOffer') { if (rescueOfferAt < 0) rescueOfferAt = renderElapsed; if (renderElapsed - rescueOfferAt >= 600) { rescueOfferAt = -1; apply({ type: 'useRescue' }); } } else if (session.state.status !== 'rescueOffer') rescueOfferAt = -1; if (autoplay && router.current === 'play' && !paused && session.state.status === 'playing' && renderElapsed >= autoplayAt) { autoplayAt = renderElapsed + autoplayInterval; enableAudio(); const move = demoMega && session.state.moves === 0 ? { slot: 0 as const, row: 3, col: 3 } : botRng && dbg ? dbg.chooseBotMove(session.state, botRng) : undefined; if (move) apply({ type: 'place', slot: move.slot, row: move.row, col: move.col }); } });
 
   function apply(action: Action): void {
     if (action.type === 'place') dbg?.clearAudioTrace();
