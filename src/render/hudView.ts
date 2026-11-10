@@ -24,9 +24,14 @@ export function drawHud(ctx: CanvasRenderingContext2D, layout: Layout, state: Ga
   const tier = state.combo >= 12 ? 4 : state.combo >= 8 ? 3 : 0; const flaming = tier >= 3 || elapsed < candyFlameUntil || (flameBreakAt >= 0 && elapsed - flameBreakAt < 400);
   ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = PALETTE.ui.textPrimary;
   if (layout.portrait) {
-    ctx.font = '800 52px "Baloo 2", sans-serif'; drawScore(ctx, numberFormat.format(Math.round(score)), layout.width / 2, layout.score.y + layout.score.height * 0.59, elapsed, flaming, flameFlavour, reducedMotion, tier, flameBreakAt, candyFlameUntil, scoreScale, pulseAlpha);
-    if (state.mode === 'daily') { ctx.font = '800 14px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.textSecondary; ctx.fillText(S.dailyTray(Math.min(30, state.traysDealt)), layout.width / 2, layout.score.y + layout.score.height * 0.98); if (state.daily) { ctx.font = '800 14px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.gold; ctx.fillText(S.fodDouble(S.flavourName(state.daily.flavourOfDay)), layout.width / 2, layout.score.y + layout.score.height + 10); } }
-    if (state.mode !== 'zen' && best > 0) { const isNewBest = state.score > best; ctx.font = '700 15px Nunito, sans-serif'; ctx.fillStyle = isNewBest ? PALETTE.ui.gold : PALETTE.ui.textSecondary; ctx.fillText(isNewBest ? S.newBest : S.best(numberFormat.format(best)), layout.width / 2, layout.score.y + layout.score.height * 0.88); }
+    // spec-note: Daily gets one row per line (score, Best, Tray, Apple pops) inside the taller score band. Before, Best, Tray and Apple pops shared baselines 8 to 11 px apart, so 14 px text collided.
+    const daily = state.mode === 'daily'; const bandY = layout.score.y; const bandH = layout.score.height;
+    ctx.font = '800 52px "Baloo 2", sans-serif'; drawScore(ctx, numberFormat.format(Math.round(score)), layout.width / 2, bandY + bandH * (daily ? 0.5 : 0.59), elapsed, flaming, flameFlavour, reducedMotion, tier, flameBreakAt, candyFlameUntil, scoreScale, pulseAlpha);
+    if (daily) {
+      ctx.font = '800 14px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.textSecondary; ctx.fillText(S.dailyTray(Math.min(30, state.traysDealt)), layout.width / 2, bandY + bandH * 0.83);
+      if (state.daily) { ctx.font = '800 14px Nunito, sans-serif'; ctx.fillStyle = PALETTE.ui.gold; ctx.fillText(S.fodDouble(S.flavourName(state.daily.flavourOfDay)), layout.width / 2, bandY + bandH * 0.98); }
+    }
+    if (state.mode !== 'zen' && best > 0) { const isNewBest = state.score > best; ctx.font = '700 15px Nunito, sans-serif'; ctx.fillStyle = isNewBest ? PALETTE.ui.gold : PALETTE.ui.textSecondary; ctx.fillText(isNewBest ? S.newBest : S.best(numberFormat.format(best)), layout.width / 2, bandY + bandH * (daily ? 0.67 : 0.88)); }
   } else {
     // spec-note: landscape panel text is inset 10% of the panel width (it sat on the panel edge); Stage sits below the chase bar label instead of on it.
     const sx = landscapeTextX(layout);
@@ -57,13 +62,26 @@ export function drawHud(ctx: CanvasRenderingContext2D, layout: Layout, state: Ga
 
 function drawScore(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, time: number, flaming: boolean, flavour: number, reduced: boolean, tier: number, flameBreakAt: number, flameUntil: number, scale: number, pulseAlpha: number): void {
   ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale); ctx.translate(-x, -y);
-  if (flaming) { const key = (['cherry','orange','lemon','apple','blueberry','grape','bubblegum'] as const)[flavour - 1]!; const colour = PALETTE.flavour[key].base; ctx.save(); ctx.lineJoin = 'round'; ctx.lineWidth = 2.5; ctx.strokeStyle = colour; ctx.strokeText(text, x, y);
+  if (flaming) { const key = (['cherry','orange','lemon','apple','blueberry','grape','bubblegum'] as const)[flavour - 1]!; const colour = PALETTE.flavour[key].base; ctx.save(); ctx.lineJoin = 'round'; ctx.lineWidth = 2.5; ctx.strokeStyle = colour; drawSteadyText(ctx, text, x, y, 'stroke');
     if (!reduced) { ctx.globalCompositeOperation = 'lighter'; const count = tier >= 4 ? 16 : 12; const rate = tier >= 4 ? 34 : 22; const breakFade = flameUntil > time || flameBreakAt < 0 || time - flameBreakAt >= 400 ? 1 : Math.max(0, 1 - (time - flameBreakAt) / 400); for (let i = 0; i < count; i += 1) { const phase = (time * rate / 1000 + i * 1.618) % count; const progress = phase / count; const rise = 18 + progress * 12; const sway = Math.sin(time / 100 + i * 2.1) * 4; const fx = x + (i / (count - 1) - 0.5) * Math.min(120, text.length * 25) + sway; const fy = y - 8 - rise; const size = (1 + 4 * (1 - progress)) * (0.2 + 0.8 * (1 - progress)); const flame = flameSprite(flavour); if (flame) { ctx.globalAlpha = breakFade; ctx.drawImage(flame, fx - size, fy - size * 2, size * 2, size * 3); } } ctx.globalAlpha = 1; }
     ctx.restore();
   }
-  ctx.fillStyle = PALETTE.ui.textPrimary; ctx.fillText(text, x, y);
-  if (pulseAlpha > 0) { const colour = tier >= 4 ? PALETTE.fx.comboTier4 : tier >= 3 ? PALETTE.fx.comboTier3 : tier >= 2 ? PALETTE.fx.comboTier2 : tier >= 1 ? PALETTE.fx.comboTier1 : PALETTE.fx.numberFill; ctx.globalAlpha = pulseAlpha; ctx.fillStyle = colour; ctx.fillText(text, x, y); }
+  ctx.fillStyle = PALETTE.ui.textPrimary; drawSteadyText(ctx, text, x, y, 'fill');
+  if (pulseAlpha > 0) { const colour = tier >= 4 ? PALETTE.fx.comboTier4 : tier >= 3 ? PALETTE.fx.comboTier3 : tier >= 2 ? PALETTE.fx.comboTier2 : tier >= 1 ? PALETTE.fx.comboTier1 : PALETTE.fx.numberFill; ctx.globalAlpha = pulseAlpha; ctx.fillStyle = colour; drawSteadyText(ctx, text, x, y, 'fill'); }
   ctx.restore();
+}
+
+// spec-note: Score digits sit in fixed-width slots (the widest digit of the current font), so a count-up never shifts the digits next to a changing one. The whole number is still centred on x, so it moves only when the digit count grows.
+const advanceCache = new Map<string, number>();
+function drawSteadyText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, mode: 'fill' | 'stroke'): void {
+  let slot = advanceCache.get(ctx.font);
+  if (slot === undefined) { slot = 0; for (const digit of '0123456789') slot = Math.max(slot, ctx.measureText(digit).width); advanceCache.set(ctx.font, slot); }
+  const glyphs = [...text]; const widths = glyphs.map((glyph) => glyph >= '0' && glyph <= '9' ? slot : ctx.measureText(glyph).width);
+  const total = widths.reduce((sum, width) => sum + width, 0);
+  const align = ctx.textAlign; ctx.textAlign = 'center';
+  let cursor = x - total / 2;
+  glyphs.forEach((glyph, index) => { const width = widths[index]!; const centre = cursor + width / 2; if (mode === 'fill') ctx.fillText(glyph, centre, y); else ctx.strokeText(glyph, centre, y); cursor += width; });
+  ctx.textAlign = align;
 }
 
 function drawChaseBar(ctx: CanvasRenderingContext2D, layout: Layout, score: number, best: number, challengeScore: number | undefined, elapsed: number, passedAt: number): void {

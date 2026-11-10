@@ -20,7 +20,7 @@ export interface Layout {
 
 export interface SafeInsets { top?: number; bottom?: number }
 
-export function computeLayout(width: number, height: number, safe: SafeInsets = {}, hasGoalStrip = false): Layout {
+export function computeLayout(width: number, height: number, safe: SafeInsets = {}, hasGoalStrip = false, daily = false): Layout {
   const w = Math.max(1, width);
   const h = Math.max(1, height);
   const safeTop = Math.max(0, safe.top ?? 0);
@@ -30,32 +30,40 @@ export function computeLayout(width: number, height: number, safe: SafeInsets = 
     // SG §15.3: sideways phones use a portrait composition in a centred column.
     const columnWidth = Math.min(w, h * 0.62);
     const left = (w - columnWidth) / 2;
-    const inner = computePortrait(columnWidth, h, safeTop, safeBottom, hasGoalStrip);
+    const inner = computePortrait(columnWidth, h, safeTop, safeBottom, hasGoalStrip, daily);
     return shiftLayout(inner, left, { x: left, y: 0, width: columnWidth, height: h });
   }
   if (portrait) {
     const columnWidth = w > 600 ? 600 : w;
     const left = (w - columnWidth) / 2;
-    const result = computePortrait(columnWidth, h, safeTop, safeBottom, hasGoalStrip);
+    const result = computePortrait(columnWidth, h, safeTop, safeBottom, hasGoalStrip, daily);
     return shiftLayout(result, left, { x: left, y: 0, width: columnWidth, height: h });
   }
   return computeLandscape(w, h, safeTop, safeBottom, hasGoalStrip);
 }
 
-function computePortrait(w: number, h: number, safeTop: number, safeBottom: number, hasGoalStrip: boolean): Layout {
-  const k = clamp(h / 844, 0.78, 1.15);
-  const topH = 60 * k + safeTop;
-  const scoreH = 84 * k;
-  const comboH = 44 * k;
+// spec-note: The HUD bands scale with k = clamp(H / 844, 0.7, 1.15). The floor used to be 0.78, which made the bands too tall on 320x568 and 360x640 and left the board 24 px short. The top band never drops below 52 px, so the 44 px icon buttons and the 48 px tutorial Skip button stay inside it, and the combo band never drops below 40 px so the rescue ring clears the tray.
+// spec-note: The Daily score band is taller (116 instead of 84 at k = 1) so the score, Best, Tray and Apple pops lines each get their own row. The board gives up the difference only on short phones.
+export const PORTRAIT_TRAY_MARGIN = 4;
+export const PORTRAIT_TRAY_GAP = 8;
+/** SG §8.2 tray slot width: 122 px at the reference width, never scaled by height, and never wider than the column allows. */
+export function portraitTraySlotWidth(columnWidth: number): number { return Math.min(122, (columnWidth - PORTRAIT_TRAY_MARGIN * 2 - PORTRAIT_TRAY_GAP * 2) / 3); }
+
+function computePortrait(w: number, h: number, safeTop: number, safeBottom: number, hasGoalStrip: boolean, daily: boolean): Layout {
+  const k = clamp(h / 844, 0.7, 1.15);
+  const topH = Math.max(52, 60 * k) + safeTop;
+  const scoreH = (daily ? 116 : 84) * k;
+  const comboH = Math.max(40, 44 * k);
   const trayH = 168 * k;
   const bottomH = 16 * k + safeBottom;
   const goalH = hasGoalStrip ? 30 * k : 0;
-  const boardRaw = Math.min(w - 22, 560, h - (372 + (hasGoalStrip ? 30 : 0)) * k - safeTop - safeBottom);
+  const fixedH = topH + scoreH + goalH + comboH + trayH + bottomH;
+  const boardRaw = Math.min(w - 22, 560, h - fixedH);
   // spec-note: A transient tiny height during a WebView resize used to give a board of 8 px and a negative cell size, which made roundRect throw and froze the render loop. The board never drops below 24 px, so cells stay at least 1 px.
   const boardSize = Math.max(24, Math.floor(boardRaw / 8) * 8);
   const cellSize = (boardSize - 16) / 8;
   const boardX = (w - boardSize) / 2;
-  const used = topH + scoreH + goalH + comboH + trayH + bottomH + boardSize;
+  const used = fixedH + boardSize;
   const leftover = Math.max(0, h - used);
   // spec-note: With a goal strip, gap B is at least 6 px so the board never touches the pills (on 320x568 the leftover was 6 px and they touched). Taller phones keep the 1 : 1 : 2 split.
   const gapB = hasGoalStrip ? Math.max(leftover * 0.25, Math.min(6, leftover)) : leftover * 0.25;
@@ -73,7 +81,7 @@ function computePortrait(w: number, h: number, safeTop: number, safeBottom: numb
     topBar: rect(0, 0, w, topH), score: rect(0, scoreY, w, scoreH), goalStrip: rect(0, goalY, w, goalH),
     board: rect(boardX, boardY, boardSize, boardSize), combo: rect(0, comboY, w, comboH),
     tray: rect(0, trayY, w, trayH), bottom: rect(0, h - bottomH, w, bottomH),
-    cellSize, trayCellSize: Math.min(26.4, (Math.min(122 * k, w / 3 - 8) / 5.4)),
+    cellSize, trayCellSize: Math.min(26.4, portraitTraySlotWidth(w) / 5.4),
     gaps: { a: gapA, b: gapB, c: gapC },
   };
 }

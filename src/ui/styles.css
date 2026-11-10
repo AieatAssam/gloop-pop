@@ -22,7 +22,7 @@ body { color: var(--ui-text-primary); }
 .gloop-topbar-actions { display: flex; align-items: center; gap: 8px; pointer-events: none; }
 .gloop-icon-button { width: 44px; height: 44px; padding: 10px; border: 2px solid var(--ui-panel-border); border-radius: 50%; color: var(--ui-text-primary); background: var(--ui-panel-solid); box-shadow: inset 0 1px 0 var(--ui-panel-highlight); pointer-events: auto; cursor: pointer; }
 .gloop-icon-button svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.daily-topbar-pill { height: 36px; max-width: 220px; overflow: hidden; padding: 0 12px; border: 2px solid var(--ui-panel-border); border-radius: 18px; color: var(--ui-text-primary); background: var(--ui-panel-solid); font: 800 15px/1.2 Nunito, sans-serif; text-overflow: ellipsis; white-space: nowrap; pointer-events: auto; cursor: pointer; }
+.daily-topbar-pill { height: 44px; max-width: 220px; overflow: hidden; padding: 0 12px; border: 2px solid var(--ui-panel-border); border-radius: 18px; color: var(--ui-text-primary); background: var(--ui-panel-solid); font: 800 15px/1.2 Nunito, sans-serif; text-overflow: ellipsis; white-space: nowrap; pointer-events: auto; cursor: pointer; }
 .gloop-icon-button:focus-visible { outline: 3px solid var(--ui-focus-ring); outline-offset: 3px; }
 .button:focus-visible, .text-button:focus-visible, .daily-topbar-pill:focus-visible, .mode-card:focus-visible, .settings-toggle:focus-visible, select:focus-visible { outline: 3px solid var(--ui-focus-ring); outline-offset: 3px; }
 .tutorial-topbar-skip { display: none; min-height: 44px; padding: 0 14px; font-size: 16px; pointer-events: auto; }
@@ -33,9 +33,9 @@ body { color: var(--ui-text-primary); }
 .controls-hint { display: none; }
 @media (min-width: 700px) { .controls-hint { position: absolute; bottom: 28px; left: 50%; display: block; color: var(--ui-text-dim); font: 700 14px/1.2 Nunito, sans-serif; white-space: nowrap; text-align: center; transform: translateX(-50%); pointer-events: none; } }
 .controls-hint[hidden], #ui:has(.gloop-overlay.is-visible) .controls-hint { display: none; }
-.gloop-overlay { position: fixed; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; padding: 20px; background: var(--ui-scrim); pointer-events: auto; }
+.gloop-overlay { position: fixed; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; padding: calc(16px + var(--safe-area-top)) 16px calc(16px + var(--safe-area-bottom)); background: var(--ui-scrim); pointer-events: auto; }
 .gloop-overlay.is-visible { display: flex; }
-.gloop-modal { width: min(100%, 360px); display: grid; justify-items: center; gap: 18px; text-align: center; animation: modal-in 220ms cubic-bezier(.34,1.56,.64,1) both; }
+.gloop-modal { width: min(100%, 360px); max-height: 100%; overflow-y: auto; overscroll-behavior: contain; display: grid; justify-items: center; gap: 18px; text-align: center; animation: modal-in 220ms cubic-bezier(.34,1.56,.64,1) both; }
 .gloop-modal--game-over { animation-name: game-over-in; }
 .gloop-modal h1 { margin: 0 0 4px; color: var(--ui-text-primary); font: 800 30px/1.1 "Baloo 2", ui-rounded, system-ui, sans-serif; }
 .gloop-result-score { margin: -10px 0 0; color: var(--ui-text-primary); font: 800 56px/1 "Baloo 2", ui-rounded, system-ui, sans-serif; }
@@ -108,7 +108,7 @@ body { color: var(--ui-text-primary); }
 .mission-progress-line small { min-width: 64px; text-align: right; }
 .mission-side { min-height: 56px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px; }
 .mission-change { width: 44px; height: 44px; border: 1px solid var(--ui-panel-border); border-radius: 50%; color: var(--ui-text-primary); background: linear-gradient(var(--ui-secondary-top),var(--ui-secondary-bottom)); box-shadow: 0 2px 0 var(--ui-secondary-lip); font: 800 23px/1 "Nunito", sans-serif; cursor: pointer; }
-.mission-side .mission-claim { min-height: 40px; padding: 0 12px; border-radius: 20px; font: 800 18px/1 "Baloo 2", sans-serif; animation: mission-pulse 1400ms ease-in-out infinite; }
+.mission-side .mission-claim { min-height: 44px; padding: 0 12px; border-radius: 20px; font: 800 18px/1 "Baloo 2", sans-serif; animation: mission-pulse 1400ms ease-in-out infinite; }
 .mission-done { color: var(--ui-success); font: 700 13px/1 "Nunito", sans-serif; }
 .mission-coin-flight { position: fixed; z-index: 20; width: 16px; height: 16px; border: 1px solid var(--ui-gold); border-radius: 50%; background: radial-gradient(circle at 35% 30%, var(--light-specular-soft), var(--ui-coin) 58%, var(--ui-gold)); box-shadow: 0 2px 5px var(--light-shadow); pointer-events: none; }
 .mission-row.is-claimed .mission-text { color: var(--ui-text-secondary); }
@@ -362,3 +362,6 @@ body { color: var(--ui-text-primary); }
 @media (max-width: 480px) { .how-to-demo { grid-template-columns: 1fr; } }
 /* Narrow phones (320 CSS px wide): the 7-day streak strip must fit the panel, or its centred ends spill past both edges. */
 @media (max-width: 340px) { .streak-strip { gap: 4px; } .streak-day { width: 26px; height: 26px; } }
+/* Round 3: short phones keep the result cards inside the screen without clipping their buttons. */
+@media (max-height: 640px) { .adventure-level-card, .adventure-result-panel { padding: 16px; gap: 8px; } .adventure-result-shade { padding-top: calc(var(--safe-area-top) + 72px); } }
+@media (max-height: 800px) { .daily-result-panel { gap: 10px; } }
