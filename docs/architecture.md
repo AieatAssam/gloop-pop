@@ -115,6 +115,7 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   │   ├─ cubes.ts           # M12.4: SG §20.1 sugar and hard cube sprites
 │   │   ├─ director.ts        # turns GameEvents into timed animations/fx/sfx cues (SG §9)
 │   │   ├─ heldPiece.ts       # pure pickup and drag spring transforms (§9.13.b–c)
+│   │   ├─ dragGhost.ts      # outline-only ghost for invalid drop spots, preview plan (SG §8.3–8.4)
 │   │   ├─ fx/particles.ts, fx/shake.ts, fx/texts.ts, fx/tweens.ts, fx/hitStop.ts, fx/slowMo.ts, fx/spring.ts, fx/pool.ts
 │   │   ├─ ghostHand.ts       # tutorial hand (SG §11.10)
 │   │   ├─ miniGloop.ts       # small gloop illustrations for DOM cards/badges

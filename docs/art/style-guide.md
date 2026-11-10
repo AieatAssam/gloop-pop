@@ -221,7 +221,7 @@ Board grid top-left = `(bx, by)`; cell (r, c) occupies `[bx + c·c, by + r·c]` 
 - **Follow:** the piece follows the pointer with no lag (position set every pointermove), plus a tilt: rotation = clamp(velocityX × 0.0006, −6°, 6°), smoothed over 80 ms. (superseded by §9.13.c)
 - **Snap target:** compute the board cell under the piece's top-left cell centre; if the placement is valid there, that is the target. Otherwise check the 8 neighbour offsets and pick the valid one with the smallest distance in px, but only if it is within 0.6c. This forgiving snap matters for feel.
 - **Drop:** valid → piece animates to the target (§9.2). Invalid or released outside the board → returns to its slot along an arc over 180 ms `easeOutCubic`, scaling back to `ct`, with the "return" sound. (superseded in part by §9.13.b and §9.13.e)
-- **Keyboard (desktop):** keys 1/2/3 select a piece (it lifts above its slot); a ghost appears at the first valid position closest to the board centre; arrows move the ghost exactly one cell (clamped so the piece stays inside the board); at an invalid position the ghost is drawn as an outline only (`fx.ghostOutline` at alpha 0.5, no fill) and the held piece looks worried; Space/Enter places if valid, otherwise plays nothing and wiggles the ghost 4 px; Esc cancels.
+- **Keyboard (desktop):** keys 1/2/3 select a piece (it lifts above its slot); a ghost appears at the first valid position closest to the board centre; arrows move the ghost exactly one cell (clamped so the piece stays inside the board); at an invalid position the ghost is drawn as an outline only (`fx.ghostOutline` at alpha 0.5, no fill, §8.4) and the held piece looks worried; Space/Enter places if valid, otherwise plays nothing and wiggles the ghost 4 px; Esc cancels.
 - **Click-click (desktop):** clicking a piece selects it (like keys); the ghost follows the mouse over the board; a click places.
 - **Pointers:** only the pointer that picked a piece up can move, drop or cancel it. A second finger is ignored, so it never takes over the drag or drops the piece at its own position.
 
@@ -231,7 +231,12 @@ While the snap target is valid:
 2. **Line preview:** every row/column that would clear: its cells (existing gloops and ghost cells) brighten with an additive `fx.lineGlow` overlay at alpha 0.28, pulsing 0.18–0.34 over 600 ms.
 3. **Pop preview:** every gloop that would pop (per design §3.5) gets a 0.07c `fx.popPreview` outline drawn 0.04c outside its silhouette, pulsing alpha 0.5–1.0 over 500 ms, and switches to the **excited** face. A small label "+{n}" in 16 px Baloo 2 appears at the gloop's face showing its extra popped cells count. This is how players discover the twist without reading.
 4. **Merge preview:** if the piece would join an existing same-flavour gloop (no clear), both get a 0.04c outline in `flavour.light` (alpha 0.7) and the existing gloop looks at the piece.
-While the target is invalid: no ghost for pointer drags (keyboard: outline-only ghost, §8.3); the held piece draws at alpha 0.75 with the worried face.
+While the target is invalid: the held piece draws at alpha 0.75 with the worried face, and the cells under it get an **outline-only ghost** (`src/render/dragGhost.ts`, shared with keyboard mode, §8.3):
+- **Spot:** the unsnapped release cell, from the same finger-derived origin (touch lift 1.1c included) and the same rounding that a release uses. It is not snapped, so it is the cell the piece points at.
+- **Style:** each piece cell gets the same rounded outline as the landing ghost (radius 0.2c, inset 0.04c outside the cell, line weight max(1.5 px, 0.05c)), in `fx.ghostOutline` at alpha 0.5. No fill. It is drawn over the held piece so the cells stay readable. It is static: no pulse, no flash, so reduced motion needs no change.
+- **Clipping:** cells off the board are not drawn. A piece entirely off the board draws nothing.
+- **Fade:** it cross-fades with the landing fill (§9.13.d): as the fill fades out (60 ms) the outline fades in, and the reverse on a valid spot.
+- **Why shape, not colour:** a filled ghost means it fits, an outline means it does not. Colour is not used, so colour-blind players get the same signal.
 
 ---
 
