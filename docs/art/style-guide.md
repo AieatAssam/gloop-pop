@@ -1286,7 +1286,7 @@ Tutorial bubble: bottom edge 12 px above the tray top, centred on the target slo
 
 ### 15.3 Responsive algorithm (`src/render/layout.ts`, pure function, unit-tested)
 - `portrait = H / W ≥ 1.25`.
-- **Portrait:** non-board bands at reference total 372 px (top 60, score 84, combo 44, tray 168, bottom 16); Daily uses score 116 (total 404). Scale them by `k = clamp(H / 844, 0.7, 1.15)`, then apply floors: the top bar is at least 52 px (plus safe top), so the 44 px icon buttons and the 48 px tutorial Skip fit, and the combo band is at least 40 px, so the rescue ring clears the tray. `board = max(24, floor(min(W − 22, 560, H − non-board bands) / 8) × 8)`, so a transient tiny height cannot give a negative cell size. `c = (board − 16) / 8`. Leftover vertical space is split 25% gap A, 25% gap B, 50% gap C. With a goal strip, gap B is at least 6 px (or all of the leftover, if less), so the board never touches the pills. Tray slots: width = min(122, (W − 24) / 3) (4 px outer margins, 8 px gaps), centred in the column; `ct = min(26.4, slot / 5.4)`. Widths > 600: centre a 600 px wide column. The layout is recomputed when the goal strip or Daily state changes.
+- **Portrait:** non-board bands at reference total 372 px (top 60, score 84, combo 44, tray 168, bottom 16); Daily uses score 116 (total 404). Scale them by `k = clamp(H / 844, 0.7, 1.15)`, then apply floors: the top bar is at least 52 px (plus safe top), so the 44 px icon buttons and the 48 px tutorial Skip fit, and the combo band is at least 40 px, so the rescue ring clears the tray. `board = max(24, floor(min(W − 22, 560, H − non-board bands) / 8) × 8)`, so a transient tiny height cannot give a negative cell size. `c = (board − 16) / 8`. Leftover vertical space is split 25% gap A, 25% gap B, 50% gap C. With a goal strip, gap B is at least 6 px (or all of the leftover, if less), so the board never touches the pills. Tray slots: width = (W − 24) / 3, uncapped (4 px outer margins, 8 px gaps; 112 at 360, 122 at 390, 129 at 412), centred in the column; `ct = min(26.4, slot / 5.4)`. Widths > 600: centre a 600 px wide column. The layout is recomputed when the goal strip or Daily state changes.
 - **Landscape:** `u = min(W / 1280, H / 800)`, clamp 0.6–1.4; scale every 15.2 value by u around the centre. If `W < 900` and landscape (phone sideways), use the portrait layout inside a centred column of width `H × 0.62`.
 - Canvas covers the whole viewport; DOM HUD buttons are positioned from the same layout object (CSS variables set on resize).
 - Resize/orientation change: recompute layout, rebuild caches, no state change.
@@ -1513,7 +1513,7 @@ Modal panels (§11.3) like the game-over panel (§13.3 layout). Buttons work fro
 | Board | 236 → 620 | frame x 14 → 398; grid x 22 → 390, y 244 → 612; c = 46 |
 | Combo strip | 620 → 668 | combo label + pips at x 22; rescue ring centre (378, 644) 40 px; Adventure booster buttons centres (326, 644) and (378, 644), 44 px |
 | gap C | 668 → 716 | |
-| Tray | 716 → 898 | 3 slots 122 × 173, centred (x 15 / 145 / 275), centre y 807; ct = min(26.4, 122 / 5.4) = 22.6 |
+| Tray | 716 → 898 | 3 slots 122 × 173 at x 4 / 134 / 264 ((390 − 24) / 3), centre y 807; ct = min(26.4, 122 / 5.4) = 22.6 |
 | Bottom | 898 → 915 | |
 
 **Pixel 7 without the strip** (Daily, Zen): the §15.3 algorithm gives board 384 and leftover 127.6 px: gap A 31.9, gap B 31.9, gap C 63.8.

@@ -46,8 +46,9 @@ export function computeLayout(width: number, height: number, safe: SafeInsets = 
 // spec-note: The Daily score band is taller (116 instead of 84 at k = 1) so the score, Best, Tray and Apple pops lines each get their own row. The board gives up the difference only on short phones.
 export const PORTRAIT_TRAY_MARGIN = 4;
 export const PORTRAIT_TRAY_GAP = 8;
-/** SG §8.2 tray slot width: 122 px at the reference width, never scaled by height, and never wider than the column allows. */
-export function portraitTraySlotWidth(columnWidth: number): number { return Math.min(122, (columnWidth - PORTRAIT_TRAY_MARGIN * 2 - PORTRAIT_TRAY_GAP * 2) / 3); }
+/** SG §15.3 tray slot width: three slots fill the column minus 4 px outer margins and 8 px gaps, so slots are as large as the column allows (112 at 360 wide, 122 at the 390 reference, 129 at 412). Never scaled by height. */
+// spec-note: The old 122 px cap left 7 px of unused width per slot on 412 px phones. The uncapped formula is the one the layout maths gives, so the cap is removed; the piece scale still caps at 26.4 px per cell.
+export function portraitTraySlotWidth(columnWidth: number): number { return (columnWidth - PORTRAIT_TRAY_MARGIN * 2 - PORTRAIT_TRAY_GAP * 2) / 3; }
 
 function computePortrait(w: number, h: number, safeTop: number, safeBottom: number, hasGoalStrip: boolean, daily: boolean): Layout {
   const k = clamp(h / 844, 0.7, 1.15);
