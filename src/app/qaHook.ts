@@ -3,6 +3,8 @@ import type { ToastAccent } from '../ui/toasts';
 
 export interface QaDrive {
   screen(): string;
+  /** Current layout rects (CSS px), for measuring bands on device. */
+  layout(): unknown;
   state(): unknown;
   trayPoint(slot: number): { x: number; y: number };
   dropPoint(slot: number, row: number, col: number): { x: number; y: number };
@@ -22,6 +24,7 @@ export interface QaWindow { __gloopQa?: unknown }
 export function installQaHook(drive: QaDrive): void {
   (window as Window & QaWindow).__gloopQa = {
     screen: () => drive.screen(),
+    layout: () => drive.layout(),
     state: () => drive.state(),
     trayPoint: (slot: number) => drive.trayPoint(slot),
     dropPoint: (slot: number, row: number, col: number) => drive.dropPoint(slot, row, col),

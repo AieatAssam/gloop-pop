@@ -192,6 +192,7 @@ export async function bootApp(): Promise<void> {
   if (import.meta.env.VITE_QA_HOOK === 'true') {
     void Promise.all([import('./qaHook'), import('./debugTools')]).then(([hook, scenes]) => hook.installQaHook({
       screen: () => router.current,
+      layout: () => layout,
       state: snapshotState,
       trayPoint: trayPointFor,
       dropPoint: dropPointFor,

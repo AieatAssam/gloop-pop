@@ -48,6 +48,8 @@ export function computeLayout(width: number, height: number, safe: SafeInsets = 
 // spec-note: The Daily score band is taller (116 instead of 84 at k = 1) so the score, Best, Tray and Apple pops lines each get their own row. The board gives up the difference only on short phones.
 // spec-note: The toast lane is reserved inside the tray band, above the slots, so a toast never covers the score, goal strip or board at any phone size. Gaps A to C are too small on 320x568 and 390x844 (6 to 37 px), so a lane that is always there is the only fixed place. Slots keep their width; their height shrinks by the lane.
 export const PORTRAIT_TOAST_LANE = 40;
+/** SG §15.3: minimum clear space between the goal pills and the board frame. */
+export const MIN_GOAL_BOARD_GAP = 6;
 export const PORTRAIT_TRAY_MARGIN = 4;
 export const PORTRAIT_TRAY_GAP = 8;
 /** SG §15.3 tray slot width: three slots fill the column minus 4 px outer margins and 8 px gaps, so slots are as large as the column allows (112 at 360 wide, 122 at the 390 reference, 129 at 412). Never scaled by height. */
@@ -63,15 +65,17 @@ function computePortrait(w: number, h: number, safeTop: number, safeBottom: numb
   const bottomH = 16 * k + safeBottom;
   const goalH = hasGoalStrip ? 30 * k : 0;
   const fixedH = topH + scoreH + goalH + comboH + trayH + bottomH;
-  const boardRaw = Math.min(w - 22, 560, h - fixedH);
+  // spec-note: With a goal strip, the board gives up up to 8 px (one board step) so gap B is always at least 6 px. On 320x568 and 360x640 the old leftover was 2 to 3 px, and the board frame looked stuck to the goal pills.
+  const goalGap = hasGoalStrip ? MIN_GOAL_BOARD_GAP : 0;
+  const boardRaw = Math.min(w - 22, 560, h - fixedH - goalGap);
   // spec-note: A transient tiny height during a WebView resize used to give a board of 8 px and a negative cell size, which made roundRect throw and froze the render loop. The board never drops below 24 px, so cells stay at least 1 px.
   const boardSize = Math.max(24, Math.floor(boardRaw / 8) * 8);
   const cellSize = (boardSize - 16) / 8;
   const boardX = (w - boardSize) / 2;
   const used = fixedH + boardSize;
   const leftover = Math.max(0, h - used);
-  // spec-note: With a goal strip, gap B is at least 6 px so the board never touches the pills (on 320x568 the leftover was 6 px and they touched). Taller phones keep the 1 : 1 : 2 split.
-  const gapB = hasGoalStrip ? Math.max(leftover * 0.25, Math.min(6, leftover)) : leftover * 0.25;
+  // With a goal strip, gap B is at least 6 px (the board is sized to leave it). Taller phones keep the 1 : 1 : 2 split.
+  const gapB = hasGoalStrip ? Math.min(leftover, Math.max(leftover * 0.25, goalGap)) : leftover * 0.25;
   const others = leftover - gapB;
   const gapA = others / 3;
   const gapC = others * 2 / 3;

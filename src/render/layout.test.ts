@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeLayout, portraitTraySlotWidth } from './layout';
+import { MIN_GOAL_BOARD_GAP, computeLayout, portraitTraySlotWidth } from './layout';
 import { traySlotRect } from './boardView';
 
 describe('responsive layout', () => {
@@ -126,6 +126,17 @@ describe('in-play toast lane (SG §11.8, §15.3)', () => {
         expect(slot.y).toBeGreaterThanOrEqual(layout.toastLane.y + layout.toastLane.height);
         expect(slot.y + slot.height).toBeLessThanOrEqual(layout.tray.y + layout.tray.height + 0.01);
       }
+    }
+  });
+});
+
+describe('goal strip clearance (SG §15.3, §20.8)', () => {
+  it('keeps at least 6 px between the goal pills and the board at every short and tall phone size', () => {
+    for (const [width, height] of [[320, 568], [360, 640], [360, 760], [390, 844], [412, 915]] as const) {
+      const layout = computeLayout(width, height, {}, true, false);
+      const gap = layout.board.y - (layout.goalStrip.y + layout.goalStrip.height);
+      expect(gap).toBeGreaterThanOrEqual(MIN_GOAL_BOARD_GAP - 0.01);
+      expect(layout.board.width % 8).toBe(0);
     }
   });
 });
