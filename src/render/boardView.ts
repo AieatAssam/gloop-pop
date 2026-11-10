@@ -234,9 +234,9 @@ function drawPreview(ctx: CanvasRenderingContext2D, _state: GameState, piece: Pi
   const flavour = PALETTE.flavour[Object.keys(PALETTE.flavour)[piece.flavour - 1] as keyof typeof PALETTE.flavour];
   ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.translate(-cx, -cy); ctx.globalAlpha = alpha; ctx.fillStyle = flavour.base;
   for (const [dr, dc] of def.cells) ctx.fill(roundRectPath(gx + (col + dc) * c + 2, gy + (row + dr) * c + 2, c - 4, c - 4, c * 0.2));
-  // The outline sits just outside each landing cell, so it still shows when the lifted piece covers the cells.
-  const lineWidth = Math.max(1.5, c * 0.05); ctx.globalAlpha = Math.min(1, alpha * 1.8); ctx.strokeStyle = flavour.light; ctx.lineWidth = lineWidth;
-  for (const [dr, dc] of def.cells) ctx.stroke(roundRectPath(gx + (col + dc) * c + 2 - lineWidth / 2, gy + (row + dr) * c + 2 - lineWidth / 2, c - 4 + lineWidth, c - 4 + lineWidth, c * 0.2));
+  // SG §8.4: the outline's inner edge sits 0.04c outside each landing cell, so it still shows around the held piece (drawn at 0.82 alpha over it).
+  const lineWidth = Math.max(1.5, c * 0.05); const inset = 2 - c * 0.04 - lineWidth / 2; ctx.globalAlpha = Math.min(1, alpha * 1.8); ctx.strokeStyle = flavour.light; ctx.lineWidth = lineWidth;
+  for (const [dr, dc] of def.cells) ctx.stroke(roundRectPath(gx + (col + dc) * c + inset, gy + (row + dr) * c + inset, c - 2 * inset, c - 2 * inset, c * 0.2));
   ctx.restore();
   ctx.save(); ctx.globalAlpha = alpha * (0.24 + 0.1 * Math.sin(elapsed / 95)); ctx.fillStyle = PALETTE.fx.lineGlow;
   for (const r of preview.rows) ctx.fillRect(gx, gy + r * c, c * 8, c); for (const co of preview.cols) ctx.fillRect(gx + co * c, gy, c, c * 8); ctx.restore();
