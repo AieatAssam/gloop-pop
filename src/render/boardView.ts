@@ -16,6 +16,7 @@ import { nearMissFacts, type NearMissFacts } from '../core/nearMiss';
 import { spring, type SpringState } from './fx/spring';
 import { placementCellsForFrame, placementLayerLifetimeMs } from './fx/placementLayer';
 import { getEquippedTheme } from './themes';
+import { drawOutlineGhost, ghostInset, ghostLineWidth, previewPlan, strokeGhostCell } from './dragGhost';
 import type { Gloop } from '../core/types';
 
 export interface SlotView { rect: Rect; piece: Piece | null; cell: number }
@@ -26,7 +27,7 @@ export interface BoardView {
   cellAt(x: number, y: number, layout: Layout): { row: number; col: number } | null;
   slotAt(x: number, y: number, layout: Layout, state: GameState): number;
 }
-export interface DragView { slot: number; x: number; y: number; pointerType: string; selected: boolean; row?: number; col?: number; ghostRow?: number; ghostCol?: number; drawX?: number; drawY?: number; tilt?: number; stretch?: number; stretchAngle?: number; shear?: number; pickupScale?: number; lift?: number; grabSx?: number; grabSy?: number; ghostAlpha?: number; ghostScale?: number; ghostTargetAlpha?: number; ghostFadeLeft?: number; ghostValid?: boolean; reducedMotion?: boolean }
+export interface DragView { slot: number; x: number; y: number; pointerType: string; selected: boolean; row?: number; col?: number; ghostRow?: number; ghostCol?: number; /** pointer drags: the unsnapped release cell (the same cell pointerUp resolves before snapping), kept even when invalid so the outline ghost can show it. */ spotRow?: number; spotCol?: number; drawX?: number; drawY?: number; tilt?: number; stretch?: number; stretchAngle?: number; shear?: number; pickupScale?: number; lift?: number; grabSx?: number; grabSy?: number; ghostAlpha?: number; ghostScale?: number; ghostTargetAlpha?: number; ghostFadeLeft?: number; ghostValid?: boolean; reducedMotion?: boolean }
 const DRAW_TWEEN = { entry: 250, trayStep: 60, trayDeal: 240, ghostFade: 60, waveStep: 12, waveLife: 250 } as const;
 export function placementTravelProgress(ageMs: number, reducedMotion: boolean): number { return reducedMotion ? 1 : Math.min(1, Math.max(0, ageMs / 60)); }
 
@@ -42,6 +43,7 @@ export function createBoardView(): BoardView {
   let lossNearMiss: NearMissFacts | undefined;
   const heldShadows = new Map<string, [HTMLCanvasElement, HTMLCanvasElement]>();
   let keyboardHeld: { slot: number; x: SpringState; y: SpringState } | undefined; let keyboardAt = -1;
+  const ghostCells: number[] = [];
   let releasedGhost: { piece: Piece; preview: Preview; row: number; col: number; alpha: number; scale: number; at: number } | undefined;
   const happyUntil = new Map<number, number>(); const grinUntil = new Map<number, number>(); let allClearUntil = -1;
   const jiggles = new Map<number, { startAt: number; pushX: number; pushY: number; offsetX: SpringState; offsetY: SpringState; squash: SpringState; active: boolean }>(); let jiggleClock = -1;
@@ -96,6 +98,9 @@ export function createBoardView(): BoardView {
           const def = PIECES[piece.defId]!; const pc = c; const px = drag.pointerType === 'touch' ? drag.x - def.w * pc / 2 : drag.x - def.w * pc / 2; const py = drag.pointerType === 'touch' ? drag.y - def.h * pc - c * 1.1 : drag.y - def.h * pc / 2;
           // spec-note: The preview uses the same snapped cell that pointer.ts resolves for a release (drag.row/col), so the held piece's colour and the landing ghost never disagree with where the piece lands. Raw floor-based cell lookup is kept only for the keyboard path, which sets drag.row/col itself.
           const cell = drag.row !== undefined && drag.col !== undefined ? { row: drag.row, col: drag.col } : null; const valid = !!cell && canPlace(state, drag.slot, cell.row, cell.col); const previewRow = drag.ghostRow ?? cell?.row; const previewCol = drag.ghostCol ?? cell?.col; const ghostValid = previewRow !== undefined && previewCol !== undefined && canPlace(state, drag.slot, previewRow, previewCol); const preview: Preview | null = ghostValid ? previewPlacement(state, drag.slot, previewRow, previewCol) : null;
+          // SG §8.3/§8.4: an invalid spot shows an outline-only ghost on the cells under the piece. Keyboard uses its own cell; a pointer uses the unsnapped release cell (spotRow/spotCol).
+          const spotRow = drag.pointerType === 'keyboard' ? drag.row : drag.spotRow; const spotCol = drag.pointerType === 'keyboard' ? drag.col : drag.spotCol;
+          const plan = previewPlan(valid, spotRow, spotCol, def.cells, ghostCells);
           if (preview && previewRow !== undefined && previewCol !== undefined) { const alpha = drag.ghostAlpha ?? (valid ? GHOST_ALPHA : 0); if (alpha > 0.001) drawPreview(ctx, state, piece, preview, previewRow, previewCol, gx, gy, c, elapsed, alpha, drag.ghostScale ?? 1); if (!releasedGhost) releasedGhost = { piece, preview, row: previewRow, col: previewCol, alpha, scale: drag.ghostScale ?? 1, at: realNow }; else { releasedGhost.piece = piece; releasedGhost.preview = preview; releasedGhost.row = previewRow; releasedGhost.col = previewCol; releasedGhost.alpha = alpha; releasedGhost.scale = drag.ghostScale ?? 1; releasedGhost.at = realNow; } }
           if (drag.pointerType === 'keyboard') { const targetX = gx + (drag.col ?? 0) * c; const targetY = gy + (drag.row ?? 0) * c; if (!keyboardHeld || keyboardHeld.slot !== drag.slot) keyboardHeld = { slot: drag.slot, x: { x: targetX, v: 0 }, y: { x: targetY, v: 0 } }; const dt = keyboardAt < 0 ? 0 : Math.max(0, Math.min(50, realNow - keyboardAt)) / 1000; keyboardAt = realNow; spring(keyboardHeld.x, targetX, 12, 0.8, dt); spring(keyboardHeld.y, targetY, 12, 0.8, dt); drawPiece(ctx, piece.flavour, def.cells, pc, keyboardHeld.x.x, keyboardHeld.y.x, elapsed, valid ? 'excited' : 'worried', valid ? 0.46 : 0.28); }
           else {
@@ -109,6 +114,8 @@ export function createBoardView(): BoardView {
             drawPiece(ctx, piece.flavour, def.cells, pc, drawX - anchorX, drawY - anchorY, elapsed, valid ? 'excited' : 'worried', valid ? 0.82 : 0.75); ctx.restore();
             if (valid && preview && previewRow !== undefined && previewCol !== undefined) drawLandingOutline(ctx, piece, previewRow, previewCol, gx, gy, c, drag.ghostAlpha === undefined ? 1 : drag.ghostAlpha / GHOST_ALPHA);
           }
+          // Invalid spot: outline only, drawn over the held piece so the cells it points at stay readable. It cross-fades out as the fill of a valid spot fades in.
+          if (plan === 'outline') drawOutlineGhost(ctx, ghostCells, gx, gy, c, drag.pointerType === 'keyboard' ? 1 : 1 - (drag.ghostAlpha ?? 0) / GHOST_ALPHA);
         }
       }
       else if (releasedGhost) { const age = realNow - releasedGhost.at; if (age >= 60) releasedGhost = undefined; else drawPreview(ctx, state, releasedGhost.piece, releasedGhost.preview, releasedGhost.row, releasedGhost.col, gx, gy, c, elapsed, releasedGhost.alpha * (1 - age / 60), releasedGhost.scale); }
@@ -244,8 +251,8 @@ function drawPreview(ctx: CanvasRenderingContext2D, _state: GameState, piece: Pi
   ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.translate(-cx, -cy); ctx.globalAlpha = alpha; ctx.fillStyle = flavour.base;
   for (const [dr, dc] of def.cells) ctx.fill(roundRectPath(gx + (col + dc) * c + 2, gy + (row + dr) * c + 2, c - 4, c - 4, c * 0.2));
   // SG §8.4: the outline's inner edge sits 0.04c outside each landing cell, so it still shows around the held piece (drawn at 0.82 alpha over it).
-  const lineWidth = Math.max(1.5, c * 0.05); const inset = 2 - c * 0.04 - lineWidth / 2; ctx.globalAlpha = Math.min(1, alpha * 1.8); ctx.strokeStyle = flavour.light; ctx.lineWidth = lineWidth;
-  for (const [dr, dc] of def.cells) ctx.stroke(roundRectPath(gx + (col + dc) * c + inset, gy + (row + dr) * c + inset, c - 2 * inset, c - 2 * inset, c * 0.2));
+  const inset = ghostInset(c); ctx.globalAlpha = Math.min(1, alpha * 1.8); ctx.strokeStyle = flavour.light; ctx.lineWidth = ghostLineWidth(c);
+  for (const [dr, dc] of def.cells) strokeGhostCell(ctx, gx + (col + dc) * c, gy + (row + dr) * c, c, inset);
   ctx.restore();
   ctx.save(); ctx.globalAlpha = alpha * (0.24 + 0.1 * Math.sin(elapsed / 95)); ctx.fillStyle = PALETTE.fx.lineGlow;
   for (const r of preview.rows) ctx.fillRect(gx, gy + r * c, c * 8, c); for (const co of preview.cols) ctx.fillRect(gx + co * c, gy, c, c * 8); ctx.restore();

@@ -65,6 +65,8 @@ export function createPointerInput(view: BoardView, getLayout: () => Layout, get
       const def = PIECES[piece.defId]!; const target = fingerBoardOrigin(drag.x, drag.y, drag.pointerType, def.w, def.h, layout.cellSize);
       const c = layout.cellSize; const gx = layout.board.x + (layout.board.width - c * 8) / 2; const gy = layout.board.y + (layout.board.height - c * 8) / 2;
       const baseCol = Math.round((target.x - gx) / c); const baseRow = Math.round((target.y - gy) / c);
+      // spec-note: spotRow/spotCol is the same unsnapped release cell pointerReleaseCell gives (same origin, same rounding). The outline ghost for an invalid spot uses it, so the preview never disagrees with where a release would try to land.
+      drag.spotRow = baseRow; drag.spotCol = baseCol;
       const snap = nearestSnap(getState(), drag.slot, target.x, target.y, gx, gy, c, baseRow, baseCol);
       let magnetX = 0; let magnetY = 0;
       if (snap && !reduced) { magnetX = clamp((gx + snap.col * c - target.x) * 0.15, c * -0.12, c * 0.12); magnetY = clamp((gy + snap.row * c - target.y) * 0.15, c * -0.12, c * 0.12); }
@@ -88,7 +90,7 @@ export function createPointerInput(view: BoardView, getLayout: () => Layout, get
     if (!drag) return; const layout = getLayout(); const piece = getState().tray[drag.slot]; if (!piece) return;
     const def = PIECES[piece.defId]!; const c = layout.cellSize; const originX = drag.x - def.w * c / 2; const originY = drag.pointerType === 'touch' ? drag.y - def.h * c - c * 1.1 : drag.y - def.h * c / 2;
     resetHeldPiece(drag.held, originX, originY);
-    drag.row = undefined; drag.col = undefined; drag.ghostRow = undefined; drag.ghostCol = undefined;
+    drag.row = undefined; drag.col = undefined; drag.ghostRow = undefined; drag.ghostCol = undefined; drag.spotRow = undefined; drag.spotCol = undefined;
     drag.drawX = originX; drag.drawY = originY; drag.pickupScale = 0.6; drag.lift = 0; drag.grabSx = 1.12; drag.grabSy = 1 / 1.12; drag.ghostAlpha = 0; drag.ghostTargetAlpha = 0; drag.ghostFadeLeft = 0; drag.ghostValid = false; drag.ghostScale = 1;
   }
   function pointerOrigin(released: DragModel, width: number, height: number, cell: number): void { const origin = fingerBoardOrigin(released.x, released.y, released.pointerType, width, height, cell); placementOrigin = { x: released.drawX ?? origin.x, y: released.drawY ?? origin.y }; }
