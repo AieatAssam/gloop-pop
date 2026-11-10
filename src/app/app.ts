@@ -24,7 +24,7 @@ import { summarizeRun } from '../meta/runSummary';
 import { createRouter } from './router';
 import { createHomeScreen } from '../ui/screens/home';
 import { createStatsScreen } from '../ui/screens/stats';
-import { createToasts } from '../ui/toasts';
+import { TOAST_BLOCKER_SELECTOR, createToasts } from '../ui/toasts';
 import { onSaveVisibility } from '../platform/visibility';
 import type { Action, GameEvent, ModeId } from '../core/types';
 import type { Frame } from '../render/loop';
@@ -117,7 +117,7 @@ export async function bootApp(): Promise<void> {
   const initialScreen = debug && ['adventure-map', 'adventure-map-end', 'level-card'].includes(adventureDemo) ? 'adventure' : debug && ['missions', 'missions-done'].includes(adventureDemo) ? 'home' : 'play';
   const router = createRouter(initialScreen); const surface = createCanvasSurface(canvas); const background = createBackground(save.equipped.theme as keyof typeof PALETTE.theme); const view = createBoardView(); const director = createDirector();
   setColourBlindPatterns(save.settings.cbPatterns);
-  let backgroundTheme = save.equipped.theme; const ui = createGameUi(uiRoot); const toast = createToasts(uiRoot, () => uiRoot.querySelector('.gloop-overlay.is-visible') !== null); const homeHost = document.createElement('div'); uiRoot.append(homeHost);
+  let backgroundTheme = save.equipped.theme; const ui = createGameUi(uiRoot); const toast = createToasts(uiRoot, () => uiRoot.querySelector(TOAST_BLOCKER_SELECTOR) !== null); const homeHost = document.createElement('div'); uiRoot.append(homeHost);
   // spec-note: While the game is paused, the canvas keeps its last frame (the scrimmed board) instead of repainting the same frame 60 times a second. Cleared by resize, which wipes the canvas.
   let pausedFrameDrawn = false; let paused = false; let pauseLayer: 'none' | 'menu' | 'confirmation' = 'none'; let resumePausedRun = (): void => undefined; let shownScore = 0; let shownStatus = ''; let runRecorded = false; let adventureRecorded = false; let adventureReward = { xp: 0, coins: 0, progress: 0, progressMax: 0 }; let adventureChapterRewards = { chapterDone: false, chapterAllStars: false, chapter: 1 }; let adventureStreakReset = false; let countedDailyThisRun = false; let comboLostAt = -1; let layout: Layout = computeLayout(window.innerWidth, window.innerHeight, {}, Boolean(session.state.goals || session.state.adventure)); let renderElapsed = 0; let gameOverAt = -1; let saveTimer = 0; let runEvents: GameEvent[] = []; let closeCall = false;
   let lastAdventureMoves = session.state.adventure?.movesLeft ?? -1; let adventureMovesChangedAt = -1;
@@ -263,7 +263,8 @@ export async function bootApp(): Promise<void> {
     }
   });
   onSaveVisibility(() => { window.clearTimeout(saveTimer); persist(true); });
-  router.subscribe((screen) => { if (screen !== 'play') toast.clear(); renderScreen(screen); }); renderScreen(initialScreen); if (debug && adventureDemo === 'level-card') void showAdventureCard(requestedLevel, true); if (debug && adventurePlayDemo) { gameOverAt = session.state.status === 'over' ? renderElapsed : -1; shownStatus = ''; } if (debug && session.state.adventure?.result) finishAdventure(); persist(true);
+  // spec-note: Toasts queued while an Adventure card is open survive closing it (the card closes by replacing the 'adventure' route with itself), so they show after the panel closes as SG §11.8 says. Any other screen change still clears them.
+  let toastScreen = initialScreen; router.subscribe((screen) => { if (screen !== 'play' && screen !== toastScreen) toast.clear(); toastScreen = screen; renderScreen(screen); }); renderScreen(initialScreen); if (debug && adventureDemo === 'level-card') void showAdventureCard(requestedLevel, true); if (debug && adventurePlayDemo) { gameOverAt = session.state.status === 'over' ? renderElapsed : -1; shownStatus = ''; } if (debug && session.state.adventure?.result) finishAdventure(); persist(true);
   let currentFrame: Readonly<Frame> = { realDt: 0, worldDt: 0, boardDt: 0, realNow: 0, worldNow: 0, boardNow: 0 };
   const renderLoop = startRenderLoop((frame) => {
     currentFrame = frame;

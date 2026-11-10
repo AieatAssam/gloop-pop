@@ -28,9 +28,9 @@ describe('M13 Adventure map styles', () => {
 });
 
 describe('M14.4 clarity styles', () => {
-  it('moves toasts to the bottom over Adventure result and start cards', () => {
-    expect(styles).toMatch(/#ui:has\([^)]*adventure-result-shade[^)]*\) \.gloop-toast/);
-    expect(styles).toMatch(/#ui:has\([^)]*adventure-modal-shade[^)]*\) \.gloop-toast/);
+  it('moves toasts to the bottom only on full screens; Adventure cards and results hide toasts instead (SG §11.8)', () => {
+    expect(styles).toMatch(/#ui:has\(\.screen-wrap\) \.gloop-toast \{/);
+    expect(styles).not.toMatch(/#ui:has\([^)]*adventure-(result|modal)-shade[^)]*\) \.gloop-toast/);
     expect(styles).toContain('padding-bottom: calc(var(--safe-area-bottom) + 72px); } }');
     expect(styles).toContain('.adventure-result-shade { padding-top: calc(var(--safe-area-top) + 96px); padding-bottom: calc(var(--safe-area-bottom) + 72px); }');
   });
