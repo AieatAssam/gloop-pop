@@ -93,6 +93,7 @@ Version 1.0, 25 Oct 2026. Read `docs/design.md` first (the rules), then `docs/ar
 │   │   └─ clock.ts           # injectable now() for UTC day logic (tests can fake it)
 │   ├─ input/
 │   │   ├─ pointer.ts         # pointer events → drag model (SG §8.3)
+│   │   ├─ dragOwner.ts       # which pointer owns a held piece; released on every touch end
 │   │   └─ keyboard.ts        # keys 1/2/3, arrows, space, esc, M, R
 │   ├─ render/
 │   │   ├─ palette.ts         # GENERATED
