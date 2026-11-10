@@ -2,7 +2,7 @@
 export type ToastAccent = 'coin' | 'xp' | 'gold' | 'streak' | 'freeze';
 /** Modal panels that hide toasts: the `.gloop-overlay` panels (pause, game over, rescue, adult check) and the Adventure level card and result panel (`.adventure-modal-shade`, also used by the result shade). */
 export const TOAST_BLOCKER_SELECTOR = '.gloop-overlay.is-visible, .adventure-modal-shade';
-export interface Toasts { show(message: string, accent?: ToastAccent): void; clear(): void; }
+export interface Toasts { show(message: string, accent?: ToastAccent): void; clear(): void; pending(): number; }
 const HOLD_CHECK_MS = 200;
 /**
  * spec-note: While a modal panel is open (`isBlocked`), no toast is shown, because a toast over the
@@ -13,6 +13,8 @@ export function createToasts(root: HTMLElement, isBlocked: () => boolean = () =>
   const queue: { message: string; accent: ToastAccent }[] = []; let active: HTMLDivElement | undefined; let timers: number[] = []; let generation = 0; let watch = 0; let resting = false;
   return {
     show(message, accent = 'gold') { queue.push({ message, accent }); if (!active) next(); },
+    /** Debug: queued toasts plus the one on screen and its pending timers. */
+    pending(): number { return queue.length + (active ? 1 : 0) + timers.length; },
     clear() {
       generation += 1; queue.length = 0;
       for (const timer of timers) window.clearTimeout(timer);

@@ -83,5 +83,6 @@ function textSprite(ctx: CanvasRenderingContext2D, text: string, font: string): 
   label.font = font; label.fillStyle = PALETTE.ui.textPrimary; label.textAlign = 'center'; label.textBaseline = 'middle'; label.fillText(text, sprite.width / 2, sprite.height / 2);
   textSprites.set(key, sprite); return sprite;
 }
-function ladderIndex(target: number): number { let i = 0; while (ladderValue(i) < target) i += 1; return i; }
-function ladderIndexAtFloor(floor: number): number { let i = 0; while (ladderValue(i) < floor) i += 1; return i; }
+// spec-note: Both ladder searches stop at 10 000 steps, so a non-finite target can never spin the render loop.
+function ladderIndex(target: number): number { let i = 0; while (i < 10_000 && ladderValue(i) < target) i += 1; return i; }
+function ladderIndexAtFloor(floor: number): number { let i = 0; while (i < 10_000 && ladderValue(i) < floor) i += 1; return i; }

@@ -1,6 +1,8 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { chooseStackLabel, labelFit, stackTop } from './texts';
+import { chooseStackLabel, createTextSprites, labelFit, stackTop } from './texts';
 import { S } from '../../ui/strings';
+import { PALETTE } from '../palette';
 
 describe('SG §9.13.g label stack', () => {
   it('uses one first-time label in place of the event label', () => {
@@ -23,5 +25,21 @@ describe('SG §9.13.g label stack', () => {
   it('keeps the centre stack below the top-lane text for every board centroid', () => {
     const laneBottom = 0.9 * 68 + 48;
     for (const y of [0, 68, 272, 476, 544]) expect(stackTop(y, 180, 0, 544, 68)).toBeGreaterThan(laneBottom);
+  });
+});
+
+describe('text sprite cache bound', () => {
+  it('never holds more than 128 label sprites, however many distinct points values a long run shows', () => {
+    const stub = new Proxy({}, { get: (_target, key) => (key === 'measureText' ? () => ({ width: 40 }) : () => undefined) });
+    const proto = HTMLCanvasElement.prototype; const original = Object.getOwnPropertyDescriptor(proto, 'getContext')!;
+    Object.defineProperty(proto, 'getContext', { configurable: true, writable: true, value: () => stub });
+    try {
+      const labels = createTextSprites();
+      for (let points = 1; points <= 400; points += 1) labels.add(`+${points}`, 40, PALETTE.ui.textPrimary, 0, 0, 0);
+      expect(labels.cacheSize()).toBeLessThanOrEqual(128);
+      expect(labels.cacheSize()).toBeGreaterThan(0);
+    } finally {
+      Object.defineProperty(proto, 'getContext', original);
+    }
   });
 });

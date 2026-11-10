@@ -62,7 +62,8 @@ export function chooseBotMove(state: GameState, botRng: RngState): BotMove | nul
 export const SIM_PLACEMENT_CAP = 10_000;
 export function runSimGame(seed: string, mode: ModeId = 'classic', cap = SIM_PLACEMENT_CAP): SimGameResult {
   let state = newGame(mode, seed).state; const botRng = seededRng(`${seed}/bot`);
-  while (state.status !== 'over' && state.stats.placements < cap) {
+  // spec-note: The loop has a hard iteration cap. A rescue offer that the step does not resolve used to spin here forever.
+  for (let iteration = 0; iteration < cap * 4 && state.status !== 'over' && state.stats.placements < cap; iteration += 1) {
     if (state.status === 'rescueOffer') { state = step(state, { type: 'useRescue' }).state; continue; }
     const move = chooseBotMove(state, botRng);
     if (!move) break;
