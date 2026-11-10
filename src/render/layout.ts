@@ -13,6 +13,8 @@ export interface Layout {
   combo: Rect;
   tray: Rect;
   bottom: Rect;
+  /** Reserved strip for in-play toasts (portrait only: the top of the tray band). Empty when a toast is not showing. */
+  toastLane: Rect;
   cellSize: number;
   trayCellSize: number;
   gaps: { a: number; b: number; c: number };
@@ -44,6 +46,8 @@ export function computeLayout(width: number, height: number, safe: SafeInsets = 
 
 // spec-note: The HUD bands scale with k = clamp(H / 844, 0.7, 1.15). The floor used to be 0.78, which made the bands too tall on 320x568 and 360x640 and left the board 24 px short. The top band never drops below 52 px, so the 44 px icon buttons and the 48 px tutorial Skip button stay inside it, and the combo band never drops below 40 px so the rescue ring clears the tray.
 // spec-note: The Daily score band is taller (116 instead of 84 at k = 1) so the score, Best, Tray and Apple pops lines each get their own row. The board gives up the difference only on short phones.
+// spec-note: The toast lane is reserved inside the tray band, above the slots, so a toast never covers the score, goal strip or board at any phone size. Gaps A to C are too small on 320x568 and 390x844 (6 to 37 px), so a lane that is always there is the only fixed place. Slots keep their width; their height shrinks by the lane.
+export const PORTRAIT_TOAST_LANE = 40;
 export const PORTRAIT_TRAY_MARGIN = 4;
 export const PORTRAIT_TRAY_GAP = 8;
 /** SG §15.3 tray slot width: three slots fill the column minus 4 px outer margins and 8 px gaps, so slots are as large as the column allows (112 at 360 wide, 122 at the 390 reference, 129 at 412). Never scaled by height. */
@@ -81,7 +85,7 @@ function computePortrait(w: number, h: number, safeTop: number, safeBottom: numb
     column: { x: 0, y: 0, width: w, height: h },
     topBar: rect(0, 0, w, topH), score: rect(0, scoreY, w, scoreH), goalStrip: rect(0, goalY, w, goalH),
     board: rect(boardX, boardY, boardSize, boardSize), combo: rect(0, comboY, w, comboH),
-    tray: rect(0, trayY, w, trayH), bottom: rect(0, h - bottomH, w, bottomH),
+    tray: rect(0, trayY, w, trayH), bottom: rect(0, h - bottomH, w, bottomH), toastLane: rect(0, trayY, w, PORTRAIT_TOAST_LANE),
     cellSize, trayCellSize: Math.min(26.4, portraitTraySlotWidth(w) / 5.4),
     gaps: { a: gapA, b: gapB, c: gapC },
   };
@@ -99,7 +103,7 @@ function computeLandscape(w: number, h: number, safeTop: number, safeBottom: num
     score: rect(left - 288 * u, top, 240 * u, size), board,
     combo: rect(left - 288 * u, top + 220 * u, 240 * u, 100 * u),
     tray: rect(left + size + 48 * u, top + 8 * u, 240 * u, 552 * u),
-    bottom: rect(0, h - (40 * u + safeBottom), w, 40 * u + safeBottom),
+    bottom: rect(0, h - (40 * u + safeBottom), w, 40 * u + safeBottom), toastLane: rect(0, 0, 0, 0),
     cellSize: (size - 16 * u) / 8,
     trayCellSize: Math.min(40.8 * u, 240 * u / 5.4, 168 * u / 5.4),
     gaps: { a: 0, b: 0, c: 0 },
@@ -108,7 +112,7 @@ function computeLandscape(w: number, h: number, safeTop: number, safeBottom: num
 
 function shiftLayout(layout: Layout, dx: number, column: Rect): Layout {
   const shift = (r: Rect): Rect => ({ ...r, x: r.x + dx });
-  return { ...layout, width: column.width + dx * 2, column, topBar: shift(layout.topBar), score: shift(layout.score), goalStrip: shift(layout.goalStrip), board: shift(layout.board), combo: shift(layout.combo), tray: shift(layout.tray), bottom: shift(layout.bottom) };
+  return { ...layout, width: column.width + dx * 2, column, topBar: shift(layout.topBar), score: shift(layout.score), goalStrip: shift(layout.goalStrip), board: shift(layout.board), combo: shift(layout.combo), tray: shift(layout.tray), bottom: shift(layout.bottom), toastLane: shift(layout.toastLane) };
 }
 
 function rect(x: number, y: number, width: number, height: number): Rect { return { x, y, width, height }; }

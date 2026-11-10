@@ -10,7 +10,7 @@ import { drawCube } from './cubes';
 import { roundRectPath } from './silhouette';
 import { S } from '../ui/strings';
 import type { Layout, Rect } from './layout';
-import { PORTRAIT_TRAY_GAP, PORTRAIT_TRAY_MARGIN, portraitTraySlotWidth } from './layout';
+import { PORTRAIT_TOAST_LANE, PORTRAIT_TRAY_GAP, PORTRAIT_TRAY_MARGIN, portraitTraySlotWidth } from './layout';
 import { easeOutBack, easeInBack, easeInQuad } from './easing';
 import { nearMissFacts, type NearMissFacts } from '../core/nearMiss';
 import { spring, type SpringState } from './fx/spring';
@@ -222,7 +222,7 @@ function drawHeldShadow(ctx: CanvasRenderingContext2D, cache: Map<string, [HTMLC
 }
 
 export function traySlotRect(index: number, layout: Layout): Rect {
-  if (layout.portrait) { const width = portraitTraySlotWidth(layout.tray.width); const gap = PORTRAIT_TRAY_GAP; const total = width * 3 + gap * 2; const x = layout.tray.x + (layout.tray.width - total) / 2 + index * (width + gap); return { x, y: layout.tray.y + PORTRAIT_TRAY_MARGIN, width, height: Math.max(80, layout.tray.height - PORTRAIT_TRAY_MARGIN * 2) }; }
+  if (layout.portrait) { const width = portraitTraySlotWidth(layout.tray.width); const gap = PORTRAIT_TRAY_GAP; const total = width * 3 + gap * 2; const x = layout.tray.x + (layout.tray.width - total) / 2 + index * (width + gap); return { x, y: layout.tray.y + PORTRAIT_TOAST_LANE + PORTRAIT_TRAY_MARGIN, width, height: Math.max(56, layout.tray.height - PORTRAIT_TOAST_LANE - PORTRAIT_TRAY_MARGIN * 2) }; }
   const width = layout.tray.width; const height = layout.tray.height / 3 - 8; return { x: layout.tray.x, y: layout.tray.y + index * (height + 12), width, height };
 }
 function hasFit(state: GameState, piece: Piece): boolean { return Array.from({ length: 64 }, (_, i) => canPlace(state, state.tray.indexOf(piece), Math.floor(i / 8), i % 8)).some(Boolean); }

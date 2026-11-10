@@ -99,3 +99,33 @@ describe('responsive layout', () => {
     }
   });
 });
+
+describe('in-play toast lane (SG §11.8, §15.3)', () => {
+  const sizes = [[320, 568], [360, 640], [360, 760], [390, 844], [412, 915], [600, 960]] as const;
+  const overlaps = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }): boolean =>
+    a.width > 0 && a.height > 0 && b.width > 0 && b.height > 0 && a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  it('a toast centred in the lane never covers the top bar, score, goal strip, board or combo band', () => {
+    for (const [width, height] of sizes) {
+      for (const goal of [true, false]) {
+        const layout = computeLayout(width, height, {}, goal, !goal);
+        const lane = layout.toastLane;
+        // The lane spans the full column width, so checking the lane rect covers any toast width.
+        expect(lane.height).toBe(40);
+        for (const band of [layout.topBar, layout.score, layout.goalStrip, layout.board, layout.combo]) {
+          expect(overlaps(lane, band)).toBe(false);
+        }
+        expect(lane.y).toBeGreaterThanOrEqual(layout.combo.y + layout.combo.height);
+      }
+    }
+  });
+  it('tray slots start below the lane and stay inside the tray band', () => {
+    for (const [width, height] of sizes) {
+      const layout = computeLayout(width, height, {}, true, false);
+      for (let i = 0; i < 3; i++) {
+        const slot = traySlotRect(i, layout);
+        expect(slot.y).toBeGreaterThanOrEqual(layout.toastLane.y + layout.toastLane.height);
+        expect(slot.y + slot.height).toBeLessThanOrEqual(layout.tray.y + layout.tray.height + 0.01);
+      }
+    }
+  });
+});
