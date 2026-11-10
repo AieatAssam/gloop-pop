@@ -230,8 +230,9 @@ export async function bootApp(): Promise<void> {
   });
   // spec-note: The HUD band layout depends on whether a goal strip and the Daily score rows are shown, so a change in either re-runs the layout.
   const layoutKey = (): string => `${Boolean(session.state.goals || session.state.adventure)}|${session.state.mode === 'daily'}`;
+  let measuredWidth = -1; let measuredHeight = -1;
   const resize = (): void => {
-    pausedFrameDrawn = false;
+    pausedFrameDrawn = false; measuredWidth = window.innerWidth; measuredHeight = window.innerHeight;
     surface.resize(window.innerWidth, window.innerHeight);
     const { top: safeTop, bottom: safeBottom } = readSafeAreaInsets();
     layout = computeLayout(surface.width, surface.height, { top: safeTop, bottom: safeBottom }, Boolean(session.state.goals || session.state.adventure), session.state.mode === 'daily'); background.resize(surface.width, surface.height, layout);
@@ -239,6 +240,8 @@ export async function bootApp(): Promise<void> {
     topBar.element.style.left = `${layout.column.x}px`; topBar.element.style.width = `${layout.column.width}px`; topBar.element.style.top = `${layout.topBar.y}px`; topBar.element.style.height = `${layout.topBar.height}px`;
   };
   resize(); window.addEventListener('resize', resize, { passive: true });
+  // spec-note: A WebView can report a transient viewport (keyboard, system bars or immersive mode animating, e.g. innerHeight 510 at 320x568) and not send a resize event for the final size. The loop compares the viewport with the last one measured on every frame and re-measures on any change, and visualViewport resizes are listened to as well, so the layout recovers on the next frame.
+  window.visualViewport?.addEventListener('resize', resize, { passive: true });
   // spec-note: Only the finger that picked a piece up can move, drop or cancel it. A second finger used to take over the drag and drop the piece at its own position.
   let dragPointerId: number | undefined;
   const ownsDrag = (pointerId: number): boolean => pointer.drag === undefined || dragPointerId === undefined || dragPointerId === pointerId;
@@ -269,6 +272,7 @@ export async function bootApp(): Promise<void> {
   let currentFrame: Readonly<Frame> = { realDt: 0, worldDt: 0, boardDt: 0, realNow: 0, worldNow: 0, boardNow: 0 };
   const renderLoop = startRenderLoop((frame) => {
     currentFrame = frame;
+    if (window.innerWidth !== measuredWidth || window.innerHeight !== measuredHeight) resize();
     const elapsedMs = frame.realNow; const dtMs = frame.realDt;
     renderElapsed = elapsedMs;
     // spec-note: In play (portrait), the toast centre is the middle of the reserved toast lane at the top of the tray band (layout.toastLane), so it never covers the score, goal strip or board. Landscape keeps its old placement. See layout.ts for why the lane is reserved.
