@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cyrb128 } from './hash';
-import { createDailyDeal, dayKeyFromMs, dayNumber, flavourForDay, msToNextUtcMidnight, seedStringForDay } from './daily';
+import { addTrayProgress, createDailyDeal, dayKeyFromMs, dayNumber, flavourForDay, msToNextUtcMidnight, seedStringForDay } from './daily';
 
 describe('daily UTC helpers', () => {
   it('uses the updated launch epoch and clamps earlier dates', () => {
@@ -36,5 +36,20 @@ describe('daily UTC helpers', () => {
     }
     expect(lines[0]?.slice(0, 112)).toBe('2026-10-25 {"board":[2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,3,0,0,0,0,0,5,5,3,0,0,0,0,0,0,0,3,0,0,0,1,1,0,0,0');
     expect(cyrb128(lines.join('\n'))).toEqual([4097234419, 1309468576, 1419882381, 2336083159]);
+  });
+});
+
+describe('addTrayProgress (round 11, item 7)', () => {
+  const base = { trayLines: [] as number[], traySpecial: [] as boolean[] } as Parameters<typeof addTrayProgress>[0];
+  it('adds lines to the tray being played and keeps earlier trays', () => {
+    const first = addTrayProgress(base, 0, [{ type: 'cleared', rows: [1], cols: [] } as never]);
+    const second = addTrayProgress(first, 2, [{ type: 'cleared', rows: [2], cols: [5] } as never]);
+    expect(second.trayLines).toEqual([1, 0, 2]);
+    expect(second.traySpecial).toEqual([false, false, false]);
+  });
+  it('marks a special tray for an All Clear and ignores out-of-range indexes', () => {
+    const special = addTrayProgress(base, 1, [{ type: 'allClear' } as never]);
+    expect(special.traySpecial).toEqual([false, true]);
+    expect(addTrayProgress(base, 30, [{ type: 'allClear' } as never])).toBe(base);
   });
 });
