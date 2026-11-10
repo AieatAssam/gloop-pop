@@ -44,9 +44,10 @@ export function startRenderLoop(draw: FrameCallback, frameEnded?: (frameMs: numb
     frameState.realNow = realNow; frameState.worldNow = worldNow; frameState.boardNow = boardNow;
     advanceClocks(frameState, raw, slowScale, h);
     realNow = frameState.realNow; worldNow = frameState.worldNow; boardNow = frameState.boardNow;
+    // spec-note: The next frame is requested before drawing, so one throwing frame cannot stop the loop (a stopped loop leaves a black canvas until reload).
+    request = requestAnimationFrame(frame);
     draw(frameState);
     frameEnded?.(performance.now() - start);
-    request = requestAnimationFrame(frame);
   };
   request = requestAnimationFrame(frame);
   return {
