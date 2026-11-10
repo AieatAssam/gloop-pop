@@ -592,8 +592,10 @@ function animateMissionCoins(from: DOMRect, to: DOMRect): void {
 
 function animateCoinCount(oldValue: number, newValue: number): void {
   const chip = document.querySelector<HTMLElement>('.home-header .home-chip:last-child'); if (!chip) return;
+  // spec-note: Only the number changes. Replacing the whole chip text used to drop the coin icon, so the chip shrank from 32 to 29 px and the header and missions card moved up 3 px after every claim.
+  const label = chip.querySelector<HTMLElement>('span') ?? chip;
   const started = performance.now(); const tick = (now: number): void => {
-    const progress = Math.min(1, (now - started) / 600); chip.textContent = S.coins(Math.round(oldValue + (newValue - oldValue) * progress));
+    const progress = Math.min(1, (now - started) / 600); label.textContent = S.coins(Math.round(oldValue + (newValue - oldValue) * progress));
     if (progress < 1) requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
