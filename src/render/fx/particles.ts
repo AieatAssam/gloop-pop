@@ -55,14 +55,42 @@ function baseEffect(effect: PopEffectId): PopParticleStyle['kind'] {
   return effect === 'goldsparkles' ? 'sparkles' : effect === 'goldstars' ? 'stars' : effect === 'goldconfetti' ? 'confetti' : effect;
 }
 
+// SG §9.3: the filled shapes are drawn from one cached sprite per shape and colour. Per-frame path fills of many particles were the main extra GPU cost of a line clear on the Android 8 device.
+type SpriteKind = 'sparkles' | 'stars' | 'hearts' | 'jelly';
+const SHAPE_SCALE = 24; // spec-note: sprite pixels per particle unit; sprites cover one unit radius plus a margin of 0.1.
+const SHAPE_EXTENT = 1.1;
+const shapeSprites = new Map<string, HTMLCanvasElement>();
+
+function fillShape(ctx: CanvasRenderingContext2D, kind: SpriteKind): void {
+  if (kind === 'hearts') { ctx.beginPath(); ctx.moveTo(0, 0.36); ctx.bezierCurveTo(-0.7, -0.1, -0.35, -0.65, 0, -0.3); ctx.bezierCurveTo(0.35, -0.65, 0.7, -0.1, 0, 0.36); ctx.fill(); }
+  else if (kind === 'jelly') { ctx.beginPath(); ctx.ellipse(0, 0, 1, 0.72, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = PALETTE.light.specularSoft; ctx.beginPath(); ctx.ellipse(-0.25, -0.24, 0.28, 0.12, -0.4, 0, Math.PI * 2); ctx.fill(); }
+  else if (kind === 'stars') { ctx.beginPath(); for (let i = 0; i < 10; i += 1) { const a = -Math.PI / 2 + i * Math.PI / 5; const r = i % 2 ? 0.42 : 1; if (!i) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill(); }
+  else { ctx.beginPath(); ctx.moveTo(0, -1); ctx.lineTo(0.22, -0.22); ctx.lineTo(1, 0); ctx.lineTo(0.22, 0.22); ctx.lineTo(0, 1); ctx.lineTo(-0.22, 0.22); ctx.lineTo(-1, 0); ctx.lineTo(-0.22, -0.22); ctx.closePath(); ctx.fill(); }
+}
+
+function shapeSprite(kind: SpriteKind, colour: string): HTMLCanvasElement | undefined {
+  const key = `${kind}|${colour}`; let sprite = shapeSprites.get(key);
+  if (sprite) return sprite;
+  if (typeof document === 'undefined') return undefined;
+  const side = Math.ceil(2 * SHAPE_EXTENT * SHAPE_SCALE);
+  sprite = document.createElement('canvas'); sprite.width = side; sprite.height = side;
+  const ctx = sprite.getContext('2d'); if (!ctx) return undefined;
+  ctx.translate(side / 2, side / 2); ctx.scale(SHAPE_SCALE, SHAPE_SCALE); ctx.fillStyle = colour;
+  fillShape(ctx, kind);
+  if (shapeSprites.size >= 64) shapeSprites.clear();
+  shapeSprites.set(key, sprite);
+  return sprite;
+}
+
 function drawParticle(ctx: CanvasRenderingContext2D, p: Particle): void {
   const t = p.age / p.life; ctx.save(); ctx.globalAlpha = 1 - t; ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.colour; ctx.strokeStyle = p.colour;
-  if (p.kind === 'hearts') { ctx.translate(Math.sin(p.age * 8) * p.size * 0.4, 0); ctx.scale(p.size, p.size); ctx.beginPath(); ctx.moveTo(0, 0.36); ctx.bezierCurveTo(-0.7, -0.1, -0.35, -0.65, 0, -0.3); ctx.bezierCurveTo(0.35, -0.65, 0.7, -0.1, 0, 0.36); ctx.fill(); }
-  else if (p.kind === 'jelly') { ctx.beginPath(); ctx.ellipse(0, 0, p.size, p.size * 0.72, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = PALETTE.light.specularSoft; ctx.beginPath(); ctx.ellipse(-p.size * 0.25, -p.size * 0.24, p.size * 0.28, p.size * 0.12, -0.4, 0, Math.PI * 2); ctx.fill(); }
-  else if (p.kind === 'stars') { ctx.scale(p.size, p.size); ctx.beginPath(); for (let i = 0; i < 10; i += 1) { const a = -Math.PI / 2 + i * Math.PI / 5; const r = i % 2 ? 0.42 : 1; if (!i) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill(); }
+  const kind: SpriteKind | undefined = p.kind === 'sparkles' || p.kind === 'hearts' || p.kind === 'stars' || p.kind === 'jelly' ? p.kind : undefined;
+  const sprite = kind ? shapeSprite(kind, p.colour) : undefined;
+  if (p.kind === 'hearts') ctx.translate(Math.sin(p.age * 8) * p.size * 0.4, 0);
+  if (sprite && kind) { const extent = SHAPE_EXTENT * p.size; ctx.drawImage(sprite, -extent, -extent, extent * 2, extent * 2); }
   else if (p.kind === 'bubbles') { ctx.lineWidth = Math.max(1, p.size * 0.15); ctx.beginPath(); ctx.arc(0, 0, p.size * (1 - t * 0.3), 0, Math.PI * 2); ctx.stroke(); }
   else if (p.kind === 'confetti') { ctx.scale(Math.cos(p.age * 14), 1); ctx.fillRect(-p.size * 0.5, -p.size, p.size, p.size * 2); }
   else if (p.kind === 'fireworks') { ctx.lineWidth = Math.max(1, p.size * 0.3); ctx.beginPath(); ctx.moveTo(-p.vx * 0.0015, -p.vy * 0.0015); ctx.lineTo(p.vx * 0.0015, p.vy * 0.0015); ctx.stroke(); }
-  else { ctx.scale(p.size, p.size); ctx.beginPath(); ctx.moveTo(0, -1); ctx.lineTo(0.22, -0.22); ctx.lineTo(1, 0); ctx.lineTo(0.22, 0.22); ctx.lineTo(0, 1); ctx.lineTo(-0.22, 0.22); ctx.lineTo(-1, 0); ctx.lineTo(-0.22, -0.22); ctx.closePath(); ctx.fill(); }
+  else if (kind) { ctx.scale(p.size, p.size); fillShape(ctx, kind); }
   ctx.restore();
 }

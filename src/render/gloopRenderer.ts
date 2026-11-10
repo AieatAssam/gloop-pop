@@ -56,11 +56,27 @@ function drawColourPattern(ctx: CanvasRenderingContext2D, gloop: Gloop, cell: nu
 }
 
 // One jelly cell drawn from the shared body cache: used for cells that are mid-pop after the board has already removed them.
+// spec-note: The popping face has no time-based parts, so body and face are cached together in one sprite. Per-frame face paths made each pop cost about ten fills per frame on the Android 8 GPU.
+const popSprites = new Map<string, HTMLCanvasElement>();
 export function drawJellyCell(context: CanvasRenderingContext2D, flavour: number, cell: number, x: number, y: number, elapsed: number, expression?: string): void {
   const gloop: Gloop = { flavour: flavour as Gloop['flavour'], cells: [0], bfs: [0], largestSquare: { row: 0, col: 0, size: 1 } };
   const padding = cell * 0.25; const key = `${flavour}|${cell}|${colourBlindPatterns ? 1 : 0}|0`;
   let sprite = bodySprites.get(key);
   if (!sprite) { sprite = createBodySprite(gloop, cell, 0, 0, 0, 0, padding); if (bodySprites.size >= 96) bodySprites.delete(bodySprites.keys().next().value!); bodySprites.set(key, sprite); }
+  const skin = getEquippedSkin();
+  // Googly eyes wobble with time, so only the other skins use the combined popping sprite.
+  if (expression === 'popping' && skin !== 'googlyEyes') {
+    const popKey = `${key}|popping|${skin}`; let popSprite = popSprites.get(popKey);
+    if (!popSprite) {
+      popSprite = document.createElement('canvas'); popSprite.width = sprite.width; popSprite.height = sprite.height;
+      const popContext = popSprite.getContext('2d');
+      if (popContext) { popContext.drawImage(sprite, 0, 0); popContext.setTransform(2, 0, 0, 2, padding * 2, padding * 2); drawFace(popContext, gloop, cell, 0, 'popping'); }
+      if (popSprites.size >= 48) popSprites.clear();
+      popSprites.set(popKey, popSprite);
+    }
+    context.save(); context.translate(x, y); context.drawImage(popSprite, -padding, -padding, popSprite.width / 2, popSprite.height / 2); context.restore();
+    return;
+  }
   context.save(); context.translate(x, y); context.drawImage(sprite, -padding, -padding, sprite.width / 2, sprite.height / 2);
   if (expression) drawFace(context, gloop, cell, elapsed, expression);
   context.restore();
