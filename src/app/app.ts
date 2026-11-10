@@ -398,7 +398,7 @@ export async function bootApp(): Promise<void> {
     cardClosing = false; const entry = { gloopScreen: router.current, adventureCard: true, fromMap };
     if (fromMap) history.pushState(entry, ''); else history.replaceState(entry, '');
     const card = createLevelCard(def, { play: (selection, assist) => { if (adventureCardState()) router.replace('play'); void toAdventure(level, selection, assist); }, back: closeAdventureCard, bought: (name, nextSave) => { save = nextSave; toast.show(S.boosterBought(name), 'coin'); saveNow(save); sfx.coinTick({ count: 3 }); } }, { save, streak: save.adventure.winStreak, lossRun: save.adventure.levels[String(level)]?.lossRun ?? 0 });
-    homeHost.querySelector('.adventure-modal-shade')?.remove(); if (fromMap) homeHost.append(card); else homeHost.replaceChildren(card);
+    homeHost.querySelector('.adventure-modal-shade')?.remove(); if (fromMap) { homeHost.append(card); const footer = homeHost.querySelector<HTMLElement>('.adventure-footer-bar'); if (footer) footer.style.visibility = 'hidden'; } else homeHost.replaceChildren(card);
     });
   }
   function adventureCardState(): { fromMap: boolean } | undefined { const state = history.state as { adventureCard?: boolean; fromMap?: boolean } | null; return state?.adventureCard ? { fromMap: state.fromMap === true } : undefined; }

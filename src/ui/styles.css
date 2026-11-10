@@ -222,6 +222,8 @@ body { color: var(--ui-text-primary); }
 /* spec-note: #ui is pointer-events:none and only .button re-enables it; these overlays need it for their × , text buttons and booster tiles. */
 .adventure-modal-shade, .adventure-result-panel { pointer-events: auto; }
 .adventure-level-card,.adventure-result-panel { position: relative; width: min(100%,360px); max-height: calc(100% - 24px); overflow: hidden; display: flex; flex-direction: column; gap: 12px; padding: 24px; }
+/* spec-note: On 320x568 and 360x640 the level card is shorter than its content. Flex shrink squashed the booster row, so its tiles spilled under Play and Back to map and could not be tapped. Children now keep their height and the card scrolls instead. */
+.adventure-level-card { overflow-y: auto; } .adventure-level-card > * { flex-shrink: 0; }
 .adventure-result-shade { padding-top: calc(var(--safe-area-top) + 96px); }.adventure-result-shade .adventure-result-panel { max-height: 100%; }
 .adventure-card-body { min-height: 0; overflow-y: auto; display: grid; gap: 12px; padding: 0 2px 4px; }
 .adventure-card-title { display: grid; gap: 2px; }.adventure-card-title h2,.adventure-result-panel h2 { margin: 0; color: var(--ui-text-primary); font: 800 28px/1.05 "Baloo 2",sans-serif; }.adventure-card-title small,.adventure-star-threshold,.adventure-result-panel small { color: var(--ui-text-secondary); font: 700 13px/1.35 "Nunito",sans-serif; }
