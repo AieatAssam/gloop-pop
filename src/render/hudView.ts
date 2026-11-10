@@ -14,7 +14,9 @@ export function drawHud(ctx: CanvasRenderingContext2D, layout: Layout, state: Ga
     const squash = reducedMotion || age < 0 || age >= 120 ? 1 : age < 60 ? 1 - 0.08 * age / 60 : 0.92 + 0.08 * (age - 60) / 60;
     const dangerPulse = !reducedMotion && moves <= 3 && age >= 0 && age < 200 ? 1 + 0.08 * Math.sin(Math.PI * age / 200) : squash;
     ctx.save(); ctx.textAlign = layout.portrait ? 'center' : 'left'; ctx.font = layout.portrait ? '800 52px "Baloo 2",sans-serif' : '800 54px "Baloo 2",sans-serif'; ctx.fillStyle = moves <= 3 ? PALETTE.ui.danger : PALETTE.ui.textPrimary; ctx.translate(x, y); ctx.scale(dangerPulse, dangerPulse); ctx.fillText(text, 0, 0); ctx.restore();
-    ctx.save(); ctx.textAlign = layout.portrait ? 'center' : 'left'; ctx.font = '700 15px Nunito,sans-serif'; ctx.fillStyle = PALETTE.ui.textSecondary; ctx.fillText(S.movesLeft, x, y + 28); ctx.restore(); return state.score;
+    ctx.save(); ctx.textAlign = layout.portrait ? 'center' : 'left'; ctx.font = '700 15px Nunito,sans-serif'; ctx.fillStyle = PALETTE.ui.textSecondary; // spec-note: On 320x568 the score band is 58.8 px, so the label at y + 28 sat under the goal strip and its glyphs were cut. The label now stays 6 px above the band bottom; taller bands keep the old position.
+    const labelY = layout.portrait ? Math.min(y + 28, layout.score.y + layout.score.height - 6) : y + 28;
+    ctx.fillText(S.movesLeft, x, labelY); ctx.restore(); return state.score;
   }
   const duration = reducedMotion ? 150 : Math.min(600, Math.max(150, scoreDuration)); const age = elapsed - scoreStartedAt; const progress = Math.min(1, Math.max(0, age / duration));
   const score = scoreAt(scoreFrom, state.score, age, duration, reducedMotion);
