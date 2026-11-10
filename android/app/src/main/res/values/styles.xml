@@ -13,6 +13,8 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- spec-note: The window background matches the sky colour. The default DayNight background is white and showed between the splash and the first WebView paint. -->
+        <item name="android:windowBackground">@color/ic_launcher_background</item>
     </style>
 
 
