@@ -107,6 +107,14 @@ export function debugGameScene(state: GameState, query: URLSearchParams): GameSt
   }
   if (demo !== 'feel') return undefined;
   const scene = query.get('scene') ?? 'place';
+  if (scene === 'over' || scene === 'rescue') {
+    // Checkerboard holes: one dot at row 0 col 0 fills the last empty cell, so the two other pieces cannot fit. Rescue is ready only for 'rescue'.
+    const next = structuredClone(state); next.mode = 'classic'; next.status = 'playing'; next.moves = 10; next.combo = 0; next.fuse = 0; next.bestCombo = 0;
+    next.board = Array.from({ length: 64 }, (_, index) => { const row = Math.floor(index / 8); const col = index % 8; return (row + col) % 2 === 0 ? 0 : 2 + ((row * 3 + col) % 6); });
+    next.tray = [{ defId: 0, flavour: 1 }, { defId: 9, flavour: 2 }, { defId: 3, flavour: 3 }];
+    next.rescue = { charge: scene === 'rescue' ? 10 : 3, ready: scene === 'rescue', used: false };
+    return next;
+  }
   if (scene === 'combo' || scene === 'mega' || scene === 'mega-plain') return createFeelScene(state, scene);
   const next = structuredClone(state); next.mode = 'classic'; next.board = new Array<number>(64).fill(0);
   if (scene === 'line') {
