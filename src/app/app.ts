@@ -11,6 +11,7 @@ import { createDirector } from '../render/director';
 import { dispatchImmediately } from '../render/fx/hitStop';
 import { createPointerInput, pointerDropPoint } from '../input/pointer';
 import { attachKeyboard, gameKeysBlocked } from '../input/keyboard';
+import { createDragOwner } from '../input/dragOwner';
 import { createSession, runToResumeOnBoot } from './session';
 import { createGameUi } from '../ui/dom';
 import { createTopBar, setSpeakerState } from '../ui/topBar';
@@ -248,13 +249,19 @@ export async function bootApp(): Promise<void> {
   // spec-note: A WebView can report a transient viewport (keyboard, system bars or immersive mode animating, e.g. innerHeight 510 at 320x568) and not send a resize event for the final size. The loop compares the viewport with the last one measured on every frame and re-measures on any change, and visualViewport resizes are listened to as well, so the layout recovers on the next frame.
   window.visualViewport?.addEventListener('resize', resize, { passive: true });
   // spec-note: Only the finger that picked a piece up can move, drop or cancel it. A second finger used to take over the drag and drop the piece at its own position.
-  let dragPointerId: number | undefined;
-  const ownsDrag = (pointerId: number): boolean => pointer.drag === undefined || dragPointerId === undefined || dragPointerId === pointerId;
-  canvas.addEventListener('pointerdown', (event) => { lastAudioInputAt = performance.now(); enableAudio(); if (router.current !== 'play' || paused || session.state.status !== 'playing') return; if (!ownsDrag(event.pointerId)) return; const hadDrag = pointer.drag !== undefined; canvas.setPointerCapture(event.pointerId); pointer.pointerDown(event.offsetX, event.offsetY, event.pointerType); if (pointer.drag) dragPointerId = event.pointerId; else dragPointerId = undefined; if (!hadDrag && pointer.drag) { sfx.pickUp(); vibrate('pick', save.settings.haptics); if (tutorialActive) { tutorialTouched = true; tutorialBubbleText = ''; tutorialBubble.setText(''); } } });
+  const dragOwner = createDragOwner();
+  const ownsDrag = (pointerId: number): boolean => dragOwner.allows(pointerId, pointer.drag !== undefined);
+  // spec-note: Safety net for the pointer that holds a piece. The piece is dropped back when that finger lifts anywhere (window), its capture is lost, the page is hidden or the window loses focus. Without this a stale id could block every later tap on the tray and board.
+  const releaseDrag = (): void => { if (pointer.drag !== undefined) pointer.cancel(); dragOwner.release(); };
+  canvas.addEventListener('pointerdown', (event) => { lastAudioInputAt = performance.now(); enableAudio(); if (router.current !== 'play' || paused || session.state.status !== 'playing') return; if (!ownsDrag(event.pointerId)) return; const hadDrag = pointer.drag !== undefined; canvas.setPointerCapture(event.pointerId); pointer.pointerDown(event.offsetX, event.offsetY, event.pointerType); if (pointer.drag) dragOwner.claim(event.pointerId); else dragOwner.release(); if (!hadDrag && pointer.drag) { sfx.pickUp(); vibrate('pick', save.settings.haptics); if (tutorialActive) { tutorialTouched = true; tutorialBubbleText = ''; tutorialBubble.setText(''); } } });
   canvas.addEventListener('pointermove', (event) => { if (router.current === 'play' && session.state.status === 'playing' && ownsDrag(event.pointerId)) pointer.pointerMove(event.offsetX, event.offsetY, event.pointerType); });
-  canvas.addEventListener('pointerup', (event) => { if (router.current !== 'play' || paused || session.state.status !== 'playing') return; if (!ownsDrag(event.pointerId)) return; pointer.pointerUp(event.offsetX, event.offsetY, event.pointerType); dragPointerId = undefined; if (pointer.returning) sfx.returnToTray(); });
-  canvas.addEventListener('pointercancel', (event) => { if (!ownsDrag(event.pointerId)) return; pointer.cancel(); dragPointerId = undefined; });
-  document.addEventListener('visibilitychange', () => { if (document.hidden && router.current === 'play' && !paused && session.state.status === 'playing') showPause(); });
+  canvas.addEventListener('pointerup', (event) => { if (router.current !== 'play' || paused || session.state.status !== 'playing') return; if (!ownsDrag(event.pointerId)) return; pointer.pointerUp(event.offsetX, event.offsetY, event.pointerType); dragOwner.release(); if (pointer.returning) sfx.returnToTray(); });
+  canvas.addEventListener('pointercancel', (event) => { if (!ownsDrag(event.pointerId)) return; pointer.cancel(); dragOwner.release(); });
+  canvas.addEventListener('lostpointercapture', (event) => { if (dragOwner.pointerId === event.pointerId) releaseDrag(); });
+  window.addEventListener('pointerup', (event) => { if (dragOwner.pointerId === event.pointerId) releaseDrag(); });
+  window.addEventListener('pointercancel', (event) => { if (dragOwner.pointerId === event.pointerId) releaseDrag(); });
+  window.addEventListener('blur', () => releaseDrag());
+  document.addEventListener('visibilitychange', () => { if (document.hidden) releaseDrag(); if (document.hidden && router.current === 'play' && !paused && session.state.status === 'playing') showPause(); });
   window.addEventListener('keydown', (event) => {
     lastAudioInputAt = performance.now(); enableAudio();
     if (gameKeysBlocked(event)) return;
