@@ -2,7 +2,7 @@
 // spec-note: Load remains on Classic because design §9.1 specifies that entry; Home is one menu action away.
 import { createCanvasSurface } from '../render/canvas';
 import { createBackground } from '../render/background';
-import { computeLayout, type Layout } from '../render/layout';
+import { computeLayout, toastSpot, type Layout } from '../render/layout';
 import { startRenderLoop } from '../render/loop';
 import { PALETTE } from '../render/palette';
 import { createBoardView, traySlotRect } from '../render/boardView';
@@ -275,8 +275,8 @@ export async function bootApp(): Promise<void> {
     if (window.innerWidth !== measuredWidth || window.innerHeight !== measuredHeight) resize();
     const elapsedMs = frame.realNow; const dtMs = frame.realDt;
     renderElapsed = elapsedMs;
-    // spec-note: In play (portrait), the toast centre is the middle of the reserved toast lane at the top of the tray band (layout.toastLane), so it never covers the score, goal strip or board. Landscape keeps its old placement. See layout.ts for why the lane is reserved.
-    uiRoot.style.setProperty('--toast-play-top', `${layout.portrait ? layout.toastLane.y + layout.toastLane.height / 2 : layout.board.y + 24}px`); uiRoot.style.setProperty('--toast-play-left', `${layout.column.x + layout.column.width / 2}px`);
+    // spec-note: The in-play toast is an overlay placed by toastSpot (layout.ts). It reserves no space, so nothing moves when it appears.
+    const spot = toastSpot(layout); uiRoot.style.setProperty('--toast-play-top', `${spot.centreY}px`); uiRoot.style.setProperty('--toast-play-left', `${layout.column.x + layout.column.width / 2}px`);
     const reducedForFrame = shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion()); background.setReducedMotion(reducedForFrame);
     pointer.advance(frame.realDt, reducedForFrame);
     if (pointer.snapChanged) { sfx.snapTick(); vibrate('snap', save.settings.haptics); }
