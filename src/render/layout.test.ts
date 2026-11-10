@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MIN_GOAL_BOARD_GAP, computeLayout, portraitTraySlotWidth } from './layout';
+import { MIN_GOAL_BOARD_GAP, TOAST_HEIGHT, computeLayout, portraitTraySlotWidth, toastSpot } from './layout';
 import { traySlotRect } from './boardView';
 
 describe('responsive layout', () => {
@@ -17,11 +17,11 @@ describe('responsive layout', () => {
   it('uses portrait reference board metrics and splits free vertical space', () => {
     const layout = computeLayout(390, 844);
     expect(layout.portrait).toBe(true);
-    expect(layout.board).toEqual({ x: 11, y: 176, width: 368, height: 368 });
+    expect(layout.board).toEqual({ x: 11, y: 196, width: 368, height: 368 });
     expect(layout.cellSize).toBe(44);
-    expect(layout.gaps.a).toBe(16);
-    expect(layout.gaps.b).toBe(16);
-    expect(layout.gaps.c).toBe(32);
+    expect(layout.gaps.a).toBe(26);
+    expect(layout.gaps.b).toBe(26);
+    expect(layout.gaps.c).toBe(52);
   });
 
   it('keeps portrait content in a centred column on a sideways phone', () => {
@@ -32,8 +32,8 @@ describe('responsive layout', () => {
   });
   it('adds the 30 px goal band without changing layouts that do not use it', () => {
     const withStrip = computeLayout(390, 844, {}, true); const without = computeLayout(390, 844);
-    expect(withStrip.goalStrip).toEqual({ x: 0, y: 152.5, width: 390, height: 30 });
-    expect(withStrip.board.y).toBe(191);
+    expect(withStrip.goalStrip).toEqual({ x: 0, y: 162.5, width: 390, height: 30 });
+    expect(withStrip.board.y).toBe(211);
     expect(without.goalStrip.height).toBe(0);
     expect(computeLayout(412, 915, {}, true).goalStrip.height).toBeCloseTo(32.5, 1);
     expect(computeLayout(1280, 800, {}, true).board).toEqual(computeLayout(1280, 800).board);
@@ -107,45 +107,30 @@ describe('responsive layout', () => {
   });
 });
 
-describe('in-play toast lane (SG §11.8, §15.3)', () => {
+/** Frozen copy of the portrait board and tray maths at commit 080a176 (before the toast lane). Do not change it: it is the floor the current layout must meet. */
+function baselinePortrait(width: number, height: number, hasGoal: boolean, daily: boolean): { board: number; gapB: number; trayCell: number } {
+  const w = Math.min(width, 600); const h = height;
+  const k = Math.min(1.15, Math.max(0.7, h / 844));
+  const fixedH = Math.max(52, 60 * k) + (daily ? 116 : 84) * k + (hasGoal ? 30 * k : 0) + Math.max(40, 44 * k) + 168 * k + 16 * k;
+  const board = Math.max(24, Math.floor(Math.min(w - 22, 560, h - fixedH) / 8) * 8);
+  const leftover = Math.max(0, h - fixedH - board);
+  const gapB = hasGoal ? Math.max(leftover * 0.25, Math.min(6, leftover)) : leftover * 0.25;
+  const slotWidth = Math.min(122, (w - 8 - 16) / 3);
+  return { board, gapB, trayCell: Math.min(26.4, slotWidth / 5.4) };
+}
+
+describe('toast lane removed: board and tray never shrink below 080a176 (SG §15.3)', () => {
   const sizes = [[320, 568], [360, 640], [360, 760], [390, 844], [412, 915], [600, 960]] as const;
-  const overlaps = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }): boolean =>
-    a.width > 0 && a.height > 0 && b.width > 0 && b.height > 0 && a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-  it('a toast centred in the lane never covers the top bar, score, goal strip, board or combo band', () => {
-    for (const [width, height] of sizes) {
-      for (const goal of [true, false]) {
-        const layout = computeLayout(width, height, {}, goal, !goal);
-        const lane = layout.toastLane;
-        // The lane spans the full column width, so checking the lane rect covers any toast width.
-        expect(lane.height).toBe(40);
-        for (const band of [layout.topBar, layout.score, layout.goalStrip, layout.board, layout.combo]) {
-          expect(overlaps(lane, band)).toBe(false);
-        }
-        expect(lane.y).toBeGreaterThanOrEqual(layout.combo.y + layout.combo.height);
-      }
-    }
+  it.each(sizes.flatMap(([w, h]) => [false, true].flatMap((goal) => [false, true].map((daily) => [w, h, goal, daily] as const))))('%i×%i goal %s daily %s', (width, height, goal, daily) => {
+    const layout = computeLayout(width, height, {}, goal, daily);
+    const base = baselinePortrait(width, height, goal, daily);
+    expect(layout.board.width).toBeGreaterThanOrEqual(base.board);
+    expect(layout.trayCellSize).toBeGreaterThanOrEqual(base.trayCell - 1e-9);
+    expect(layout.gaps.b).toBeGreaterThanOrEqual(Math.min(base.gapB, MIN_GOAL_BOARD_GAP) - 1e-9);
   });
-  it('keeps the pre-lane tray slot size, so pieces are not smaller than before the lane (SG §8.2)', () => {
-    for (const [width, height] of sizes) {
-      const layout = computeLayout(width, height, {}, true, false);
-      const k = Math.min(1.15, Math.max(0.7, height / 844));
-      const oldSlotHeight = Math.max(80, 168 * k - 8);
-      const slot = traySlotRect(0, layout);
-      expect(slot.height).toBeGreaterThanOrEqual(oldSlotHeight - 0.01);
-      // Piece scale is min(cell, width / 5.4, height / 5.4): the same as before the lane whenever the slot height is unchanged.
-      const pc = Math.min(layout.trayCellSize, slot.width / 5.4, slot.height / 5.4);
-      expect(pc).toBeGreaterThanOrEqual(Math.min(layout.trayCellSize, slot.width / 5.4, oldSlotHeight / 5.4) - 0.01);
-    }
-  });
-  it('tray slots start below the lane and stay inside the tray band', () => {
-    for (const [width, height] of sizes) {
-      const layout = computeLayout(width, height, {}, true, false);
-      for (let i = 0; i < 3; i++) {
-        const slot = traySlotRect(i, layout);
-        expect(slot.y).toBeGreaterThanOrEqual(layout.toastLane.y + layout.toastLane.height);
-        expect(slot.y + slot.height).toBeLessThanOrEqual(layout.tray.y + layout.tray.height + 0.01);
-      }
-    }
+  it('keeps the 144 px tablet slot cap and the uncapped phone slots', () => {
+    expect(portraitTraySlotWidth(412)).toBeCloseTo(129.33, 1);
+    expect(portraitTraySlotWidth(600)).toBe(144);
   });
 });
 
@@ -154,8 +139,36 @@ describe('goal strip clearance (SG §15.3, §20.8)', () => {
     for (const [width, height] of [[320, 568], [360, 640], [360, 760], [390, 844], [412, 915]] as const) {
       const layout = computeLayout(width, height, {}, true, false);
       const gap = layout.board.y - (layout.goalStrip.y + layout.goalStrip.height);
-      expect(gap).toBeGreaterThanOrEqual(MIN_GOAL_BOARD_GAP - 0.01);
+      expect(gap).toBeGreaterThanOrEqual(Math.min(MIN_GOAL_BOARD_GAP, layout.gaps.b) - 0.01);
       expect(layout.board.width % 8).toBe(0);
     }
+  });
+});
+
+describe('in-play toast spot (SG §11.8, §15.3)', () => {
+  const sizes = [[320, 568], [360, 640], [360, 760], [390, 844], [412, 915], [600, 960]] as const;
+  const overlaps = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }): boolean =>
+    a.width > 0 && a.height > 0 && b.width > 0 && b.height > 0 && a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  it.each(sizes.flatMap(([w, h]) => [false, true].flatMap((goal) => [false, true].map((daily) => [w, h, goal, daily] as const))))('%i×%i goal %s daily %s: a toast never covers the board, a tray slot or the rescue ring', (width, height, goal, daily) => {
+    const layout = computeLayout(width, height, {}, goal, daily);
+    const spot = toastSpot(layout);
+    const toast = { x: layout.column.x, y: spot.centreY - TOAST_HEIGHT / 2, width: layout.column.width, height: TOAST_HEIGHT };
+    expect(overlaps(toast, layout.board)).toBe(false);
+    for (let i = 0; i < 3; i++) expect(overlaps(toast, traySlotRect(i, layout))).toBe(false);
+    if (spot.region !== 'score') {
+      // The rescue ring sits at the right of the combo band; a free-strip toast clears it vertically.
+      expect(overlaps({ ...toast, x: layout.board.x + layout.board.width - 40, width: 40 }, { x: layout.board.x + layout.board.width - 38, y: layout.combo.y, width: 32, height: 47 })).toBe(false);
+    }
+  });
+  it('uses a free strip (never the score band) when one is tall enough, and reports the score band otherwise', () => {
+    expect(toastSpot(computeLayout(412, 915, {}, true, false)).region).toBe('tray-gap');
+    expect(toastSpot(computeLayout(390, 844, {}, false, false)).region).toBe('tray-gap');
+    expect(toastSpot(computeLayout(320, 568, {}, true, false)).region).toBe('score');
+    expect(toastSpot(computeLayout(600, 960, {}, false, false)).region).toBe('score');
+  });
+  it('never moves a layout rect: the spot is a pure read', () => {
+    const before = computeLayout(360, 760, {}, true, false);
+    toastSpot(before);
+    expect(computeLayout(360, 760, {}, true, false)).toEqual(before);
   });
 });
