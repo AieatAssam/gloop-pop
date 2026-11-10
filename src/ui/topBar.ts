@@ -3,7 +3,7 @@ import { S } from './strings';
 import { iconMarkup } from './icons';
 
 export interface TopBar { element: HTMLElement; pauseButton: HTMLButtonElement; muteButton: HTMLButtonElement; dailyPill: HTMLElement; tutorialSkip: HTMLButtonElement }
-// spec-note: SG §11.12 only says the mute button is always visible. It also shows the speaker-off icon when nothing is audible (master mute, or Sound effects and Music both off), so the icon matches what the player hears.
+// spec-note: SG §11.12 says the mute button is always visible and when the speaker-off icon shows: when nothing is audible (master mute, or Sound effects and Music both off), so the icon matches what the player hears.
 export function setSpeakerState(button: HTMLButtonElement, audible: boolean): void { button.innerHTML = iconMarkup(audible ? 'sound' : 'soundOff'); }
 export function createTopBar(onMenu: () => void, onPause: () => void, onMute: () => void = () => undefined, onDaily: () => void = () => undefined, onSkip: () => void = () => undefined): TopBar {
   const root = document.createElement('div'); root.className = 'gloop-topbar';

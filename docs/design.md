@@ -463,18 +463,19 @@ owner.github.io/gloop-pop
 - Rewards row: "+142 XP" with the XP bar filling, "+55 coins". Level-ups show "Level 7!" inline.
 - Buttons: "Play again" (primary, large, focused; Daily counted: "Practice"), "Home", and on Daily "Share". Classic also shows a small "Share score" text button. Layout: the primary button is full width; the share actions ("Challenge a friend", "Share image"; Daily: "Share") sit side by side under it as smaller secondary buttons; "Home" is a text button at the bottom, the same as on the Daily result screen.
 - The panel never blocks: "Play again" is clickable as soon as it appears, and reward animations continue in the background of the next run's first frame (they are just toasts).
+- **Short phones:** on phones 800 px tall or less the panel is compact (SG §11.3), so "Play again" and the share buttons fit above the toast space on 320 × 568 and 360 × 640.
 
 ### 13.4 Near-miss messages (honest, computed from real state)
 Evaluate in this order; show the first two that apply:
 
 1. New best: **"New best! {d} more than before."** (d = score − old best)
-2. Within 15% of best (not new): **"Only {d} points short of your best."**
+2. Within 15% below best (not new; a score equal to the best is not short, so this line never shows at a tie): **"Only {d} points short of your best."**
 3. A tray piece needed exactly 1 more empty cell (for some placement, exactly 1 of its cells overlaps a filled cell): **"Your {piece} needed just 1 more empty cell."** where `{piece}` is a plain shape name: "dot", "2-bar", "3-bar", "4-bar", "5-bar", "small square", "big square", "rectangle", "small corner", "L", "T", "S", "big corner".
 4. A row or column was 1 cell from full: **"Row {r} was 1 cell from clearing."** / "Column {c} …" (1-based numbers, top/left = 1).
 5. XP to next level ≤ 25% of the level's cost: **"{x} XP to Level {L}."**
 6. Weekly goal ≥ 80% done: **"{k} more to finish your weekly goal."**
 7. An achievement counter ≥ 80% done (lowest remaining first): **"{k} more {unit} for \"{name}\"."** e.g. "3 more Big Pops for \"Big Pop Pro\"."
-8. Fallback: **"Biggest pop this run: {s} cells."** (or "You cleared {n} lines." if no pop)
+8. Fallback: **"Biggest pop this run: {s} cells."** (or "You cleared {n} lines." if no pop). When s is 1 the copy reads "1 cell", never "1 cells".
 
 ---
 
@@ -644,7 +645,7 @@ Timings are from page load. The ghost hand loop: 400 ms fade in on the tray piec
 HUD and play:
 - Score label (desktop only): "Score"; best: "Best {n}"; combo: "Combo {C} ×{m}" (m with one decimal, "×2.5"; "×10" at cap)
 - Combo lost: "Combo lost"
-- Daily HUD (under the score): "Tray {k} / 30" and the Flavour of the Day chip "Grape pops ×2"
+- Daily HUD (score band, one row each under the score): "Best" (or "New best!"), "Tray {k} / 30" and the Flavour of the Day chip "Grape pops ×2" (SG §11.4)
 - Pop texts: "Pop!" (|P| 1–7), "Big Pop!", "Huge Pop!", "Mega Pop!", "All clear!", "Double!", "Triple!", "Quad!", "{n} lines!" (n ≥ 5)
 - Stage toasts: "Stage 2: bigger pieces", "Stage 3: grape joins in", "Stage 4: even bigger pieces", "Stage 5: bubblegum joins in", "Stage 6: expert pieces"
 - New best during run (first time passing it): "New best!"
@@ -798,7 +799,7 @@ Lifetime: Runs played (per mode), Best score (Classic, Expert), Average score (l
 | R19 No-install web | Static Vite build on GitHub Pages, service worker offline, OG image | architecture §10–11 |
 | R20 Return reasons | Daily, streak with freezes, rotating weekly goal, 3 daily missions that carry over | §10–12, §24.3 |
 | R21 Sound respectful | On by default, starts on first input, mute always visible in the top bar, M key | SG §13, §17 |
-| R22 Performance | Cached board layer, DPR cap 2 with adaptive drop to 1.5, pooled particles, no per-frame shadowBlur | architecture §6 |
+| R22 Performance | Cached board layer, DPR cap 2 with a 1.3 M device-pixel budget, adaptive drop and recovery (SG §9.13.m), pooled particles, no per-frame shadowBlur | architecture §6 |
 | R23 PB chase bar | Gold progress bar under the score; pulses at 80%; label "{d} to beat your best" | §23.1 |
 | R24 First-time moments | One-time banners and coin bonuses for first Big/Huge/Mega Pop, All Clear, combo 5/10 | §23.2 |
 | R25 Signature score effect | Candy-flame score at combo 8+ or 2,000+ point moves | §23.3 |
@@ -896,7 +897,7 @@ owner.github.io/gloop-pop/?beat=8450&f=cherry
 
 ### 23.7 Results screen worth screenshotting (R29, from Vampire Survivors)
 The game-over panel (§13.3) adds a "run highlights" row between the score and the near-miss lines:
-- **Left:** the run's biggest gloop, redrawn from the board snapshot (true shape, flavour, face with a "proud" expression) and fitted in a 96 × 96 box. Under it: "Biggest pop: 18 cells" (or "Biggest gloop: 6 cells" if nothing popped at 8+).
+- **Left:** the run's biggest gloop, redrawn from the board snapshot (true shape, flavour, face with a "proud" expression) and fitted in a 96 × 96 box. Under it: "Biggest pop: 18 cells" (or "Biggest gloop: 6 cells" if nothing popped at 8+). A count of 1 reads "1 cell".
 - **Right:** two stat chips, "Best combo 7" and "Lines 34".
 - The row fades in 150 ms after the panel. It must not delay "Play again", which stays clickable at once (R4).
 - The run summary records `biggestGloop: {cells: [x,y][], flavour}`, captured at the moment of the pop or, if nothing popped, the largest gloop present at game over.
@@ -907,6 +908,7 @@ Not built for launch. The deterministic reducer makes it possible later: store t
 ### 23.9 Seconds-to-fun audit (R2, R3, P2)
 - Tutorial step 1 already shows a board one piece away from a clear (§16.2). Keep it that way. A tutorial board must always show the rule before asking for the move (the Threes lesson).
 - No splash, no cookie banner, no "tap to start". Fonts use `font-display: swap`, and the first frame draws with the fallback font when needed.
+- The Android window background is the sky colour (not the white DayNight default), so no white frame shows before the first WebView paint.
 - The first counted Daily is always offered after the tutorial and the first Classic run, never before: players first learn the loop, then get the shared puzzle.
 
 ### 23.10 Clip moments added to §20
