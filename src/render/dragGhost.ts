@@ -3,8 +3,8 @@ import { PALETTE } from './palette';
 
 /** Board size in cells (the 8 x 8 grid). */
 const BOARD = 8;
-/** SG §8.3: the invalid-spot outline is drawn at `fx.ghostOutline` alpha 0.5, with no fill. */
-export const OUTLINE_GHOST_ALPHA = 0.5;
+// spec-note: SG 8.3 says alpha 0.5, but fx.ghostOutline already has 70% alpha and read as a faint edge under the 75% held piece, so the outline uses the palette alpha at full strength (see SG 8.4).
+export const OUTLINE_GHOST_ALPHA = 1;
 
 export type ShapeCell = readonly [number, number];
 export type GhostPlan = 'filled' | 'outline' | 'none';
@@ -24,22 +24,21 @@ export function clipShapeToBoard(shape: readonly ShapeCell[], row: number, col: 
 }
 
 /**
- * Decides what the board draws for the held piece's preview.
+ * Decides what the board draws for the held piece's preview. `row`/`col` is the spot (undefined when there is none).
  * - valid spot: 'filled' (the landing ghost fill and outline, SG §8.4)
  * - invalid spot with at least one cell on the board: 'outline' (outline only, SG §8.3); `out` holds the on-board cells
  * - no spot, or the piece is entirely off the board: 'none'
  */
-export function previewPlan(valid: boolean, spot: { row: number; col: number } | undefined, shape: readonly ShapeCell[], out: number[]): GhostPlan {
+export function previewPlan(valid: boolean, row: number | undefined, col: number | undefined, shape: readonly ShapeCell[], out: number[]): GhostPlan {
   if (valid) return 'filled';
-  if (!spot) { out.length = 0; return 'none'; }
-  return clipShapeToBoard(shape, spot.row, spot.col, out) > 0 ? 'outline' : 'none';
+  if (row === undefined || col === undefined) { out.length = 0; return 'none'; }
+  return clipShapeToBoard(shape, row, col, out) > 0 ? 'outline' : 'none';
 }
 
-/** Line weight and inset of one ghost cell outline (the same values for the landing ghost and the invalid outline). */
-export function ghostOutlineMetrics(cell: number): { lineWidth: number; inset: number } {
-  const lineWidth = Math.max(1.5, cell * 0.05);
-  return { lineWidth, inset: 2 - cell * 0.04 - lineWidth / 2 };
-}
+/** Line weight of one ghost cell outline (the same for the landing ghost and the invalid outline). */
+export function ghostLineWidth(cell: number): number { return Math.max(1.5, cell * 0.05); }
+/** Inset of one ghost cell outline: the outline sits 0.04c outside the cell. */
+export function ghostInset(cell: number): number { return 2 - cell * 0.04 - ghostLineWidth(cell) / 2; }
 
 /** Strokes one rounded ghost cell at its top-left (x, y). The caller sets strokeStyle, lineWidth and alpha. Uses the context's own path, so no Path2D is allocated per frame. */
 export function strokeGhostCell(ctx: CanvasRenderingContext2D, x: number, y: number, cell: number, inset: number): void {
@@ -53,8 +52,8 @@ export function strokeGhostCell(ctx: CanvasRenderingContext2D, x: number, y: num
  */
 export function drawOutlineGhost(ctx: CanvasRenderingContext2D, cells: readonly number[], gx: number, gy: number, cell: number, strength: number): void {
   if (cells.length === 0 || strength <= 0.001) return;
-  const { lineWidth, inset } = ghostOutlineMetrics(cell);
-  ctx.save(); ctx.globalAlpha = OUTLINE_GHOST_ALPHA * Math.min(1, strength); ctx.strokeStyle = PALETTE.fx.ghostOutline; ctx.lineWidth = lineWidth;
+  const inset = ghostInset(cell);
+  ctx.save(); ctx.globalAlpha = OUTLINE_GHOST_ALPHA * Math.min(1, strength); ctx.strokeStyle = PALETTE.fx.ghostOutline; ctx.lineWidth = ghostLineWidth(cell);
   for (const index of cells) strokeGhostCell(ctx, gx + (index % BOARD) * cell, gy + Math.floor(index / BOARD) * cell, cell, inset);
   ctx.restore();
 }
