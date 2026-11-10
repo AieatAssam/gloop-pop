@@ -213,7 +213,7 @@ jobs:
 
           out=$(jarsigner -verify "$aab" 2>&1) || true
           echo "$out"
-          echo "$out" | grep -q "jar verified" || { echo "::error::AAB signature check failed."; exit 1; }
+          grep -q "jar verified" <<<"$out" || { echo "::error::AAB signature check failed."; exit 1; }
 
           mkdir -p release-out
           cp "$apk" "release-out/gloop-pop-${VERSION_NAME}.apk"
