@@ -13,7 +13,7 @@ import { createPointerInput, pointerDropPoint } from '../input/pointer';
 import { attachKeyboard, gameKeysBlocked } from '../input/keyboard';
 import { createSession, runToResumeOnBoot } from './session';
 import { createGameUi } from '../ui/dom';
-import { createTopBar } from '../ui/topBar';
+import { createTopBar, setSpeakerState } from '../ui/topBar';
 import { S, formatNumber } from '../ui/strings';
 import { SAVE_KEY, loadSave, saveNow, setSaveWritesDisabled } from '../platform/saveStore';
 import { remove } from '../platform/storage';
@@ -143,7 +143,8 @@ export async function bootApp(): Promise<void> {
   let activeChallenge = parseChallenge(window.location.search); let challengeBeaten = false;
   if (activeChallenge) { const clean = new URL(window.location.href); clean.searchParams.delete('beat'); clean.searchParams.delete('f'); history.replaceState(history.state, '', clean); }
   const requestedSkin = query.get('skin'); if (demoFaces && requestedSkin && skinMap[requestedSkin]) setEquippedCosmetics({ theme: save.equipped.theme as keyof typeof PALETTE.theme, skin: skinMap[requestedSkin], popEffect: save.equipped.pop as PopEffectId });
-  const topBar = createTopBar(() => goHome(), () => showPause(), () => { initAudioOnFirstInput(); save.settings.muted = !save.settings.muted; setMasterMuted(save.settings.muted); topBar.muteButton.setAttribute('aria-label', save.settings.muted ? S.unmute : S.mute); persist(true); }, () => start('daily'), skipTutorial); uiRoot.append(topBar.element);
+  const topBar = createTopBar(() => goHome(), () => showPause(), () => { initAudioOnFirstInput(); save.settings.muted = !save.settings.muted; setMasterMuted(save.settings.muted); topBar.muteButton.setAttribute('aria-label', save.settings.muted ? S.unmute : S.mute); syncSpeaker(); persist(true); }, () => start('daily'), skipTutorial); uiRoot.append(topBar.element);
+  const syncSpeaker = (): void => setSpeakerState(topBar.muteButton, !save.settings.muted && (save.settings.sfx || save.settings.music)); syncSpeaker();
   const live = document.createElement('div'); live.className = 'sr-only'; live.setAttribute('aria-live', 'polite'); live.setAttribute('aria-atomic', 'true'); uiRoot.append(live);
   const controlsHint = document.createElement('div'); controlsHint.className = 'controls-hint'; controlsHint.textContent = S.controlsHint; controlsHint.hidden = save.ui.runsFinished >= 3; uiRoot.append(controlsHint);
   const tutorialBubble = createTutorialBubble(skipTutorial); if (tutorialActive) uiRoot.append(tutorialBubble.element);
@@ -248,7 +249,7 @@ export async function bootApp(): Promise<void> {
     lastAudioInputAt = performance.now(); enableAudio();
     if (gameKeysBlocked(event)) return;
     if (['1', '2', '3'].includes(event.key)) { sfx.pickUp(); vibrate('pick', save.settings.haptics); }
-    if (event.key.toLowerCase() === 'm') { save.settings.muted = !save.settings.muted; setMasterMuted(save.settings.muted); topBar.muteButton.setAttribute('aria-label', save.settings.muted ? S.unmute : S.mute); persist(true); }
+    if (event.key.toLowerCase() === 'm') { save.settings.muted = !save.settings.muted; setMasterMuted(save.settings.muted); topBar.muteButton.setAttribute('aria-label', save.settings.muted ? S.unmute : S.mute); syncSpeaker(); persist(true); }
     if (session.state.status === 'over' && router.current === 'play' && [' ', 'Enter', 'r', 'R'].includes(event.key)) {
       const focusedButton = event.target instanceof Element && Boolean(event.target.closest('.adventure-result-panel button'));
       if (session.state.adventure && [' ', 'Enter'].includes(event.key) && focusedButton) return;
@@ -558,7 +559,7 @@ export async function bootApp(): Promise<void> {
     else if (screen === 'stats') { paused = false; homeHost.append(createStatsScreen(save, () => router.back())); }
     else if (screen === 'collection') { paused = false; homeHost.append(createCollectionScreen(save, () => router.back(), (next) => { save = next; syncCosmetics(); backgroundTheme = ''; saveNow(save); })); }
     else if (screen === 'achievements') { paused = false; homeHost.append(createAchievementsScreen(save, () => router.back())); }
-    else if (screen === 'settings') { paused = false; homeHost.append(createSettingsScreen(save, { change: (key, value) => { save.settings[key] = value; if (key === 'sfx') setSfxEnabled(value); else if (key === 'music') setMusicEnabled(value); else if (key === 'cbPatterns') setColourBlindPatterns(value); saveNow(save); }, volume: (key, value, commit) => { save.settings[key] = value; if (key === 'sfxVolume') setEffectsVolume(value); else setMusicVolume(value); if (commit) { saveNow(save); if (key === 'sfxVolume') sfx.place({ cells: 1 }); } }, reduce: (value) => { save.settings.reducedMotion = value; saveNow(save); }, replay: () => { save.tutorialDone = false; save.ui.seenTips = save.ui.seenTips.filter((tip) => tip !== 'tutorialStep4Pending' && tip !== 'tutorialTipPending'); runBest = bestFor(save, 'classic'); session = createSession({ state: tutorialGame(1), best: runBest }); resetRun(); countedDailyThisRun = false; tutorialActive = true; tutorialStep = 1; tutorialTouched = false; tutorialBubbleText = ''; tutorialBubbleUntil = -1; save.inProgress = session.state; if (!tutorialBubble.element.isConnected) uiRoot?.append(tutorialBubble.element); saveNow(save); router.open('play'); }, credits: () => router.open('credits'), reset: () => { save = defaultSave(Date.now()); saveNow(save); window.location.reload(); }, back: () => router.back() })); }
+    else if (screen === 'settings') { paused = false; homeHost.append(createSettingsScreen(save, { change: (key, value) => { save.settings[key] = value; if (key === 'sfx') setSfxEnabled(value); else if (key === 'music') setMusicEnabled(value); else if (key === 'cbPatterns') setColourBlindPatterns(value); if (key === 'sfx' || key === 'music') syncSpeaker(); saveNow(save); }, volume: (key, value, commit) => { save.settings[key] = value; if (key === 'sfxVolume') setEffectsVolume(value); else setMusicVolume(value); if (commit) { saveNow(save); if (key === 'sfxVolume') sfx.place({ cells: 1 }); } }, reduce: (value) => { save.settings.reducedMotion = value; saveNow(save); }, replay: () => { save.tutorialDone = false; save.ui.seenTips = save.ui.seenTips.filter((tip) => tip !== 'tutorialStep4Pending' && tip !== 'tutorialTipPending'); runBest = bestFor(save, 'classic'); session = createSession({ state: tutorialGame(1), best: runBest }); resetRun(); countedDailyThisRun = false; tutorialActive = true; tutorialStep = 1; tutorialTouched = false; tutorialBubbleText = ''; tutorialBubbleUntil = -1; save.inProgress = session.state; if (!tutorialBubble.element.isConnected) uiRoot?.append(tutorialBubble.element); saveNow(save); router.open('play'); }, credits: () => router.open('credits'), reset: () => { save = defaultSave(Date.now()); saveNow(save); window.location.reload(); }, back: () => router.back() })); }
     else if (screen === 'howToPlay') { paused = false; homeHost.append(createHowToPlayScreen(() => router.back())); }
     else if (screen === 'credits') { paused = false; homeHost.append(createCreditsScreen(() => router.back())); }
     else if (screen === 'dailyResult') {
