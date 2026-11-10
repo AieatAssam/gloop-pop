@@ -54,6 +54,7 @@ export function drawHud(ctx: CanvasRenderingContext2D, layout: Layout, state: Ga
     else if (state.combo === 0 && comboLostAt >= 0 && lostAge < 200) { ctx.globalAlpha = Math.max(0, 1 - lostAge / 200); ctx.fillStyle = PALETTE.fx.comboLost; ctx.fillText(S.comboLost, baseX, comboY); ctx.globalAlpha = meterAlpha; }
     else if (state.combo >= 2) { ctx.fillStyle = PALETTE.ui.textPrimary; ctx.fillText(S.combo(state.combo, multiplier), baseX, comboY); }
     const pipY = comboY + 18;
+    comboTextRight = showCombo ? baseX + ctx.measureText(S.combo(state.combo, multiplier)).width : 0;
     if (showCombo) for (let i = 0; i < 3; i += 1) { ctx.globalAlpha = meterAlpha * (i === 2 && state.fuse === 1 ? 0.65 + 0.35 * Math.sin(elapsed / 400 * Math.PI * 2) : 1); ctx.fillStyle = i < state.fuse ? PALETTE.fx.comboTier1 : PALETTE.ui.track; ctx.beginPath(); ctx.arc(baseX + 6 + i * 16, pipY, 5, 0, Math.PI * 2); ctx.fill(); }
   }
   ctx.globalAlpha = 1;
@@ -139,6 +140,8 @@ function drawChaseBar(ctx: CanvasRenderingContext2D, layout: Layout, score: numb
 
 function drawSparkle(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number): void { ctx.beginPath(); ctx.moveTo(x, y - radius); ctx.lineTo(x + radius * 0.28, y - radius * 0.28); ctx.lineTo(x + radius, y); ctx.lineTo(x + radius * 0.28, y + radius * 0.28); ctx.lineTo(x, y + radius); ctx.lineTo(x - radius * 0.28, y + radius * 0.28); ctx.lineTo(x - radius, y); ctx.lineTo(x - radius * 0.28, y - radius * 0.28); ctx.closePath(); ctx.fill(); }
 
+// Right edge of the combo text drawn this frame (portrait), so the rescue label can avoid it on narrow phones.
+let comboTextRight = 0;
 function drawRescue(ctx: CanvasRenderingContext2D, layout: Layout, state: GameState, elapsed: number): void {
   // SG §11.6: a lifebuoy inside a ring of 10 ticks, plus a plain label so new players know what the ring is.
   const x = layout.portrait ? layout.board.x + layout.board.width - 22 : layout.score.x + 120; const y = layout.portrait ? layout.combo.y + 22 : layout.score.y + 330; const radius = layout.portrait ? 16 : 24;
@@ -150,7 +153,11 @@ function drawRescue(ctx: CanvasRenderingContext2D, layout: Layout, state: GameSt
   ctx.restore();
   const label = used ? S.rescueUsed : ready ? S.rescueReady : S.rescueLabel(state.rescue.charge);
   ctx.font = '800 14px Nunito, sans-serif'; ctx.fillStyle = used ? PALETTE.ui.disabledText : ready ? PALETTE.ui.gold : PALETTE.ui.textSecondary;
-  if (layout.portrait) { ctx.textAlign = 'right'; ctx.fillText(label, x - radius - 14, y + 5); } else { ctx.textAlign = 'center'; ctx.fillText(label, x, y + radius + 30); }
+  if (layout.portrait) {
+    // spec-note: On 320 and 360 wide phones the combo text and the rescue label share one row and collided. The label moves down a line when it would overlap the combo text (SG §11.6).
+    const labelRight = x - radius - 14; const labelLeft = labelRight - ctx.measureText(label).width; const sameRow = labelLeft < comboTextRight + 12;
+    ctx.textAlign = 'right'; ctx.fillText(label, labelRight, sameRow ? y + 13 : y + 5);
+  } else { ctx.textAlign = 'center'; ctx.fillText(label, x, y + radius + 30); }
 }
 
 function flameSprite(flavour: number): HTMLCanvasElement | undefined { let sprite = flameSprites.get(flavour); if (sprite || typeof document === 'undefined') return sprite; sprite = document.createElement('canvas'); sprite.width = 32; sprite.height = 48; const context = sprite.getContext('2d'); if (!context) return undefined; const key = (['cherry','orange','lemon','apple','blueberry','grape','bubblegum'] as const)[flavour - 1]!; const gradient = context.createLinearGradient(0, 0, 0, 48); gradient.addColorStop(0, PALETTE.flavour[key].base); gradient.addColorStop(1, PALETTE.ui.gold); context.fillStyle = gradient; context.beginPath(); context.moveTo(16, 48); context.bezierCurveTo(0, 32, 8, 16, 16, 0); context.bezierCurveTo(24, 16, 32, 32, 16, 48); context.fill(); flameSprites.set(flavour, sprite); return sprite; }
