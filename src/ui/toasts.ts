@@ -1,5 +1,7 @@
 // SG §11.8: one visible toast, with the style-guide enter, stay, and exit timing.
 export type ToastAccent = 'coin' | 'xp' | 'gold' | 'streak' | 'freeze';
+/** Modal panels that hide toasts: the `.gloop-overlay` panels (pause, game over, rescue, adult check) and the Adventure level card and result panel (`.adventure-modal-shade`, also used by the result shade). */
+export const TOAST_BLOCKER_SELECTOR = '.gloop-overlay.is-visible, .adventure-modal-shade';
 export interface Toasts { show(message: string, accent?: ToastAccent): void; clear(): void; }
 const HOLD_CHECK_MS = 200;
 /**
