@@ -197,10 +197,12 @@ export async function bootApp(): Promise<void> {
     if (router.current !== 'home') { router.back(); return false; }
     return true;
   });
+  // spec-note: The HUD band layout depends on whether a goal strip and the Daily score rows are shown, so a change in either re-runs the layout.
+  const layoutKey = (): string => `${Boolean(session.state.goals || session.state.adventure)}|${session.state.mode === 'daily'}`;
   const resize = (): void => {
     surface.resize(window.innerWidth, window.innerHeight);
     const { top: safeTop, bottom: safeBottom } = readSafeAreaInsets();
-    layout = computeLayout(surface.width, surface.height, { top: safeTop, bottom: safeBottom }, Boolean(session.state.goals || session.state.adventure)); background.resize(surface.width, surface.height, layout);
+    layout = computeLayout(surface.width, surface.height, { top: safeTop, bottom: safeBottom }, Boolean(session.state.goals || session.state.adventure), session.state.mode === 'daily'); background.resize(surface.width, surface.height, layout);
     boosterBar.update(session.state, layout);
     topBar.element.style.left = `${layout.column.x}px`; topBar.element.style.width = `${layout.column.width}px`; topBar.element.style.top = `${layout.topBar.y}px`; topBar.element.style.height = `${layout.topBar.height}px`;
   };
@@ -273,7 +275,7 @@ export async function bootApp(): Promise<void> {
 
   function apply(action: Action): void {
     if (action.type === 'place') dbg?.clearAudioTrace();
-    const hadGoalStrip = Boolean(session.state.goals || session.state.adventure);
+    const hadLayoutKey = layoutKey();
     if (action.type === 'booster' && action.id === 'shuffle') pointer.cancel();
     if (action.type === 'place' && !shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion())) renderLoop.requestSlowMo(renderLoop.timeScale, 0, 0, 60);
     const filledBeforeResolve = action.type === 'place' ? session.state.board.filter((cell) => cell > 0).length + (PIECES[session.state.tray[action.slot]?.defId ?? -1]?.cells.length ?? 0) : 0;
@@ -283,7 +285,7 @@ export async function bootApp(): Promise<void> {
     boosterBar.update(session.state, layout);
     const crossings = events.filter((event) => event.type === 'targetReached'); if (crossings.length) { const last = crossings[crossings.length - 1]!; if (last.type === 'targetReached') { goalCrossingTarget = last.target; goalCrossingCoins = crossings.length * 5; goalCrossingAt = -1; goalCrossingWorldAt = -1; goalCrossingCuePlayed = false; } }
     if (events.some((event) => event.type === 'miniDone')) { miniDoneAt = renderElapsed; miniDoneWorldAt = currentFrame.worldNow; sfx.chime({ gainDb: -14 }); vibrate('goal', save.settings.haptics); }
-    if (hadGoalStrip !== Boolean(session.state.goals || session.state.adventure)) resize();
+    if (hadLayoutKey !== layoutKey()) resize();
     // spec-note: Keep the pill short; the full mini-goal text appears as a toast on the run's first move.
     if (action.type === 'place' && session.state.moves === 1 && session.state.goals) toast.show(S.miniToast(S.miniText(session.state.goals.mini.id, session.state.goals.mini.flavour)));
     const reduced = shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion());
@@ -330,7 +332,7 @@ export async function bootApp(): Promise<void> {
   function start(mode: ModeId): void {
     const savedForMode = mode === 'daily' ? save.dailyInProgress : save.inProgress?.mode === mode ? save.inProgress : null;
     const resume = session.state.mode === mode && session.state.status === 'playing';
-    if (!resume) { runBest = bestFor(save, mode); session = createSession({ state: savedForMode, best: runBest, mode, goals: save.tutorialDone || debug }); resetRun(); countedDailyThisRun = false; updateCanvasAria(); resize(); }
+    if (!resume) { runBest = bestFor(save, mode); session = createSession({ state: savedForMode, best: runBest, mode, goals: save.tutorialDone || debug }); resetRun(); countedDailyThisRun = false; resize(); updateCanvasAria(); resize(); }
     else if (pauseStartedAt > 0) { runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; }
     paused = false; setAudioPaused(false); if (audioStarted) startMusic(); ui.hide(); router.open('play'); persist(false);
   }

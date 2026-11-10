@@ -5,6 +5,7 @@ import type { GameState } from '../core/types';
 import type { BoardView, DragView, ReturnView } from '../render/boardView';
 import type { Layout } from '../render/layout';
 import { createHeldPiece, resetHeldPiece, updateHeldPiece, type HeldPieceState } from '../render/heldPiece';
+import { traySlotRect } from '../render/boardView';
 
 export interface PointerInput { drag: DragView | undefined; returning: ReturnView | undefined; snapChanged: boolean; placementOrigin: { x: number; y: number } | undefined; pointerMove(x: number, y: number, pointerType: string): void; pointerDown(x: number, y: number, pointerType: string): void; pointerUp(x: number, y: number, pointerType: string): void; advance(realDtMs: number, reduced: boolean): void; cancel(): void }
 export interface PointerCanvasRect { left: number; top: number; width: number; height: number }
@@ -106,8 +107,5 @@ export function createPointerInput(view: BoardView, getLayout: () => Layout, get
     const rect = trayRect(released.slot, layout); const cell = Math.min(layout.trayCellSize, rect.width / 5.4, rect.height / 5.4); const targetX = rect.x + (rect.width - def.w * cell) / 2; const targetY = rect.y + (rect.height - def.h * cell) / 2;
     returning = { slot: released.slot, defId: piece.defId, flavour: piece.flavour, x: released.drawX ?? from.x, y: released.drawY ?? from.y, alpha: 1, scale: released.pickupScale ?? 1, lift: released.lift ?? 1, startX: released.drawX ?? from.x, startY: released.drawY ?? from.y, targetX, targetY, elapsed: 0, startScale: released.pickupScale ?? 1, endScale: cell / layout.cellSize, cell: layout.cellSize };
   }
-  function trayRect(index: number, layout: Layout): { x: number; y: number; width: number; height: number } {
-    if (layout.portrait) { const width = Math.min(122 * layout.height / 844, layout.tray.width / 3 - 4); const gap = 8; const total = width * 3 + gap * 2; return { x: layout.tray.x + (layout.tray.width - total) / 2 + index * (width + gap), y: layout.tray.y + 4, width, height: Math.max(80, layout.tray.height - 8) }; }
-    const width = layout.tray.width; const height = layout.tray.height / 3 - 8; return { x: layout.tray.x, y: layout.tray.y + index * (height + 12), width, height };
-  }
+  function trayRect(index: number, layout: Layout): { x: number; y: number; width: number; height: number } { return traySlotRect(index, layout); }
 }

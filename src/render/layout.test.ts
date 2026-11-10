@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeLayout } from './layout';
+import { traySlotRect } from './boardView';
 
 describe('responsive layout', () => {
   it.each([[390, 844], [1280, 800], [360, 640], [768, 1024], [844, 390]])('fits %i×%i viewport', (width, height) => {
@@ -58,5 +59,38 @@ describe('responsive layout', () => {
       expect(r.y + r.height).toBeLessThanOrEqual(height + 0.5);
     }
     expect(layout.board.x + layout.board.width / 2).toBeCloseTo(width / 2, 0);
+  });
+  // Round 3: short phones give the board the height the HUD does not need, without overlapping any band.
+  const bands = (layout: ReturnType<typeof computeLayout>) => [layout.topBar, layout.score, layout.goalStrip, layout.combo, layout.tray, layout.bottom].filter((r) => r.height > 0);
+  it.each([[320, 568, false, 288], [360, 640, false, 336], [360, 760, false, 336], [390, 844, false, 368], [320, 568, true, 264], [360, 640, true, 320]])('gives the board the largest size that fits at %i×%i (daily %s)', (width, height, daily, minBoard) => {
+    const layout = computeLayout(width, height, {}, false, daily);
+    expect(layout.board.width).toBeGreaterThanOrEqual(minBoard);
+    expect(layout.board.width % 8).toBe(0);
+    // every band is inside the screen and the stack is ordered top to bottom with no overlap
+    expect(layout.topBar.height).toBeGreaterThanOrEqual(52);
+    expect(layout.topBar.y + layout.topBar.height).toBeLessThanOrEqual(layout.score.y + 0.01);
+    expect(layout.score.y + layout.score.height).toBeLessThanOrEqual(layout.board.y + 0.01);
+    expect(layout.board.y + layout.board.height).toBeLessThanOrEqual(layout.combo.y + 0.01);
+    expect(layout.combo.y + layout.combo.height).toBeLessThanOrEqual(layout.tray.y + 0.01);
+    expect(layout.tray.y + layout.tray.height).toBeLessThanOrEqual(layout.bottom.y + 0.01);
+    for (const band of bands(layout)) expect(band.y + band.height).toBeLessThanOrEqual(height + 0.01);
+    expect(layout.gaps.a).toBeGreaterThanOrEqual(0);
+    expect(layout.gaps.c).toBeGreaterThanOrEqual(0);
+    expect(layout.combo.height).toBeGreaterThanOrEqual(40);
+  });
+  it('keeps the Daily score band tall enough for four rows at short sizes', () => {
+    const daily = computeLayout(320, 568, {}, false, true); const classic = computeLayout(320, 568);
+    expect(daily.score.height).toBeGreaterThan(classic.score.height);
+    expect(daily.score.height).toBeGreaterThanOrEqual(80);
+  });
+  it('sizes tray slots from the column width, not the height, and keeps them apart', () => {
+    for (const [width, height] of [[320, 568], [360, 640], [360, 760], [390, 844]] as const) {
+      const layout = computeLayout(width, height);
+      const slot = traySlotRect(0, layout); const last = traySlotRect(2, layout);
+      expect(slot.width).toBeGreaterThanOrEqual(Math.min(122, (width - 24) / 3) - 0.01);
+      expect(last.x + last.width).toBeLessThanOrEqual(width - 4 + 0.01);
+      expect(traySlotRect(1, layout).x).toBeGreaterThanOrEqual(slot.x + slot.width);
+      expect(layout.trayCellSize).toBeLessThanOrEqual(26.4);
+    }
   });
 });
