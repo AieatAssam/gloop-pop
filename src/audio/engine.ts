@@ -142,15 +142,20 @@ export function claimVoice(source: AudioScheduledSourceNode, priority: VoicePrio
   }
   // spec-note: [start, stop) means a voice ending exactly when another starts is free;
   // check the exact peak over the proposed interval so staggered stingers use only live capacity.
+  // spec-note: victims are cut at min(now, startAt). When a caller's startAt is already behind the clock, cutting at
+  // now left the victim overlapping [startAt, stopAt), so the same voice was stolen forever and the page froze.
+  // Normal-pace claims have startAt === now, so their cut time is unchanged. The loop is also capped at one steal per voice.
+  const cutAt = Math.min(at, startAt);
   let peak = peakOverlapCount(voices, startAt, stopAt);
-  while (peak.count >= 24) {
+  for (let steals = 0; peak.count >= 24 && steals < voices.length; steals += 1) {
     const soundingAtPeak = voices.filter((voice) => voice.startAt <= peak.at && peak.at < voice.stopAt);
     const candidate = stealCandidate(soundingAtPeak);
     const victim = soundingAtPeak[candidate];
     if (!victim) return false;
-    stopVoice(victim, at);
+    stopVoice(victim, cutAt);
     peak = peakOverlapCount(voices, startAt, stopAt);
   }
+  if (peak.count >= 24) return false;
   const voice = { source, priority, order: voiceOrder++, startAt, stopAt, ...(gain ? { gain } : {}) };
   voices.push(voice);
   source.addEventListener('ended', () => {
