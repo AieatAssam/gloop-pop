@@ -31,6 +31,11 @@ describe('M14.4 clarity styles', () => {
   it('moves toasts to the bottom over Adventure result and start cards', () => {
     expect(styles).toMatch(/#ui:has\([^)]*adventure-result-shade[^)]*\) \.gloop-toast/);
     expect(styles).toMatch(/#ui:has\([^)]*adventure-modal-shade[^)]*\) \.gloop-toast/);
-    expect(styles).toContain('#ui:has(.gloop-toast):has(.adventure-result-shade) .adventure-result-panel { padding-bottom: 72px; }');
+    expect(styles).toContain('padding-bottom: calc(var(--safe-area-bottom) + 72px); } }');
+    expect(styles).toContain('.adventure-result-shade { padding-top: calc(var(--safe-area-top) + 96px); padding-bottom: calc(var(--safe-area-bottom) + 72px); }');
+  });
+  it('never changes panel layout based on whether a toast is showing', () => {
+    // A toast must not move other elements: no :has(.gloop-toast) rule may touch layout.
+    expect(styles).not.toMatch(/:has\(\.gloop-toast\)[^{]*\{[^}]*(padding|margin|height|top|bottom|transform)/);
   });
 });
