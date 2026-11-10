@@ -407,7 +407,7 @@ export async function bootApp(): Promise<void> {
     const assistMoves = !resumed && assist && assistAvailable(save, level) ? 5 : 0;
     const built = resumed ? null : newAdventureGame(def, { bonusMoves: armed.bonusMoves + assistMoves, boosters: armed.armed, freeShuffle: armed.freeShuffle });
     session = createSession({ state: resumed ?? built!.state, best: 0, mode: 'adventure', goals: false });
-    save.adventure.inProgress = session.state; save.inProgress = null; adventureRecorded = false; adventureReward = { xp: 0, coins: 0, progress: 0, progressMax: 0 };
+    save.adventure.inProgress = session.state; adventureRecorded = false; adventureReward = { xp: 0, coins: 0, progress: 0, progressMax: 0 };
     runBest = 0; resetRun(); runEvents = built ? [...built.events] : []; lastAdventureMoves = session.state.adventure?.movesLeft ?? -1; updateCanvasAria(); resize();
     if (prior) save.adventure.levels[String(level)] = prior;
     homeHost.replaceChildren(); router.open('play'); ui.hide(); persist(true);
@@ -483,7 +483,8 @@ export async function bootApp(): Promise<void> {
       if (streakMilestone(save.streak.current) && !shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion())) renderLoop.scheduleHitStop(currentFrame.boardNow, 70);
       save.profile.xp += 100; save.profile.coins += 30; save.profile.coinsEarned += 30;
     }
-    save.inProgress = null; if (completed.mode === 'daily') save.dailyInProgress = null; controlsHint.hidden = save.ui.runsFinished >= 3;
+    // spec-note: Finishing a run clears only its own saved slot. Finishing a Daily used to wipe the saved Classic run too (and starting an Adventure level did the same), so a Classic run could vanish when another mode ended.
+    if (completed.mode === 'daily') save.dailyInProgress = null; else if (!completed.adventure) save.inProgress = null; controlsHint.hidden = save.ui.runsFinished >= 3;
     if (save.ui.seenTips.includes('tutorialTipPending')) { save.ui.seenTips = save.ui.seenTips.filter((tip) => tip !== 'tutorialTipPending'); tutorialTipForGameOver = true; }
     const achievementResult = grantAchievements(save, { mode: completed.mode, score: completed.score, rescueUsed: completed.rescue.used, closeCall, rescuedLine: session.state.mode !== 'adventure' && rescueClearWithinThree(runEvents), events: runEvents, friendBeaten: challengeBeaten }); save = achievementResult.save;
     const lastLevel = reward.levels[reward.levels.length - 1]; runReward = { xp: reward.xp, coins: reward.coins, progress: Math.max(0, save.profile.xp - totalXpForLevel(save.profile.level)), progressMax: xpToNext(save.profile.level), currentLevel: save.profile.level, level: lastLevel };
