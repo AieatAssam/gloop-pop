@@ -26,6 +26,8 @@ export function canFireSnap(now: number, lastHaptic: number, lastSnap: number): 
 let lastHapticAt = -Infinity; let lastSnapAt = -Infinity; let lastPriority = -1;
 export function vibrate(event: HapticEvent, enabled: boolean, patternOverride?: HapticPattern): void {
   if (!enabled || typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
+  // spec-note: Browsers log an error and skip vibrate before any user gesture; skip it quietly instead (the Android WebView and later taps are unaffected).
+  if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
   const now = typeof performance === 'undefined' ? 0 : performance.now(); const priority = hapticPriority(event);
   if (event === 'snap' && !canFireSnap(now, lastHapticAt, lastSnapAt)) return;
   if (event !== 'snap' && !canFireHaptic(now, lastHapticAt, lastPriority, priority)) return;
