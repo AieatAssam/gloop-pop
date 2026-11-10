@@ -27,7 +27,8 @@ body { color: var(--ui-text-primary); }
 .button:focus-visible, .text-button:focus-visible, .daily-topbar-pill:focus-visible, .mode-card:focus-visible, .settings-toggle:focus-visible, select:focus-visible { outline: 3px solid var(--ui-focus-ring); outline-offset: 3px; }
 .tutorial-topbar-skip { display: none; min-height: 44px; padding: 0 14px; font-size: 16px; pointer-events: auto; }
 .gloop-topbar.is-tutorial .gloop-topbar-actions { display: none; }
-.gloop-topbar.is-tutorial .tutorial-topbar-skip { margin-left: auto; }
+/* spec-note: The tutorial Skip is 44 px tall (the 48 px secondary-button height pushed it to 2 px from the top on 320x568). It now sits 6 px below the safe-area inset. */
+.gloop-topbar.is-tutorial .tutorial-topbar-skip { margin-left: auto; min-height: 44px; align-self: flex-start; margin-top: calc(var(--safe-area-top) + 6px); }
 .tutorial-layer .tutorial-skip { display: none; }
 .tutorial-skip { position: absolute; right: 24px; top: 0; min-height: 44px; pointer-events: auto; }
 .controls-hint { display: none; }
@@ -318,6 +319,8 @@ body { color: var(--ui-text-primary); }
 
 /* Review pass (25 Oct 2026): result-panel hierarchy. One primary action, compact share actions side by side, Home as a text button. */
 .gloop-button-row { width: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 10px; margin-top: -6px; }
+/* spec-note: Two side-by-side buttons: 'Challenge a friend' wrapped to two lines beside one-line 'Share image' at 360 px. The labels use 16 px with 10 px side padding so both sit on one line. */
+.gloop-button-row .button { padding: 0 10px; font-size: 16px; }
 .gloop-modal .button--compact { min-height: 46px; padding: 0 10px; font-size: 16px; line-height: 1.1; }
 .gloop-modal .text-button { min-height: 44px; margin-top: -10px; font-size: 16px; }
 .gloop-result-best.is-new { padding: 5px 16px; border-radius: 999px; color: var(--ui-text-on-primary); background: linear-gradient(var(--ui-primary-top), var(--ui-gold)); box-shadow: 0 3px 0 var(--ui-primary-lip); }
