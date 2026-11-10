@@ -51,14 +51,17 @@ function computePortrait(w: number, h: number, safeTop: number, safeBottom: numb
   const bottomH = 16 * k + safeBottom;
   const goalH = hasGoalStrip ? 30 * k : 0;
   const boardRaw = Math.min(w - 22, 560, h - (372 + (hasGoalStrip ? 30 : 0)) * k - safeTop - safeBottom);
-  const boardSize = Math.max(8, Math.floor(boardRaw / 8) * 8);
+  // spec-note: A transient tiny height during a WebView resize used to give a board of 8 px and a negative cell size, which made roundRect throw and froze the render loop. The board never drops below 24 px, so cells stay at least 1 px.
+  const boardSize = Math.max(24, Math.floor(boardRaw / 8) * 8);
   const cellSize = (boardSize - 16) / 8;
   const boardX = (w - boardSize) / 2;
   const used = topH + scoreH + goalH + comboH + trayH + bottomH + boardSize;
   const leftover = Math.max(0, h - used);
-  const gapA = leftover * 0.25;
-  const gapB = leftover * 0.25;
-  const gapC = leftover * 0.5;
+  // spec-note: With a goal strip, gap B is at least 6 px so the board never touches the pills (on 320x568 the leftover was 6 px and they touched). Taller phones keep the 1 : 1 : 2 split.
+  const gapB = hasGoalStrip ? Math.max(leftover * 0.25, Math.min(6, leftover)) : leftover * 0.25;
+  const others = leftover - gapB;
+  const gapA = others / 3;
+  const gapC = others * 2 / 3;
   const scoreY = topH + gapA;
   const goalY = scoreY + scoreH;
   const boardY = goalY + goalH + gapB;

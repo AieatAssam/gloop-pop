@@ -58,11 +58,13 @@ function pill(ctx: CanvasRenderingContext2D, rect: Rect, text: string, ratio: nu
   if (!reducedMotion && pulseAge >= 0 && pulseAge < 260) { const phase = pulseAge / 130; const scale = phase < 1 ? 1 + 0.15 * easeOutBack(phase) : 1 + 0.15 * (1 - easeOutBack(phase - 1)); ctx.translate(rect.x + rect.width / 2, rect.y + rect.height / 2); ctx.scale(scale, scale); ctx.translate(-rect.x - rect.width / 2, -rect.y - rect.height / 2); }
   ctx.save(); ctx.beginPath(); ctx.roundRect(rect.x, rect.y, rect.width, rect.height, rect.height / 2); ctx.fillStyle = PALETTE.ui.panelSolid; ctx.globalAlpha = 0.82; ctx.fill(); ctx.globalAlpha = 1;
   ctx.save(); ctx.clip(); if (ratio > 0) { ctx.globalAlpha = mini ? 0.4 : 0.35; ctx.fillStyle = accent; ctx.fillRect(rect.x, rect.y, rect.width * Math.min(1, Math.max(0, ratio)), rect.height); ctx.globalAlpha = 1; } ctx.restore();
-  ctx.lineWidth = 2; ctx.strokeStyle = ratio >= 1 ? accent : PALETTE.ui.panelBorder; ctx.stroke(); ctx.fillStyle = PALETTE.ui.textPrimary; ctx.font = `800 ${rect.height < 30 ? 13 : 14}px Nunito, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 2; ctx.strokeStyle = ratio >= 1 ? accent : PALETTE.ui.panelBorder; ctx.stroke(); ctx.fillStyle = PALETTE.ui.textPrimary; ctx.font = `800 ${rect.height < 30 ? 13 : 14}px Nunito, sans-serif`; ctx.textAlign = 'center';
+  // spec-note: The text sits between the icon and the pill end. At 320 px wide it steps down to 11 px rather than running into the icon.
+  const textRoom = rect.width - 42; for (let size = rect.height < 30 ? 13 : 14; size > 11 && ctx.measureText(text).width > textRoom; size -= 1) ctx.font = `800 ${size - 1}px Nunito, sans-serif`; ctx.textBaseline = 'middle';
   const iconX = rect.x + 16; ctx.fillStyle = accent;
   if (mini) { ctx.beginPath(); ctx.arc(iconX, rect.y + rect.height / 2, 5, 0, Math.PI * 2); ctx.strokeStyle = accent; ctx.lineWidth = 1.5; ctx.stroke(); ctx.beginPath(); ctx.arc(iconX, rect.y + rect.height / 2, 2, 0, Math.PI * 2); ctx.fill(); }
   else { ctx.beginPath(); ctx.moveTo(iconX - 5, rect.y + rect.height / 2 + 6); ctx.lineTo(iconX - 5, rect.y + rect.height / 2 - 6); ctx.lineTo(iconX + 5, rect.y + rect.height / 2 - 3); ctx.lineTo(iconX + 1, rect.y + rect.height / 2); ctx.lineTo(iconX + 5, rect.y + rect.height / 2 + 3); ctx.closePath(); ctx.fill(); }
-  const sprite = textSprite(ctx, text, ctx.font); if (sprite) ctx.drawImage(sprite, rect.x + rect.width / 2 + 6 - sprite.width / 2, rect.y + rect.height / 2 + 0.5 - sprite.height / 2);
+  const sprite = textSprite(ctx, text, ctx.font); if (sprite) ctx.drawImage(sprite, rect.x + rect.width / 2 + 9 - sprite.width / 2, rect.y + rect.height / 2 + 0.5 - sprite.height / 2);
   ctx.restore();
   if (!reducedMotion && fxAge >= 0 && fxAge < 450) drawSugarSparkles(ctx, rect, fxAge);
   ctx.restore();
