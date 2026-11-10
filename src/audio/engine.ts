@@ -207,4 +207,8 @@ export function applyAudioSettings(): void {
   graph.musicBus.gain.setTargetAtTime(musicEnabled ? 0.71 * musicVolume ** 2 : 0, now, 0.01);
 }
 
+/** Debug snapshot of what the engine actually does, for the Android QA hook. */
+export function audioEngineSnapshot(): { context: string; muted: boolean; sfxEnabled: boolean; musicEnabled: boolean; sfxVolume: number; musicVolume: number; masterGain: number | null; sfxBusGain: number | null; musicBusGain: number | null; voices: number } {
+  return { context: graph?.context.state ?? 'none', muted, sfxEnabled, musicEnabled, sfxVolume, musicVolume, masterGain: graph ? graph.master.gain.value : null, sfxBusGain: graph ? graph.sfxBus.gain.value : null, musicBusGain: graph ? graph.musicBus.gain.value : null, voices: voices.length };
+}
 export function scheduleAt(): number { return (graph?.context.currentTime ?? 0) + 0.005; }

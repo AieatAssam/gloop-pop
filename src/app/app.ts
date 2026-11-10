@@ -48,7 +48,7 @@ import { androidPlayBackAction, isAndroidRuntime, listenForAndroidBack, shareSit
 type AdventureBundle = typeof import('../ui/adventureBundle');
 type ShareCardData = Parameters<typeof import('../render/shareCard').renderShareCard>[0];
 import { buildChallengeText, flavourName, parseChallenge } from '../core/shareText';
-import { MUTE_KEY, initAudioOnFirstInput, playGameEvents, startMusic, setAudioPaused, setSfxEnabled, setMusicEnabled, setMasterMuted, setEffectsVolume, setMusicVolume, sfx, music, onLand, onImpact, onBurst, onPopFirst, onClimax, audioDebugLine } from '../audio';
+import { audioEngineSnapshot, MUTE_KEY, initAudioOnFirstInput, playGameEvents, startMusic, setAudioPaused, setSfxEnabled, setMusicEnabled, setMasterMuted, setEffectsVolume, setMusicVolume, sfx, music, onLand, onImpact, onBurst, onPopFirst, onClimax, audioDebugLine } from '../audio';
 import { planMove } from '../audio/movePlan';
 import { shouldReduceMotion, devicePrefersReducedMotion, canStartSlowMo } from '../platform/motion';
 import { addComboTicks, hapticPattern, vibrate } from '../platform/haptics';
@@ -196,6 +196,7 @@ export async function bootApp(): Promise<void> {
       trayPoint: trayPointFor,
       dropPoint: dropPointFor,
       toast: (message, accent) => toast.show(message, accent),
+      audio: () => ({ ...audioEngineSnapshot(), music: music.debugState(), saved: { muted: save.settings.muted, sfx: save.settings.sfx, music: save.settings.music, sfxVolume: save.settings.sfxVolume, musicVolume: save.settings.musicVolume } }),
       freshInstall: () => { setSaveWritesDisabled(true); remove(SAVE_KEY); remove(MUTE_KEY); window.location.reload(); },
       place: (slot, row, col) => { if (router.current === 'play' && !paused && session.state.status === 'playing') apply({ type: 'place', slot: slot as 0 | 1 | 2, row, col }); },
       scene: async (query) => {
