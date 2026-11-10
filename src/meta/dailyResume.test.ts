@@ -29,3 +29,27 @@ describe('daily run resume (round 11, item 7)', () => {
     expect(dailyResult(saved, '2026-11-10')?.trays).toEqual([0, 4, 7]);
   });
 });
+
+describe('save written by the previous release (v2026.11.10.8)', () => {
+  it('loads an in-progress Daily run whose per-tray arrays are empty, and records it without losing the score', () => {
+    // The previous release always wrote daily.trayLines and daily.traySpecial as [] and never filled them in.
+    const save = defaultSave();
+    const run = newGame('daily', '2026-11-10').state;
+    save.dailyInProgress = { ...run, traysDealt: 2, moves: 3, score: 120, daily: { ...run.daily!, trayLines: [], traySpecial: [] } };
+    const resumed = dailyRunToResume(save, '2026-11-10');
+    expect(resumed).toBe(save.dailyInProgress);
+    const saved = recordDaily(save, resumed!, '2026-11-10');
+    const result = dailyResult(saved, '2026-11-10');
+    expect(result?.score).toBe(120);
+    // Trays dealt before the upgrade had no stored results, so they record as 0. Nothing else is lost.
+    expect(result?.trays).toEqual([0, 0]);
+  });
+  it('a previous-release Classic run is not touched by the Daily record', () => {
+    const save = defaultSave();
+    save.inProgress = newGame('classic', 'seed-old').state;
+    const run = newGame('daily', '2026-11-10').state;
+    save.dailyInProgress = { ...run, daily: { ...run.daily!, trayLines: [], traySpecial: [] } };
+    const saved = recordDaily(save, save.dailyInProgress, '2026-11-10');
+    expect(saved.inProgress).toEqual(save.inProgress);
+  });
+});
