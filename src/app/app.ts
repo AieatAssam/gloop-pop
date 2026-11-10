@@ -34,7 +34,7 @@ import { createAchievementsScreen } from '../ui/screens/achievements';
 import { grantAchievements } from '../meta/achievements';
 import { PIECES } from '../core/pieces';
 import { dayKeyFromMs, dayNumber, flavourForDay } from '../core/daily';
-import { recordDaily } from '../meta/dailyRecord';
+import { dailyRunToResume, recordDaily } from '../meta/dailyRecord';
 import { streakMilestone, updateStreak } from '../meta/streak';
 import { addWeeklyProgress, claimWeeklyReward, WEEKLY_TARGETS } from '../meta/weeklyGoal';
 import { ACHIEVEMENTS, COUNTER_ACHIEVEMENTS, achievementProgress } from '../meta/achievements';
@@ -119,7 +119,7 @@ export async function bootApp(): Promise<void> {
   setColourBlindPatterns(save.settings.cbPatterns);
   let backgroundTheme = save.equipped.theme; const ui = createGameUi(uiRoot); const toast = createToasts(uiRoot, () => uiRoot.querySelector(TOAST_BLOCKER_SELECTOR) !== null); const homeHost = document.createElement('div'); uiRoot.append(homeHost);
   // spec-note: While the game is paused, the canvas keeps its last frame (the scrimmed board) instead of repainting the same frame 60 times a second. Cleared by resize, which wipes the canvas.
-  let pausedFrameDrawn = false; let paused = false; let pauseLayer: 'none' | 'menu' | 'confirmation' = 'none'; let resumePausedRun = (): void => undefined; let shownScore = 0; let shownStatus = ''; let runRecorded = false; let adventureRecorded = false; let adventureReward = { xp: 0, coins: 0, progress: 0, progressMax: 0 }; let adventureChapterRewards = { chapterDone: false, chapterAllStars: false, chapter: 1 }; let adventureStreakReset = false; let countedDailyThisRun = false; let comboLostAt = -1; let layout: Layout = computeLayout(window.innerWidth, window.innerHeight, {}, Boolean(session.state.goals || session.state.adventure)); let renderElapsed = 0; let gameOverAt = -1; let saveTimer = 0; let runEvents: GameEvent[] = []; let closeCall = false;
+  let pausedFrameDrawn = false; let paused = false; let pauseLayer: 'none' | 'menu' | 'confirmation' = 'none'; let resumePausedRun = (): void => undefined; let shownScore = 0; let shownStatus = ''; let runRecorded = false; let adventureRecorded = false; let adventureReward = { xp: 0, coins: 0, progress: 0, progressMax: 0 }; let adventureChapterRewards = { chapterDone: false, chapterAllStars: false, chapter: 1 }; let adventureStreakReset = false; let countedDailyThisRun = false; let dailyResultDayKey = ''; let comboLostAt = -1; let layout: Layout = computeLayout(window.innerWidth, window.innerHeight, {}, Boolean(session.state.goals || session.state.adventure)); let renderElapsed = 0; let gameOverAt = -1; let saveTimer = 0; let runEvents: GameEvent[] = []; let closeCall = false;
   let lastAdventureMoves = session.state.adventure?.movesLeft ?? -1; let adventureMovesChangedAt = -1;
   let tutorialActive = !debugLevelState && (beginTutorial || savedRun?.mode === 'tutorial' || (!save.tutorialDone && save.ui.seenTips.includes('tutorialStep4Pending'))); let tutorialStep = tutorialActive ? (session.state.mode === 'tutorial' ? Math.min(3, session.state.traysDealt) : 4) : 0; let tutorialTouched = false; let tutorialBubbleText = ''; let tutorialBubbleUntil = -1; let tutorialTipForGameOver = false;
   let candyFlameUntil = -1; let candyFlameFlavour = 1; let discoveryCoins = 0;
@@ -368,7 +368,8 @@ export async function bootApp(): Promise<void> {
     }
   }
   function start(mode: ModeId): void {
-    const savedForMode = mode === 'daily' ? save.dailyInProgress : save.inProgress?.mode === mode ? save.inProgress : null;
+    const savedForMode = mode === 'daily' ? dailyRunToResume(save, dayKeyFromMs(Date.now())) : save.inProgress?.mode === mode ? save.inProgress : null;
+    if (mode === 'daily' && !savedForMode) save.dailyInProgress = null;
     const resume = session.state.mode === mode && session.state.status === 'playing';
     if (!resume) { runBest = bestFor(save, mode); session = createSession({ state: savedForMode, best: runBest, mode, goals: save.tutorialDone || debug }); resetRun(); countedDailyThisRun = false; resize(); updateCanvasAria(); resize(); }
     else if (pauseStartedAt > 0) { runStartedAt += performance.now() - pauseStartedAt; pauseStartedAt = 0; }
@@ -476,8 +477,8 @@ export async function bootApp(): Promise<void> {
     save = recordRun(save, completed); save.stats.boostersUsed += runEvents.filter((event) => event.type === 'boosterUsed').length; if (practiceDaily) { save.daily = dailyBefore; save.stats.dailiesFinished = dailiesBefore; }
     save.stats.timePlayedMs += Math.max(0, Math.floor(performance.now() - runStartedAt)); const reward = rewardsForRun(save, summarizeRun(completed, runEvents), false); save = reward.save;
     if (completed.mode === 'daily' && completed.moves > 0 && !save.daily.records[runDayKey]) {
-      countedDailyThisRun = true;
-      save = recordDaily(save, completed, runDayKey, runEvents); const streakUpdate = updateStreak(save, runDayKey); save = streakUpdate.save; save.daily.records[runDayKey]!.freezeUsed = streakUpdate.freezeUsed;
+      countedDailyThisRun = true; dailyResultDayKey = runDayKey;
+      save = recordDaily(save, completed, runDayKey); const streakUpdate = updateStreak(save, runDayKey); save = streakUpdate.save; save.daily.records[runDayKey]!.freezeUsed = streakUpdate.freezeUsed;
       if (streakUpdate.freezeUsed > 0) toast.show(S.freezeSaved(save.streak.current)); else if (streakUpdate.endedAt > 0) toast.show(S.streakEnded(streakUpdate.endedAt));
       if (streakMilestone(save.streak.current) && !shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion())) renderLoop.scheduleHitStop(currentFrame.boardNow, 70);
       save.profile.xp += 100; save.profile.coins += 30; save.profile.coinsEarned += 30;
@@ -566,7 +567,7 @@ export async function bootApp(): Promise<void> {
     else if (screen === 'howToPlay') { paused = false; homeHost.append(createHowToPlayScreen(() => router.back())); }
     else if (screen === 'credits') { paused = false; homeHost.append(createCreditsScreen(() => router.back())); }
     else if (screen === 'dailyResult') {
-      paused = false; const key = dayKeyFromMs(Date.now()); const result = dailyResult(save, key);
+      paused = false; const key = dailyResultDayKey || dayKeyFromMs(Date.now()); dailyResultDayKey = ''; const result = dailyResult(save, key);
       if (!result) { router.open('home'); return; }
       const remaining = Math.floor(((Math.floor(Date.now() / 86_400_000) + 1) * 86_400_000 - Date.now()) / 1000); const clock = `${String(Math.floor(remaining / 3600)).padStart(2, '0')}:${String(Math.floor(remaining / 60) % 60).padStart(2, '0')}:${String(remaining % 60).padStart(2, '0')}`;
       homeHost.append(createDailyResultScreen(result, dayNumber(key), save.streak.current, result.freezeUsed, () => { const text = buildDailyShareText(dayNumber(key), flavourForDay(key), result, save.streak.current, shareSiteUrl()); void shareText(text, () => toast.show(S.copied)); }, () => {

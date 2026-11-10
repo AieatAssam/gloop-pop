@@ -3,7 +3,7 @@ import { nextInt, sfc32, weightedPick } from './rng';
 import { fullLines, fits, place } from './board';
 import { FAMILY_IDS, PIECES } from './pieces';
 import { weightsForStage } from './stages';
-import type { Flavour, Piece, RngState } from './types';
+import type { Flavour, GameEvent, GameState, Piece, RngState } from './types';
 
 const DAY_MS = 86_400_000;
 const DAILY_EPOCH = 1_792_886_400_000; // 2026-10-25T00:00:00Z
@@ -95,4 +95,25 @@ function drawDailyPiece(rng: RngState, weights: ReturnType<typeof weightsForStag
 }
 function violatesDailyF3(tray: readonly Piece[]): boolean {
   return tray.filter((piece) => PIECES[piece.defId]?.family === 'O3').length > 1;
+}
+
+type DailyState = NonNullable<GameState['daily']>;
+
+/**
+ * Adds this move's cleared lines and special pops to the tray being played. `trayIndex` is `traysDealt - 1` before the
+ * move's deal. The totals live in the state, so a Daily run resumed after a kill still knows every tray's result.
+ */
+// spec-note: 7 (the purple special tray) is an All Clear or a pop of 15 or more gloops in that tray; the rule matches the old event-based record.
+export function addTrayProgress(daily: DailyState, trayIndex: number, events: readonly GameEvent[]): DailyState {
+  if (trayIndex < 0 || trayIndex >= 30) return daily;
+  let lines = 0; let special = false;
+  for (const event of events) {
+    if (event.type === 'cleared') lines += event.rows.length + event.cols.length;
+    if (event.type === 'allClear' || (event.type === 'popped' && event.gloops.some((gloop) => gloop.size >= 15))) special = true;
+  }
+  const trayLines = [...daily.trayLines]; const traySpecial = [...daily.traySpecial];
+  while (trayLines.length <= trayIndex) trayLines.push(0);
+  while (traySpecial.length <= trayIndex) traySpecial.push(false);
+  trayLines[trayIndex] = (trayLines[trayIndex] ?? 0) + lines; traySpecial[trayIndex] = (traySpecial[trayIndex] ?? false) || special;
+  return { ...daily, trayLines, traySpecial };
 }

@@ -1,6 +1,6 @@
 import { cellIndex, fits, makeBoard, place } from './board';
 import { advanceCombo } from './combo';
-import { createDailyDeal, dayNumber, seedStringForDay } from './daily';
+import { addTrayProgress, createDailyDeal, dayNumber, seedStringForDay } from './daily';
 import { dealTray } from './generator';
 import { components } from './gloops';
 import { modeConfig } from './modes';
@@ -102,6 +102,7 @@ export function step(state: GameState, action: Action): { state: GameState; even
     next.rescue.ready = next.rescue.charge >= 10 && !next.rescue.used;
     if (!state.rescue.ready && next.rescue.ready) events.push({ type: 'rescueReady' });
   }
+  if (next.mode === 'daily' && next.daily) next.daily = addTrayProgress(next.daily, next.traysDealt - 1, events);
   if (next.tray.every((item) => item === null)) {
     if (next.mode === 'daily' && next.traysDealt >= 30) {
       next.status = 'over'; events.push({ type: 'gameOver', reason: 'traysDone' });
