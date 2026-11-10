@@ -147,7 +147,7 @@ export async function bootApp(): Promise<void> {
   const syncSpeaker = (): void => setSpeakerState(topBar.muteButton, !save.settings.muted && (save.settings.sfx || save.settings.music)); syncSpeaker();
   const live = document.createElement('div'); live.className = 'sr-only'; live.setAttribute('aria-live', 'polite'); live.setAttribute('aria-atomic', 'true'); uiRoot.append(live);
   const controlsHint = document.createElement('div'); controlsHint.className = 'controls-hint'; controlsHint.textContent = S.controlsHint; controlsHint.hidden = save.ui.runsFinished >= 3; uiRoot.append(controlsHint);
-  const tutorialBubble = createTutorialBubble(skipTutorial); if (tutorialActive) uiRoot.append(tutorialBubble.element);
+  const tutorialBubble = createTutorialBubble(); if (tutorialActive) uiRoot.append(tutorialBubble.element);
   let audioStarted = false;
   let lastAudioInputAt = performance.now(); let audioComboLostAt: number | undefined; let lastMusicState: ReturnType<typeof musicState> | undefined; let musicGameRef = session.state; let fittingPieces = session.state.tray.filter((piece) => piece !== null && fitsAnywhere(session.state.board, piece.defId)).length;
   const enableAudio = (): void => { initAudioOnFirstInput(); if (!audioStarted && router.current === 'play') { startMusic(); audioStarted = true; } };

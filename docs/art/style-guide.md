@@ -814,7 +814,7 @@ Top-centre, below the top bar. Pill, height 40, padding 0 18 px, `ui.panelSolid`
 ### 11.10 Tutorial bubble and ghost hand
 - **Bubble:** rounded rect radius 16, fill `ui.bubble`, text `ui.bubbleText` Nunito 800 18 px, max width 300 px, a tail pointing down to the tray piece. Enters with scale 0.8 → 1, 200 ms `easeOutBack`.
 - **Placement:** normally the bubble's bottom edge is 12 px above the tray top, and its top is at least 72 px from the screen top. On 360 × 640 and 320 × 568 the gap under the board is too small for that without covering the bottom board row, so the bubble moves up over the score band (which has no drop target): its bottom edge is 6 px above the board top, and its top is never above 56 px.
-- **Skip:** 44 px tall. In the play top bar (tutorial mode) it sits at the right end of the bar, 6 px below the safe-area inset.
+- **Skip:** the only Skip control. 44 px tall, in the play top bar (tutorial mode only), at the right end of the bar, 8 px below the safe-area inset and 24 px from the right edge. The bubble has no Skip of its own.
 - **Ghost hand:** a cartoon hand (rounded palm + index finger, drawn with paths) filled `ui.ghostHand` alpha 0.9, outline `face.ink` 2 px, shadow `ui.ghostHandShadow`. Animation loop: fade in 400 ms on the tray piece; press (scale 0.9) 120 ms; drag along a quadratic curve (control point 1.5c above the midpoint) to the target over 900 ms `easeInOutSine`, carrying a translucent copy of the piece (alpha 0.5); hold 300 ms with a press pulse ring; fade 300 ms; wait 500 ms; repeat. Disappears instantly on pointerdown on a piece.
 
 ### 11.11 Achievement badges
