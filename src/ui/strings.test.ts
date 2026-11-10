@@ -81,3 +81,11 @@ describe('player-facing strings', () => {
     expect(S.continueLevel(23)).toBe('Continue level 23'); expect(S.reachLevel(2)).toBe('Reach Level 2');
   });
 });
+
+describe('cell counts read correctly at 1', () => {
+  it('uses the singular for one cell and the plural otherwise', () => {
+    expect(S.biggestGloopStat(1)).toBe('Biggest gloop: 1 cell');
+    expect(S.biggestPopStat(6)).toBe('Biggest pop: 6 cells');
+    expect(S.gameOverFallback(1, 3)).toBe('Biggest pop this run: 1 cell.');
+  });
+});

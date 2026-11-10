@@ -3,6 +3,8 @@ const WEEKLY_TITLES: Readonly<Record<string, string>> = { lines: 'This week: Cle
 const numberFormat = new Intl.NumberFormat('en-US');
 export const formatNumber = (value: number): string => numberFormat.format(value);
 const number = formatNumber;
+// spec-note: The spec gives only plural cell counts. A count of 1 reads "1 cell" so the copy never says "1 cells".
+const cellCount = (n: number): string => n === 1 ? '1 cell' : `${number(n)} cells`;
 // spec-note: The achievement total is 41 per design §23.5 (#41 Rivals), despite §15 and §18 still saying 40.
 export const S = {
   score: 'Score',
@@ -83,7 +85,7 @@ export const S = {
   shapeName: (shape: string): string => ({ dot: 'dot', bar2: '2-bar', bar3: '3-bar', bar4: '4-bar', bar5: '5-bar', squareSmall: 'small square', squareBig: 'big square', rectangle: 'rectangle', cornerSmall: 'small corner', cornerL: 'L', tee: 'T', zigzag: 'S', cornerBig: 'big corner' }[shape] ?? 'piece'),
   achievementUnit: (id: string): string => ACHIEVEMENT_COPY[id]?.unit ?? 'goals',
   dailyRunDone: (day: number): string => `Daily #${number(day)} done`, allTraysPlaced: 'All 30 trays placed!',
-  nearFallback: (pop: number, lines: number): string => pop > 0 ? `Biggest pop this run: ${number(pop)} cells.` : `You cleared ${number(lines)} lines.`,
+  nearFallback: (pop: number, lines: number): string => pop > 0 ? `Biggest pop this run: ${cellCount(pop)}.` : `You cleared ${number(lines)} lines.`,
   targetShort: (distance: number, target: number): string => `${number(distance)} points short of the ${number(target)} target.`,
   pause: 'Paused', resume: 'Resume', restart: 'Restart', home: 'Home', settings: 'Settings',
   // design §16.4 Credits: adult check before links leave the Android app.
@@ -141,7 +143,7 @@ export const S = {
   copied: 'Copied! Paste it anywhere.',
   weeklyDone: 'Weekly goal done! +200 coins, +150 XP, +1 freeze',
   challengeFriend: 'Challenge a friend', youBeatFriend: 'You beat your friend!',
-  biggestPopStat: (n: number): string => `Biggest pop: ${number(n)} cells`, biggestGloopStat: (n: number): string => `Biggest gloop: ${number(n)} cells`,
+  biggestPopStat: (n: number): string => `Biggest pop: ${cellCount(n)}`, biggestGloopStat: (n: number): string => `Biggest gloop: ${cellCount(n)}`,
   bestComboStat: (n: number): string => `Best combo ${number(n)}`, linesStat: (n: number): string => `Lines ${number(n)}`,
   beatFriendBy: (n: number): string => `You beat your friend by ${number(n)}!`, shortOfFriend: (n: number): string => `${number(n)} short of your friend's score.`,
   dailyPillDone: 'Daily ✓', dailyKeepStreak: (day: number, days: number): string => `Daily #${number(day)} · keep your 🔥${number(days)}`,
@@ -170,7 +172,7 @@ export const S = {
   achievementTitle: 'Achievements', achievementProgress: (current: number, total: number): string => `${number(current)} / ${number(total)}`,
   achievementUnlock: (name: string, coins: number): string => `Achievement: ${name} · +${number(coins)} coins`,
   achievementName: (id: string): string => ACHIEVEMENT_COPY[id]?.name ?? id,
-  gameOverFallback: (biggestPop: number, lines: number): string => biggestPop > 0 ? `Biggest pop this run: ${number(biggestPop)} cells.` : `You cleared ${number(lines)} lines.`,
+  gameOverFallback: (biggestPop: number, lines: number): string => biggestPop > 0 ? `Biggest pop this run: ${cellCount(biggestPop)}.` : `You cleared ${number(lines)} lines.`,
 };
 
 export const ACHIEVEMENT_COPY = Object.fromEntries([

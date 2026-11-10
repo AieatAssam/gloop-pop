@@ -50,7 +50,8 @@ export function nearMissMessages(state: GameState, oldBest: number, fallbackBigg
   }
   const facts = nearMissFacts(state); const result: NearMissMessage[] = [];
   if (oldBest > 0 && state.score > oldBest) result.push({ kind: 'newBest', amount: state.score - oldBest });
-  else if (oldBest > 0 && oldBest - state.score <= oldBest * 0.15) result.push({ kind: 'bestShort', amount: oldBest - state.score });
+  // spec-note: A score equal to the best is not short of it, so the "Only 0 points short" line never shows.
+  else if (oldBest > state.score && oldBest - state.score <= oldBest * 0.15) result.push({ kind: 'bestShort', amount: oldBest - state.score });
   if (result.length < 2 && state.goals && (state.mode === 'classic' || state.mode === 'expert')) {
     const target = nextTarget(state.score, state.goals.floor, state.goals.best); const remaining = target - state.score;
     if (remaining > 0 && remaining <= target * 0.1) result.push({ kind: 'targetShort', amount: remaining, target });
