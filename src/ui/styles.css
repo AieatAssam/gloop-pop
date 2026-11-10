@@ -152,7 +152,7 @@ body { color: var(--ui-text-primary); }
 .settings-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .settings-row.volume-row { display: grid; grid-template-columns: minmax(112px, 1fr) 160px 44px; }
 .volume-row > label { line-height: 1.25; }
-.volume-row input[type="range"] { width: 160px; height: 24px; margin: 0; accent-color: var(--ui-toggle-on); background: transparent; }
+.volume-row input[type="range"] { width: 160px; height: 44px; margin: 0; accent-color: var(--ui-toggle-on); background: transparent; }
 .volume-row input[type="range"]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg,var(--ui-toggle-on) 0%,var(--ui-toggle-on) var(--volume-fill,0%),var(--ui-track) var(--volume-fill,0%),var(--ui-track) 100%); }
 .volume-row input[type="range"]::-moz-range-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg,var(--ui-toggle-on) 0%,var(--ui-toggle-on) var(--volume-fill,0%),var(--ui-track) var(--volume-fill,0%),var(--ui-track) 100%); }
 .volume-row input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; margin-top: -8px; border: 0; border-radius: 50%; background: var(--ui-toggle-knob); box-shadow: 0 2px 5px var(--light-shadow); }
@@ -169,7 +169,7 @@ body { color: var(--ui-text-primary); }
 .credits-line a:focus-visible { outline: 3px solid var(--ui-focus-ring); outline-offset: 2px; border-radius: 4px; }
 .credits-note { margin: 8px 0 0; color: var(--ui-text-secondary); font: 700 12px/1.4 Nunito, sans-serif; }
 .settings-row { min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 12px; border: 2px solid var(--ui-panel-border); border-radius: 16px; background: var(--ui-panel-solid); color: var(--ui-text-primary); font: 800 15px/1.2 Nunito, sans-serif; }
-.settings-row select { max-width: 150px; min-height: 40px; padding: 0 10px; border: 2px solid var(--ui-panel-border); border-radius: 12px; color: var(--ui-text-primary); background: var(--ui-panel); font: 800 14px Nunito, sans-serif; }
+.settings-row select { max-width: 150px; min-height: 44px; padding: 0 10px; border: 2px solid var(--ui-panel-border); border-radius: 12px; color: var(--ui-text-primary); background: var(--ui-panel); font: 800 14px Nunito, sans-serif; }
 .settings-toggle { width: 52px; height: 30px; flex: 0 0 52px; position: relative; border: 0; border-radius: 16px; background: var(--ui-toggle-off); cursor: pointer; }
 .settings-toggle[aria-checked="true"] { background: var(--ui-toggle-on); }
 /* Hit area is 44px tall; the visible switch stays 30px. */
