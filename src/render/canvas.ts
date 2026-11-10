@@ -50,6 +50,29 @@ export function createSlowFrameDetector(): { report(frameMs: number): boolean } 
   };
 }
 
+/** spec-note: Recovery step-up. A frame whose average over a streak is at or under 18 ms (about 55 fps or better) counts as fast. */
+export const FAST_MEAN_MS = 18;
+/** spec-note: Recovery needs 20 s of fast frames with no frame over SLOW_FRAME_MS. Each later step-up needs 20 s more (40 s, then 60 s), and at most 2 step-ups happen per session, so a phone that keeps dropping cannot oscillate between DPR levels. */
+export const RECOVER_MS = 20_000;
+export const MAX_RECOVERIES = 2;
+
+/**
+ * Reports true once frames have been fast for `requiredMs`. Any frame over SLOW_FRAME_MS restarts the streak,
+ * and the streak's mean frame time must stay at or under FAST_MEAN_MS.
+ */
+export function createFastFrameDetector(requiredMs: number): { report(frameMs: number): boolean } {
+  let streakMs = 0;
+  let streakFrames = 0;
+  return {
+    report(frameMs) {
+      const value = Math.max(0, frameMs);
+      if (value > SLOW_FRAME_MS) { streakMs = 0; streakFrames = 0; return false; }
+      streakMs += value; streakFrames += 1;
+      return streakMs >= requiredMs && streakMs / streakFrames <= FAST_MEAN_MS;
+    },
+  };
+}
+
 export function createCanvasSurface(canvas: HTMLCanvasElement): CanvasSurface {
   const context = canvas.getContext('2d', { alpha: false });
   if (!context) throw new Error('Canvas2D is not available.');
@@ -57,7 +80,10 @@ export function createCanvasSurface(canvas: HTMLCanvasElement): CanvasSurface {
   let height = 0;
   let dprCap = Math.min(window.devicePixelRatio || 1, 2);
   let dpr = dprCap;
+  const dprMax = dprCap;
+  let recoveries = 0;
   const slow = createSlowFrameDetector();
+  let fast = createFastFrameDetector(RECOVER_MS);
 
   const applySize = (): void => {
     dpr = canvasDpr(dprCap, width, height);
@@ -83,8 +109,18 @@ export function createCanvasSurface(canvas: HTMLCanvasElement): CanvasSurface {
       return true;
     },
     reportFrame(frameMs) {
+      if (dprCap < dprMax && recoveries < MAX_RECOVERIES) {
+        if (fast.report(frameMs)) {
+          recoveries += 1;
+          dprCap = dprCap < 1.5 ? 1.5 : dprMax;
+          fast = createFastFrameDetector(RECOVER_MS * (recoveries + 1));
+          applySize();
+          return true;
+        }
+      }
       if (!slow.report(frameMs) || dprCap <= 1.25) return false;
       dprCap = dprCap > 1.5 ? 1.5 : 1.25;
+      fast = createFastFrameDetector(RECOVER_MS * (recoveries + 1));
       applySize();
       return true;
     },
