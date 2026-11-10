@@ -288,7 +288,7 @@ export async function bootApp(): Promise<void> {
     const elapsedMs = frame.realNow; const dtMs = frame.realDt;
     renderElapsed = elapsedMs;
     // spec-note: The in-play toast is an overlay placed by toastSpot (layout.ts). It reserves no space, so nothing moves when it appears.
-    const spot = toastSpot(layout); uiRoot.style.setProperty('--toast-play-top', `${spot.centreY}px`); uiRoot.style.setProperty('--toast-play-left', `${layout.column.x + layout.column.width / 2}px`);
+    const spot = toastSpot(layout, session.state.mode === 'classic'); uiRoot.style.setProperty('--toast-play-top', `${spot.centreY}px`); uiRoot.style.setProperty('--toast-play-left', `${layout.column.x + layout.column.width / 2}px`);
     const reducedForFrame = shouldReduceMotion(save.settings.reducedMotion, devicePrefersReducedMotion()); background.setReducedMotion(reducedForFrame);
     pointer.advance(frame.realDt, reducedForFrame);
     if (pointer.snapChanged) { sfx.snapTick(); vibrate('snap', save.settings.haptics); }
