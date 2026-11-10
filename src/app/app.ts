@@ -193,6 +193,7 @@ export async function bootApp(): Promise<void> {
       trayPoint: trayPointFor,
       dropPoint: dropPointFor,
       toast: (message, accent) => toast.show(message, accent),
+      freshInstall: () => { save = defaultSave(Date.now()); session.state.status = 'over'; router.replace('home'); saveNow(save); },
       place: (slot, row, col) => { if (router.current === 'play' && !paused && session.state.status === 'playing') apply({ type: 'place', slot: slot as 0 | 1 | 2, row, col }); },
       scene: async (query) => {
         const params = new URLSearchParams(query);
@@ -346,7 +347,7 @@ export async function bootApp(): Promise<void> {
     const text = tutorialStep === 1 && elapsed < 300 ? '' : tutorialStep === 1 ? S.tutorialStep1 : tutorialStep === 2 ? S.tutorialStep2 : tutorialStep === 3 ? S.tutorialStep3 : activeChallenge ? S.tutorialChallenge(activeChallenge.score) : S.tutorialStep4;
     if (tutorialStep === 4 && session.state.moves >= 2) { tutorialBubbleText = ''; tutorialBubble.setText(''); if (session.state.moves >= 3) { tutorialActive = false; save.tutorialDone = true; save.ui.seenTips = save.ui.seenTips.filter((tip) => tip !== 'tutorialStep4Pending'); if (!save.ui.seenTips.includes('tutorialTipPending')) save.ui.seenTips.push('tutorialTipPending'); tutorialBubbleText = S.tutorialEnd; tutorialBubble.setText(tutorialBubbleText); tutorialBubbleUntil = elapsed + 2000; persist(true); } return; }
     if (tutorialBubbleText !== text) { tutorialBubbleText = text; tutorialBubble.setText(text); }
-    tutorialBubble.place(layout.tray.y, layout.tray.x + layout.tray.width / 2);
+    tutorialBubble.place(layout.tray.y, layout.tray.x + layout.tray.width / 2, layout.board.y, layout.board.y + layout.board.height);
   }
   function advanceTutorial(): void {
     const current = session.state;
