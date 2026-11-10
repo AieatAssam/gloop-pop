@@ -306,6 +306,7 @@ pointer/keyboard ─► input model ─► session.dispatch(action)
   - Measured after M14.2 (includes `sw.js`; pre-M14 HEAD baseline **114.80 KB**, measured with the same level-9 all-JS rule): total **112.49 KB**, a **2.31 KB** reduction, player JS **108.33 KB**, entry **95.94 KB**, debug **4.16 KB**. The total is 2.49 KB above the lead soft target and below the 150 KB hard limit.
   - Further target gap: moving rarely used screens behind `import()` would shrink the entry but is not expected to reduce total gzip. Palette colors and exact player text remain required data; the largest remaining candidates are app orchestration and core rendering.
   - Added files: `src/core/levelTable.ts` and `src/app/debugTools.ts`.
+  - Added file (round 6): `src/app/qaHook.ts`, the Android QA hook `window.__gloopQa`. It is imported only when `import.meta.env.VITE_QA_HOOK === 'true'`, which `npm run android:debug` sets. The release build contains no `__gloopQa` string.
 
 ## 8. Save schema, versioning and migration
 - Key: `gloop-pop:save`. Value: JSON. Backup on corrupt: `gloop-pop:save:corrupt:<timestamp>`.
