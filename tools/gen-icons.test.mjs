@@ -15,4 +15,14 @@ describe('generated app icons', () => {
     expect(manifest.icons).toHaveLength(3);
     expect(manifest.icons[2].purpose).toBe('maskable');
   });
+
+  it('writes Android adaptive foregrounds at the launcher densities', async () => {
+    for (const [density, size] of [['mdpi', 108], ['hdpi', 162], ['xhdpi', 216], ['xxhdpi', 324], ['xxxhdpi', 432]]) {
+      const png = await readFile(new URL(`../android/app/src/main/res/mipmap-${density}/ic_launcher_foreground.png`, import.meta.url));
+      expect([...png.subarray(0, 8)]).toEqual([137,80,78,71,13,10,26,10]);
+      expect(png.readUInt32BE(16)).toBe(size);
+      expect(png.readUInt32BE(20)).toBe(size);
+      expect(png.readUInt8(25)).toBe(6);
+    }
+  });
 });

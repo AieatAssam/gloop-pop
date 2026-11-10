@@ -10,7 +10,7 @@ export async function generateIcons(outputDirectory = defaultOutput) {
   const palette = JSON.parse(await readFile(join(root, '..', 'docs/art/palette.json'), 'utf8'));
   await mkdir(outputDirectory, { recursive: true });
   const midnight = palette.theme.midnight;
-  const colors = { sky: midnight.skyTop, skyLow: midnight.skyBottom, ink: palette.face.ink, cherry: palette.flavour.cherry, lemon: palette.flavour.lemon, orange: palette.flavour.orange, blueberry: palette.flavour.blueberry, grape: palette.flavour.grape, bubblegum: palette.flavour.bubblegum, apple: palette.flavour.apple, white: palette.face.eyeWhite, blush: palette.face.blush, mouth: palette.face.mouthInside, gold: palette.ui.gold, topperStem: palette.topper.stem, topperLeaf: palette.topper.leaf, topperLeafDark: palette.topper.leafDark };
+  const colors = iconColours(palette);
   for (const size of [192, 512]) await writePNG(join(outputDirectory, `icon-${size}.png`), renderAppIcon(size, colors, false));
   await writePNG(join(outputDirectory, 'icon-maskable-512.png'), renderAppIcon(512, colors, true));
   await writePNG(join(outputDirectory, 'apple-touch-icon.png'), renderAppIcon(180, colors, false));
@@ -27,10 +27,44 @@ export async function generateIcons(outputDirectory = defaultOutput) {
   }, null, 2)}\n`);
 }
 
-function renderAppIcon(size, c, maskable) {
-  const image = createRaster(size, size); const safe = maskable ? size * .2 : size * .08;
+function iconColours(palette) {
+  const midnight = palette.theme.midnight;
+  return { sky: midnight.skyTop, skyLow: midnight.skyBottom, ink: palette.face.ink, cherry: palette.flavour.cherry, lemon: palette.flavour.lemon, orange: palette.flavour.orange, blueberry: palette.flavour.blueberry, grape: palette.flavour.grape, bubblegum: palette.flavour.bubblegum, apple: palette.flavour.apple, white: palette.face.eyeWhite, blush: palette.face.blush, mouth: palette.face.mouthInside, gold: palette.ui.gold, topperStem: palette.topper.stem, topperLeaf: palette.topper.leaf, topperLeafDark: palette.topper.leafDark };
+}
+
+// Android adaptive icons: the 108 dp foreground is full bleed, but the apple must sit inside the
+// 66 dp safe-zone circle (radius 33 dp) so circle and squircle launcher masks never crop it.
+// Measured at 0.58 the apple reached 32.2 dp from centre, so 0.54 leaves about 3 dp inside the 33 dp circle.
+// spec-note: sized to the circle, not the 66 dp square, because launchers mask to circles and squircles.
+export const ANDROID_APPLE_SCALE = .54;
+export const ANDROID_APPLE_CENTRE_Y = .531;
+const androidDensities = [['mdpi', 108], ['hdpi', 162], ['xhdpi', 216], ['xxhdpi', 324], ['xxxhdpi', 432]];
+
+export async function generateAndroidForeground(resDirectory = join(root, '..', 'android/app/src/main/res')) {
+  const palette = JSON.parse(await readFile(join(root, '..', 'docs/art/palette.json'), 'utf8'));
+  const colors = iconColours(palette);
+  for (const [density, size] of androidDensities) {
+    const directory = join(resDirectory, `mipmap-${density}`);
+    await mkdir(directory, { recursive: true });
+    await writePNG(join(directory, 'ic_launcher_foreground.png'), renderAdaptiveForeground(size, colors));
+  }
+}
+
+function renderAdaptiveForeground(size, c) {
+  const image = createRaster(size, size);
+  paintSky(image, size, c);
+  drawGloop(image, size / 2, size * ANDROID_APPLE_CENTRE_Y, size * ANDROID_APPLE_SCALE, size * ANDROID_APPLE_SCALE, c, 'cherry');
+  return image.encodePNG();
+}
+
+function paintSky(image, size, c) {
   image.linearGradient(0, 0, size, size, [[0,c.sky],[1,c.skyLow]]);
   for (let i = 0; i < 18; i += 1) image.fillCircle((i * 73 + 25) % size, (i * 47 + 12) % size, size * .006 + 1, '#FFFFFF99');
+}
+
+function renderAppIcon(size, c, maskable) {
+  const image = createRaster(size, size); const safe = maskable ? size * .2 : size * .08;
+  paintSky(image, size, c);
   drawGloop(image, size / 2, size * .56, size - 2 * safe, size - 2 * safe, c, 'cherry');
   return image.encodePNG();
 }
@@ -139,4 +173,7 @@ function favicon(c) {
 
 async function writePNG(path, bytes) { await writeFile(path, bytes); }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) await generateIcons();
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  await generateIcons();
+  await generateAndroidForeground();
+}
