@@ -1,5 +1,6 @@
 {
   "appId": "net.aieat.gloop_pop",
   "appName": "Gloop Pop",
+  "backgroundColor": "#1B1036",
   "webDir": "dist"
 }
