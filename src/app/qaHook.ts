@@ -17,6 +17,8 @@ export interface QaDrive {
   audio(): unknown;
   /** Loads a debug scene from a query string such as `demo=feel&scene=line`. Returns false when the scene is unknown. */
   scene(query: string): boolean | Promise<boolean>;
+  /** Debug counts for soak tests: director queues, particles, text sprites and toasts. */
+  stats(): unknown;
 }
 
 export interface QaWindow { __gloopQa?: unknown }
@@ -33,5 +35,6 @@ export function installQaHook(drive: QaDrive): void {
     freshInstall: () => drive.freshInstall(),
     audio: () => drive.audio(),
     scene: (query: string) => Promise.resolve(drive.scene(query)),
+    stats: () => drive.stats(),
   };
 }

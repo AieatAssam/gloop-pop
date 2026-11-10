@@ -193,6 +193,7 @@ export async function bootApp(): Promise<void> {
     void Promise.all([import('./qaHook'), import('./debugTools')]).then(([hook, scenes]) => hook.installQaHook({
       screen: () => router.current,
       layout: () => layout,
+      stats: () => ({ director: director.counts(), toasts: toast.pending(), domNodes: document.getElementsByTagName('*').length, savedBytes: JSON.stringify(save).length }),
       state: snapshotState,
       trayPoint: trayPointFor,
       dropPoint: dropPointFor,
