@@ -16,7 +16,7 @@ import type { MovePlan } from './movePlan';
 import { audioLoadDebug } from './loader';
 import { applyDuck } from './duck';
 
-export { initAudioOnFirstInput, getAudioGraph } from './engine';
+export { initAudioOnFirstInput, getAudioGraph, audioEngineSnapshot } from './engine';
 export { noteFor, PENTATONIC, resetPopSequence, sfx } from './sfx';
 export { MEGA_MIX_DB } from './sfx';
 export { music } from './music';

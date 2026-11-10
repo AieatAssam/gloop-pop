@@ -11,6 +11,8 @@ export interface QaDrive {
   freshInstall(): void;
   /** Places a tray piece without touch input, the same as a completed drag. */
   place(slot: number, row: number, col: number): void;
+  /** Audio engine state: AudioContext state, bus gains, toggles and music state. */
+  audio(): unknown;
   /** Loads a debug scene from a query string such as `demo=feel&scene=line`. Returns false when the scene is unknown. */
   scene(query: string): boolean | Promise<boolean>;
 }
@@ -26,6 +28,7 @@ export function installQaHook(drive: QaDrive): void {
     toast: (message: string, accent: ToastAccent = 'gold') => drive.toast(message, accent),
     place: (slot: number, row: number, col: number) => drive.place(slot, row, col),
     freshInstall: () => drive.freshInstall(),
+    audio: () => drive.audio(),
     scene: (query: string) => Promise.resolve(drive.scene(query)),
   };
 }
