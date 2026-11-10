@@ -95,7 +95,7 @@ export function createBoardView(): BoardView {
         const piece = state.tray[drag.slot]; if (piece) {
           const def = PIECES[piece.defId]!; const pc = c; const px = drag.pointerType === 'touch' ? drag.x - def.w * pc / 2 : drag.x - def.w * pc / 2; const py = drag.pointerType === 'touch' ? drag.y - def.h * pc - c * 1.1 : drag.y - def.h * pc / 2;
           const cell = drag.pointerType === 'keyboard' && drag.row !== undefined && drag.col !== undefined ? { row: drag.row, col: drag.col } : this.cellAt(px, py, layout); const valid = !!cell && canPlace(state, drag.slot, cell.row, cell.col); const previewRow = drag.ghostRow ?? cell?.row; const previewCol = drag.ghostCol ?? cell?.col; const ghostValid = previewRow !== undefined && previewCol !== undefined && canPlace(state, drag.slot, previewRow, previewCol); const preview: Preview | null = ghostValid ? previewPlacement(state, drag.slot, previewRow, previewCol) : null;
-          if (preview && previewRow !== undefined && previewCol !== undefined) { const alpha = drag.ghostAlpha ?? (valid ? 0.32 : 0); if (alpha > 0.001) drawPreview(ctx, state, piece, preview, previewRow, previewCol, gx, gy, c, elapsed, alpha, drag.ghostScale ?? 1); if (!releasedGhost) releasedGhost = { piece, preview, row: previewRow, col: previewCol, alpha, scale: drag.ghostScale ?? 1, at: realNow }; else { releasedGhost.piece = piece; releasedGhost.preview = preview; releasedGhost.row = previewRow; releasedGhost.col = previewCol; releasedGhost.alpha = alpha; releasedGhost.scale = drag.ghostScale ?? 1; releasedGhost.at = realNow; } }
+          if (preview && previewRow !== undefined && previewCol !== undefined) { const alpha = drag.ghostAlpha ?? (valid ? GHOST_ALPHA : 0); if (alpha > 0.001) drawPreview(ctx, state, piece, preview, previewRow, previewCol, gx, gy, c, elapsed, alpha, drag.ghostScale ?? 1); if (!releasedGhost) releasedGhost = { piece, preview, row: previewRow, col: previewCol, alpha, scale: drag.ghostScale ?? 1, at: realNow }; else { releasedGhost.piece = piece; releasedGhost.preview = preview; releasedGhost.row = previewRow; releasedGhost.col = previewCol; releasedGhost.alpha = alpha; releasedGhost.scale = drag.ghostScale ?? 1; releasedGhost.at = realNow; } }
           if (drag.pointerType === 'keyboard') { const targetX = gx + (drag.col ?? 0) * c; const targetY = gy + (drag.row ?? 0) * c; if (!keyboardHeld || keyboardHeld.slot !== drag.slot) keyboardHeld = { slot: drag.slot, x: { x: targetX, v: 0 }, y: { x: targetY, v: 0 } }; const dt = keyboardAt < 0 ? 0 : Math.max(0, Math.min(50, realNow - keyboardAt)) / 1000; keyboardAt = realNow; spring(keyboardHeld.x, targetX, 12, 0.8, dt); spring(keyboardHeld.y, targetY, 12, 0.8, dt); drawPiece(ctx, piece.flavour, def.cells, pc, keyboardHeld.x.x, keyboardHeld.y.x, elapsed, valid ? 'excited' : 'worried', valid ? 0.46 : 0.28); }
           else {
             const drawX = drag.drawX ?? px; const drawY = drag.drawY ?? py; const lift = drag.lift ?? 0;
@@ -226,9 +226,18 @@ export function traySlotRect(index: number, layout: Layout): Rect {
   const width = layout.tray.width; const height = layout.tray.height / 3 - 8; return { x: layout.tray.x, y: layout.tray.y + index * (height + 12), width, height };
 }
 function hasFit(state: GameState, piece: Piece): boolean { return Array.from({ length: 64 }, (_, i) => canPlace(state, state.tray.indexOf(piece), Math.floor(i / 8), i % 8)).some(Boolean); }
+/** SG §8.4: the landing ghost fill alpha. Valid positions only; an invalid position draws no fill. */
+// spec-note: Raised from 0.32 to 0.45 so the landing cells read under the lifted piece, plus a thin outline in the piece's flavour.light (SG §8.4).
+export const GHOST_ALPHA = 0.45;
 function drawPreview(ctx: CanvasRenderingContext2D, _state: GameState, piece: Piece, preview: Preview, row: number, col: number, gx: number, gy: number, c: number, elapsed: number, alpha: number, scale: number): void {
   const def = PIECES[piece.defId]!; const cx = gx + (col + def.w / 2) * c; const cy = gy + (row + def.h / 2) * c;
-  ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.translate(-cx, -cy); ctx.globalAlpha = alpha; for (const [dr, dc] of def.cells) { ctx.fillStyle = PALETTE.flavour[Object.keys(PALETTE.flavour)[piece.flavour - 1] as keyof typeof PALETTE.flavour].base; ctx.fill(roundRectPath(gx + (col + dc) * c + 2, gy + (row + dr) * c + 2, c - 4, c - 4, c * 0.2)); } ctx.restore();
+  const flavour = PALETTE.flavour[Object.keys(PALETTE.flavour)[piece.flavour - 1] as keyof typeof PALETTE.flavour];
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.translate(-cx, -cy); ctx.globalAlpha = alpha; ctx.fillStyle = flavour.base;
+  for (const [dr, dc] of def.cells) ctx.fill(roundRectPath(gx + (col + dc) * c + 2, gy + (row + dr) * c + 2, c - 4, c - 4, c * 0.2));
+  // The outline sits just outside each landing cell, so it still shows when the lifted piece covers the cells.
+  const lineWidth = Math.max(1.5, c * 0.05); ctx.globalAlpha = Math.min(1, alpha * 1.8); ctx.strokeStyle = flavour.light; ctx.lineWidth = lineWidth;
+  for (const [dr, dc] of def.cells) ctx.stroke(roundRectPath(gx + (col + dc) * c + 2 - lineWidth / 2, gy + (row + dr) * c + 2 - lineWidth / 2, c - 4 + lineWidth, c - 4 + lineWidth, c * 0.2));
+  ctx.restore();
   ctx.save(); ctx.globalAlpha = alpha * (0.24 + 0.1 * Math.sin(elapsed / 95)); ctx.fillStyle = PALETTE.fx.lineGlow;
   for (const r of preview.rows) ctx.fillRect(gx, gy + r * c, c * 8, c); for (const co of preview.cols) ctx.fillRect(gx + co * c, gy, c, c * 8); ctx.restore();
   ctx.save(); ctx.globalAlpha = 0.5 + 0.5 * Math.sin(elapsed / 80); ctx.strokeStyle = PALETTE.fx.popPreview; ctx.lineWidth = c * 0.07;

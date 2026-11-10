@@ -5,7 +5,7 @@ import type { GameState } from '../core/types';
 import type { BoardView, DragView, ReturnView } from '../render/boardView';
 import type { Layout } from '../render/layout';
 import { createHeldPiece, resetHeldPiece, updateHeldPiece, type HeldPieceState } from '../render/heldPiece';
-import { traySlotRect } from '../render/boardView';
+import { GHOST_ALPHA, traySlotRect } from '../render/boardView';
 
 export interface PointerInput { drag: DragView | undefined; returning: ReturnView | undefined; snapChanged: boolean; placementOrigin: { x: number; y: number } | undefined; pointerMove(x: number, y: number, pointerType: string): void; pointerDown(x: number, y: number, pointerType: string): void; pointerUp(x: number, y: number, pointerType: string): void; advance(realDtMs: number, reduced: boolean): void; cancel(): void }
 export interface PointerCanvasRect { left: number; top: number; width: number; height: number }
@@ -69,7 +69,7 @@ export function createPointerInput(view: BoardView, getLayout: () => Layout, get
       let magnetX = 0; let magnetY = 0;
       if (snap && !reduced) { magnetX = clamp((gx + snap.col * c - target.x) * 0.15, c * -0.12, c * 0.12); magnetY = clamp((gy + snap.row * c - target.y) * 0.15, c * -0.12, c * 0.12); }
       const valid = snap !== undefined;
-      if (drag.ghostValid !== valid) { drag.ghostTargetAlpha = valid ? 0.32 : 0; drag.ghostFadeLeft = valid ? 80 : 60; drag.ghostValid = valid; }
+      if (drag.ghostValid !== valid) { drag.ghostTargetAlpha = valid ? GHOST_ALPHA : 0; drag.ghostFadeLeft = valid ? 80 : 60; drag.ghostValid = valid; }
       const fadeLeft = drag.ghostFadeLeft ?? 0; const ghostAlpha = drag.ghostAlpha ?? 0;
       if (fadeLeft > 0) { const step = Math.min(fadeLeft, realDtMs); drag.ghostAlpha = ghostAlpha + ((drag.ghostTargetAlpha ?? 0) - ghostAlpha) * step / fadeLeft; drag.ghostFadeLeft = fadeLeft - step; }
       if (snap && (drag.row !== snap.row || drag.col !== snap.col)) {

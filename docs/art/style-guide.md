@@ -227,7 +227,7 @@ Board grid top-left = `(bx, by)`; cell (r, c) occupies `[bx + c·c, by + r·c]` 
 
 ### 8.4 Ghost and previews (where the twist teaches itself)
 While the snap target is valid:
-1. **Ghost:** the target cells get the piece silhouette filled with `flavour.base` at alpha 0.32 and outlined with `fx.ghostOutline` 0.04c.
+1. **Ghost:** the target cells get the piece silhouette filled with `flavour.base` at alpha 0.45 (`GHOST_ALPHA`), and outlined with the piece's `flavour.light` at alpha 0.8 (0.04c wide, at least 1 px), so the landing cells read on every theme. An invalid target draws no fill.
 2. **Line preview:** every row/column that would clear: its cells (existing gloops and ghost cells) brighten with an additive `fx.lineGlow` overlay at alpha 0.28, pulsing 0.18–0.34 over 600 ms.
 3. **Pop preview:** every gloop that would pop (per design §3.5) gets a 0.07c `fx.popPreview` outline drawn 0.04c outside its silhouette, pulsing alpha 0.5–1.0 over 500 ms, and switches to the **excited** face. A small label "+{n}" in 16 px Baloo 2 appears at the gloop's face showing its extra popped cells count. This is how players discover the twist without reading.
 4. **Merge preview:** if the piece would join an existing same-flavour gloop (no clear), both get a 0.04c outline in `flavour.light` (alpha 0.7) and the existing gloop looks at the piece.
