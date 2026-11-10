@@ -367,5 +367,5 @@ body { color: var(--ui-text-primary); }
 @media (max-height: 800px) { .daily-result-panel { gap: 10px; } }
 /* Round 3: result panels fit on 320x568 and 360x640 without scrolling past the actions. */
 @media (max-height: 700px) { .gloop-modal { gap: 10px; } .gloop-modal h1 { font-size: 26px; } .gloop-result-score { font-size: 46px; } .gloop-rewards { gap: 4px; } .gloop-result-note { font-size: 14px; } }
-/* spec-note: On phones 700 px tall or less, the game-over panel is 16 px inside and its gloop picture is 72 px, so "Play again" and the share row fit above the toast space without scrolling on 320x568 and 360x640. */
-@media (max-height: 700px) { .gloop-modal--game-over { padding: 16px 20px; gap: 8px; } .gloop-modal--game-over .run-highlight-gloop canvas { width: 72px; height: 72px; } }
+/* spec-note: On phones 800 px tall or less (a real 360x760 game over also ran off the screen with three mission and near-miss lines), the game-over panel is 16 px inside and its gloop picture is 72 px, so "Play again" and the share row fit above the toast space without scrolling on 320x568 and 360x640. */
+@media (max-height: 800px) { .gloop-modal--game-over { padding: 16px 20px; gap: 8px; } .gloop-modal--game-over .run-highlight-gloop canvas { width: 72px; height: 72px; } }
